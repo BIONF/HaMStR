@@ -5,3 +5,6 @@ This repository does not contain required databases and data directories.
     
 Databases, respective tools, and directories with data can be downloaded from here:
 www_dot_to_be_named_dot_de
+
+Please download the provided data archive (data_HaMStR.tar.gz)
+into your HaMStR directory and run the bash script install_data.sh
