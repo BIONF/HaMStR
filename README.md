@@ -12,4 +12,4 @@ Change into your HaMStR directory and run the bash script install_data.sh
 
 user@machine:~/path/to/HaMStR$ ./bin/install_data.sh
 
-If everythings work out fine your able to run HaMStR on your machine.
+If everythings work out fine you are able to run HaMStR on your machine.
