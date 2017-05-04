@@ -4,6 +4,7 @@ This repository does not contain required databases and data directories.
     Directories: blast_dir, genome_dir, weight_dir
     
 Databases, respective tools, and directories with data can be downloaded from here:
+
 https://applbio.biologie.uni-frankfurt.de/hamstr_qfo/data_HaMStR.tar
 
 How to install the provided data (data_HaMStR.tar) automatically: 
