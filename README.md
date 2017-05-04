@@ -4,7 +4,11 @@ This repository does not contain required databases and data directories.
     Directories: blast_dir, genome_dir, weight_dir
     
 Databases, respective tools, and directories with data can be downloaded from here:
-www_dot_to_be_named_dot_de
+https://applbio.biologie.uni-frankfurt.de/hamstr_qfo/data_HaMStR.tar
 
-Please download the provided data archive (data_HaMStR.tar)
-into your HaMStR directory and run the bash script install_data.sh
+How to install the provided data (data_HaMStR.tar) automatically: 
+Change into your HaMStR directory and run the bash script install_data.sh
+
+user@machine:~/path/to/HaMStR$ ./bin/install_data.sh
+
+If everythings work out fine your able to run HaMStR on your machine.
