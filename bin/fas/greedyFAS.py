@@ -13,7 +13,7 @@ from copy import deepcopy
 from multiprocessing import Pool
 
 # version
-version = 1
+version = "1.0.1"
 tmp = inspect.getfile(inspect.currentframe())
 expath = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
 tmp = ""
