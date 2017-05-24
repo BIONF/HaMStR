@@ -110,9 +110,9 @@ if options.weight_constraints != 0:
 # logging into stdout with time stamp:
 #logging.basicConfig(level=loglevel, format='%(asctime)s - %(levelname)s - %(message)s')
 # logging into file with line number:
-#logging.basicConfig(filename='testlog.log', filemode='w', level=loglevel, format='%(lineno)s - %(levelname)s - %(message)s')
+logging.basicConfig(filename='testlog.log', filemode='w', level=loglevel, format='%(lineno)s - %(levelname)s - %(message)s')
 # logging into stdout with line number:
-logging.basicConfig(level=loglevel, format='%(lineno)s - %(levelname)s - %(message)s')
+#logging.basicConfig(level=loglevel, format='%(lineno)s - %(levelname)s - %(message)s')
 
 logging.info('greedyFAS.py started with options: entire='+str(entire)+', one_vs_all='+str(one_against_all)+', priority_threshold='+str(priority_threshold)+', log_level='+str(loglevel))
 logging.info('score_weights are set to: '+ str(score_weights[0]) +" "+ str(score_weights[1]) +" "+ str(score_weights[2]))
@@ -257,7 +257,7 @@ def fc_path():
                     # SINGLE(query) <--VS-- SET(search)
                     #case M2.1: empty(query) 
                     if int(len(all_single_paths)) == 0:
-                        logging.warning("No paths (pfam or smart annotations) in query (single).")
+                        logging.warning("CASE M2.1: No paths (pfam or smart annotations) in query (single).")
                         
                         search_features = {}    # set in su_search_protein
                         a_s_f = {}              # set in su_search_protein
@@ -267,12 +267,14 @@ def fc_path():
                         # case M2.1.1: empty(query)-empty(search)
                         # should be the best fix independent from weight
                         if int(len(search_features)) == 0:
+                            logging.warning("CASE M2.1.1: empty vs empty.")
                             score_w = sf_entire_calc_score(a_s_f.keys(),a_q_f.keys())
                             path = a_s_f.keys()
                             query_architecture = a_q_f.keys()
                             mode[protein] = 2
                         else:
                             # case M2.1.2: empty(query)-graph(search)
+                            logging.warning("CASE M2.1.2: empty vs graph.")
                             tmp_path_score = pb_entire_main_nongreedy(search_protein, protein, [])
                             path = tmp_path_score[0][0]
                             score_w = tmp_path_score[0][1]
@@ -285,14 +287,17 @@ def fc_path():
                     # handle all paths
                     # case M2.2: graph(query)
                     for query_path in all_single_paths:
+                        logging.warning("CASE M2.2: graph.")
                         pathcount += 1
                         search_features = {}
+                        a_s_f = {}
                         search_protein = su_search_protein(protein, 1)
                         logging.warning("search_features(p): "+str(len(search_features))+" for: "+str(protein))
                         logging.debug("query_path No."+str(pathcount)+": "+str(query_path))
                         
                         #case M2.2.1: graph(query)-empty(search)
                         if int(len(search_features)) == 0:
+                            logging.warning("CASE M2.2.1: graph vs empty.")
                             #special case: protein with no pfam or smart domains
                             # get score for a_s_f and query_path directly
                             path = a_s_f.keys()
@@ -302,6 +307,7 @@ def fc_path():
                         else:
                             #case M2.2.2 graph(query)-graph(search)
                             # regular traversal of graph based on search_protein
+                            logging.warning("CASE M2.2.2: graph vs graph.")
                             tmp_path_score = pb_entire_main_nongreedy(search_protein, protein, query_path)
                             path = tmp_path_score[0][0]
                             score_w = tmp_path_score[0][1]
@@ -339,8 +345,8 @@ def fc_path():
                         else:
                             best_entire_paths[protein]["query_protein"].append((a_q_f[feature][0], a_q_f[feature][1], a_q_f[feature][2], a_q_f[feature][3]))
 
-                    logging.warning("Best_entire_searchpaths: "+str(best_entire_paths[protein]["search_protein"]))
-                    logging.warning("Best_entire_querypaths: "+str(best_entire_paths[protein]["query_protein"]))
+                    logging.warning("Best_entire_searchpaths: "+str(best_entire_paths[protein]["search_protein"])+"\n\tProtein: "+protein)
+                    logging.warning("Best_entire_querypaths: "+str(best_entire_paths[protein]["query_protein"])+"\n\tProtein: "+protein)
                    
             
             ################################################################
@@ -661,9 +667,9 @@ def fc_normal():
                     quit()
                         
                 elif entire == 1:
-                    logging.warning("Best_entire_searchpaths: "+str(best_entire_paths[protein]["search_protein"]))
-                    logging.warning("Best_entire_querypaths: "+str(best_entire_paths[protein]["query_protein"]))
-                    logging.warning("Best_entire_fixtures: "+str(best_entire_fixtures[protein]))
+                    logging.warning("Best_entire_searchpaths: "+str(best_entire_paths[protein]["search_protein"])+"\n\tProtein: "+protein)
+                    logging.warning("Best_entire_querypaths: "+str(best_entire_paths[protein]["query_protein"])+"\n\tProtein: "+protein)
+                    logging.warning("Best_entire_fixtures: "+str(best_entire_fixtures[protein])+"\n\tProtein: "+protein)
 
 		if entire == 0:
                     # erroneous
