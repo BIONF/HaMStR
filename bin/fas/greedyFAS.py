@@ -110,7 +110,7 @@ if options.weight_constraints != 0:
 # logging into stdout with time stamp:
 #logging.basicConfig(level=loglevel, format='%(asctime)s - %(levelname)s - %(message)s')
 # logging into file with line number:
-logging.basicConfig(filename='testlog.log', filemode='w', level=loglevel, format='%(lineno)s - %(levelname)s - %(message)s')
+logging.basicConfig(filename='logfile.log', filemode='w', level=loglevel, format='%(lineno)s - %(levelname)s - %(message)s')
 # logging into stdout with line number:
 #logging.basicConfig(level=loglevel, format='%(lineno)s - %(levelname)s - %(message)s')
 
