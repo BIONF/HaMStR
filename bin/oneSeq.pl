@@ -63,10 +63,6 @@ use File::Basename;
 ##                                      -
 
 ############ NOTES
-=TODO
-    ToDo:
-        - gbk file support
-=cut
 
 ############ General settings
 my $version = 'oneSeq v.1.0.1';
@@ -109,7 +105,7 @@ my $outputfmt = 'blastxml';
 my $eval_blast_query = 0.0001;
 my $filter = 'T';
 my $annotation_prog = 'annotation.pl';
-my $fas_prog = 'greedyFAS.py'; ## Baustelle set via configure
+my $fas_prog = 'greedyFAS.py';
 my $profile_prog = 'parseOneSeq.pl';
 my $architecture_prog = 'parseArchitecture.pl';
 ##### ublast Baustelle: not implemented yet
@@ -118,9 +114,9 @@ my $ublast = 0;
 my $accel = 0.8;
 
 ############ database connection details
-my $dbname="172.17.100.150";
-my $username="ingo";
-my $pw="eraserhead";
+my $dbname="123.45.678.910";	#ID adress if DB server
+my $username="username";	#your user name
+my $pw="password";		#your pw
 my $database = "DBI:mysql:database=dbdmpng;host=$dbname";
 my $getThemAll = 0;
 my $updateBlast_dir = 0;
