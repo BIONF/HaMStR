@@ -56,7 +56,7 @@ $sedprog -i -e "s|\#\!.*|\#\!$path2perl|g" hamstr.pl;
 $sedprog -i -e "s|\#\!.*|\#\!$path2perl|g" nentferner.pl;
 $sedprog -i -e "s|\#\!.*|\#\!$path2perl|g" translate.pl;
 $sedprog -i -e "s|\#\!.*|\#\!$path2perl|g" oneSeq.pl;
-$sedprog -i -e "s|\#\!.*|\#\!$path2perl|g" multifasta2oneSeq.pl;
+#$sedprog -i -e "s|\#\!.*|\#\!$path2perl|g" multifasta2oneSeq.pl;
 
 ## get the path to the perl modules
 path2dir=`pwd |$sedprog -e 's/\(.*\)\/.*/\1/'`;
