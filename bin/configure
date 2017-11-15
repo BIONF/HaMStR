@@ -201,5 +201,5 @@ else
         echo "All tests succeeded, HaMStR should be ready to run";
         $sedprog -i -e 's/my $configure = .*/my $configure = 1;/' hamstr.pl;
         $sedprog -i -e 's/my $configure = .*/my $configure = 1;/' oneSeq.pl;
-        $sedprog -i -e 's/my $configure = .*/my $configure = 1;/' multifasta2oneSeq.pl;
+       # $sedprog -i -e 's/my $configure = .*/my $configure = 1;/' multifasta2oneSeq.pl;
 fi;

@@ -38,7 +38,7 @@ $path =~ s/\/$//;
 
 sub usage {
     my $msg = shift;
-    print "example: perl parseOneSeq.pl -i oneseqOutFolder -o output.matrix\n";
+    print "example: perl parseOneSeq.pl -i oneseqOutput -o output.matrix\n";
     print "-i\thamstr oneseq output file (*.extended.profile)\n";
     print "-o\tOutput file\n";
     die $msg."\n";
@@ -62,6 +62,7 @@ my %taxaList;	# list of all taxa
 my %allGenes;	# list of all genes
 my %fas0;	# $fas0{$protID#$taxonID} = FAS_score
 my %fas1;	# $fas1{$protID#$taxonID} = FAS_score
+my $countercheck;
 
 foreach my $file(@allOutFiles){
 	open(IN,$file) || die "Cannot open $file!\n";
@@ -78,8 +79,13 @@ foreach my $file(@allOutFiles){
 		my $geneID = $tmp[0];
 		my $fas0 = "NA";
 		my $fas1 = "NA";
-		if($tmp[4]){ $fas1 = $tmp[4];}
-		if($tmp[5]){ $fas0 = $tmp[5];}
+		if($tmp[4]){
+                    $fas1 = $tmp[4];
+                }
+		if($tmp[5]){
+                    $fas0 = $tmp[5];
+                    $countercheck = 1;
+                }
 		
 		my @hit = split(/\@/,$tmp[1]);
 		my $taxonID = $hit[1];
@@ -120,23 +126,23 @@ foreach my $file(@allOutFiles){
 }
 
 ### print output
-open(OUT0,">".$out."_0.matrix") || die "Cannot create $out\_0.matrix!\n";
+if ($countercheck){open(OUT0,">".$out."_0.matrix") || die "Cannot create $out\_0.matrix!\n";}
 open(OUT1,">".$out."_1.matrix") || die "Cannot create $out\_1.matrix!\n";
 
 my @allTaxa = sort keys %taxaList;
 my $allTaxa = join("\t",@allTaxa);
-print OUT0 "geneID\t$allTaxa\n";
+if ($countercheck){print OUT0 "geneID\t$allTaxa\n"};
 print OUT1 "geneID\t$allTaxa\n";
 
 foreach my $gene(sort keys %allGenes){
-	print OUT0 $gene;
+	if ($countercheck){print OUT0 $gene;}
 	print OUT1 $gene;
 	
 	foreach my $taxon(sort @allTaxa){
 		if($fas0{"$gene#$taxon"}){
-			print OUT0 "\t",$fas0{"$gene#$taxon"};
+			if ($countercheck){print OUT0 "\t",$fas0{"$gene#$taxon"};}
 		} else {
-			print OUT0 "\t","NA";
+			if ($countercheck){print OUT0 "\t","NA";}
 		}
 		
 		if($fas1{"$gene#$taxon"}){
@@ -145,12 +151,13 @@ foreach my $gene(sort keys %allGenes){
 			print OUT1 "\t","NA";
 		}
 	}
-	print OUT0 "\n";
+	if ($countercheck){print OUT0 "\n";}
 	print OUT1 "\n";
 }
-close (OUT0);
+if ($countercheck){close (OUT0);}
 close (OUT1);
 
-print "Finished! Check output file\n\t",$out,"_0.matrix\n\t",$out,"_1.matrix\n";
+print "Finished! Check output file\n\t",$out,"_1.matrix\n";
+if ($countercheck){print "\t".$out,"_0.matrix\n";}
 
 exit;

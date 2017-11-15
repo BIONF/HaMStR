@@ -334,8 +334,8 @@ sub smart{
     my @content = ();
     chdir($smartPATH);
 
-    require($SMART_tool);               # require: making subroutins from smart_scan.pl availible.
-    my $outName = main_smart($fasta, $qORp);	# calling the main subroutine from smart_scan.pl due to previous call of require("smart_scan.pl")
+    require($smartPATH."/".$SMART_tool);           # require: making subroutins from smart_scan.pl availible.
+    my $outName = main_smart($fasta, $qORp);        
 
     if(-e $OutFilesPATH."/".$outName){
         open(SMART, $OutFilesPATH."/".$outName);
@@ -439,8 +439,8 @@ sub pfam {
 
     chdir($PfamPATH);
 
-    require($PFAM_tool);
-    my $outName = main($fasta,$qORp);	# call main from pfam_scan.pl (availible due to previous usage of require(pfam_scan.pl) -> pfam_scan_taxa.out
+    require($PfamPATH."/".$PFAM_tool);
+    my $outName = main($fasta,$qORp);	
 
     open(PFAM, $OutFilesPATH."/".$outName) or print("ERROR: could not find or open $outName. $!\n $OutFilesPATH/$outName\n");
     my @content = <PFAM>;

@@ -22,7 +22,7 @@ use Env qw(ONESEQDIR);
 #######
 #SETUP
 #######
-my $version = 1.0;
+my $version = 1.1;
 my $configure = 1;
 my $useIDasis = 1;
 if ($configure == 0){
@@ -42,6 +42,7 @@ my $groupID;
 my $outFile;
 my $help;
 my $getversion;
+my $debug = 0;
 
 ##### Command line options
 GetOptions ("h"             => \$help,
@@ -63,7 +64,7 @@ if ($getversion){
 
 sub usage {
     my $msg = shift;
-    print "example: perl parseArchitecture.pl -i xmlOutput.fas -p groupID.extended.profile -g groupID -o output.file\n";
+    print "example: perl parseArchitecture.pl -i scores_1_fas.collection -p groupID.extended.profile -g groupID -o output.file\n";
     print "-i\tInput of XML file from FAS calculation\n";
     print "-p\tInput of *extended.profile from hamstr oneSeq\n";
     print "-g\tGroup ID\n";
@@ -81,8 +82,12 @@ sub usage {
 #my $groupID = ($opt_g) ? $opt_g : usage("ERROR: No group ID given\n");
 #my $outFile = ($opt_o) ? $opt_o : usage("ERROR: No output file given\n");
 
-open(OUT0,">".$outFile."_0.domains") || die "Cannot create $outFile!\n";
-open(OUT1,">".$outFile."_1.domains") || die "Cannot create $outFile!\n";
+my ($in_base, $in_path, $in_suffix) = fileparse( $inFile, qr/\.[^.]*/ );
+my @direction = split(/_/,$in_base);
+#print $direction[1]."\n";
+
+
+open(OUT,">".$outFile."_".$direction[1].".domains") || die "Cannot create $outFile!\n";
 
 open(IN,$inFile) || die "Cannot open $inFile!\n";
 
@@ -103,136 +108,244 @@ while(<PRO>){
 close(PRO);
 
 ### split multiple XML file into individual files if necessary
-my @xml = split(/<\/out>/,$in);
+### split by endnote of <architectures> section
+my @xml = split(/<\/architectures>/,$in);
+if ($debug){print $xml[1]."\n";}
+#---------------> further parsing in abhaengigkeit von direction
+#---------------> 1: template = seed, query = ortholog
+#---------------> 0: template = ortholog, query = seed
 
 foreach my $archi(@xml){
-	if(length($archi) > 10){
-		my @archiTMP = split(/<\/single_protein>/,$archi); #$archiTMP[0] is seed architecture
+    
+    if(length($archi) > 10){
+        if ($direction[1] == "1"){
+            my @archiTMP = split(/<\/template>/,$archi); 
 
-		### get search species ID (if available)
-		my $searchSpec = "";
-		my $direction = "";
-		if($archi =~ /(.)+?\.xml/){
-			my $hit = $&;		# plaga_4069@5849@1_22941_0_fas.xml
-			my @hit = split(/_/,$hit); 
-			pop(@hit);	# remove _fas.xml
-			$direction = pop(@hit);
-			$searchSpec = join("_",@hit);
-                        my @stv = split(/@/,$searchSpec);
-                        my @v_r = split(/_/,$stv[2]);
-                        my $v = $v_r[0];
-                        $searchSpec = join("@",($stv[0],$stv[1],$v));
-                        #print $searchSpec."\n";
-		}
+            ### get information #
+            my $seed        = "";
+            my $query       = "";
+            my $queryid     = "";
+            my $queryID     = "";
+            my $direction   = "";
+            if($archi =~ /(.)+?\.xml/){
+                my $hit = $&;
+                my @hit = split(/_/,$hit);
+                pop(@hit);
+                $direction = pop(@hit); #better save than sorry
+                if ($direction[1] != $direction){
+                    print "\nWARNING: please check file format for:\t".$inFile."\n";
+                }
+                $queryid = pop (@hit);
+                $query = join("_",@hit);
+                if ($debug){print $query." and ".$queryid."\n";}
+            }
+            if($archiTMP[0] =~ /template id=\"(.)+?\"/){
+                $seed = $&;
+                $seed =~ s/template id=//; $seed =~ s/\"//g;
+                if ($debug){print $seed."\n";}
+            }
+            
+            if(length($query) > 0 && !$useIDasis){
+                $queryID = $groupID."|".$query."|".$queryid;
+            }else{
+                $queryID = $queryid;
+            }
+            if ($debug){print "queryID: ".$queryID."\n";}
 
-		### get seed ID
-		my $seedID = "";
-		if($archiTMP[0] =~ /single_protein id=\"(.)+?\"/){
-			$seedID = $&;
-			$seedID =~ s/single_protein id=//; $seedID =~ s/\"//g;
-		}
+            ## information in fields of @archiTMP
+            #$archiTMP[0]: paths (seed and query)
+            #$archiTMP[1]: seed architecture
+            #$archiTMP[2]: query architecture
 
-		### go through all search proteins in this xml file
-		my @searchProts = split(/<\/set_protein>/,$archiTMP[1]);
+            ### get seed path
+            #$fixture[0]: seed path
+            #$fixture[1]: query path
+            my @fixture = split(/<\/template_path>/,$archiTMP[0]);
+            my %seedPath = getPathInfo($groupID,$queryID,$seed,$fixture[0],0,$query);
+            my %queryPath = getPathInfo($groupID,$queryID,$seed,$fixture[1],1,$query);
+            
+#            print "seed\n";
+#            foreach my $key(keys %seedPath){
+#                print $key." --> ".$seedPath{$key}."\n";                
+#            }
+#            print "query\n";
+#            foreach my $yek(keys %queryPath){
+#                print $yek." --> ".$queryPath{$yek}."\n";                
+#            }
 
-		foreach my $searchProt(@searchProts){
-			### get search protein ID(s)
-			my $searchID = "";
-			if($searchProt =~ /set_protein id=\"(.)+?\"/){
-				$searchID = $&;
-				$searchID =~ s/set_protein id=//;
-                                $searchID =~ s/\"//g;
-				if(length($searchSpec) > 0 && !$useIDasis){$searchID = $groupID."|".$searchSpec."|".$searchID;}
+            ### get query domains + path
+            my $queryDomains = getDomainPos($groupID,$queryID,$seed,$archiTMP[2],1,$query, \%queryPath);
+            print OUT $queryDomains;
+            
+            ### get seed domains + path
+            my $seedDomains = getDomainPos($groupID,$queryID,$seed,$archiTMP[1],0,$query, \%seedPath);
+            print OUT $seedDomains;
+        }
+        if ($direction[1] == "0"){
+            my @archiTMP = split(/<\/template>/,$archi); 
+            ### get information #
+            my $seed        = "";
+            my $query       = "";
+            my $queryid     = "";
+            my $queryID     = "";
+            my $direction   = "";
+            if($archi =~ /(.)+?\.xml/){
+                my $hit = $&;
+                my @hit = split(/_/,$hit);
+                pop(@hit);
+                $direction = pop(@hit); #better save than sorry
+                if ($direction[1] != $direction){
+                    print "\nWARNING: please check file format for:\t".$inFile."\n";
+                }
+                $queryid = pop (@hit);
+                $query = join("_",@hit);
+                if ($debug){print $query." and ".$queryid."\n";}
+            }
+            if($archiTMP[0] =~ /query id=\"(.)+?\"/){
+                $seed = $&;
+                $seed =~ s/query id=//; $seed =~ s/\"//g;
+                if ($debug){print $seed."\n";}
+            }
 
-				### get info
-				my @info = split(/<\/architecture>/,$searchProt);
+            if(length($query) > 0 && !$useIDasis){
+                $queryID = $groupID."|".$query."|".$queryid;
+            }else{
+                $queryID = $queryid;
+            }
+            if ($debug){print "queryID: ".$queryID."\n";}
 
-				### get protein's domain positions
-				my $searchDomain; 
-				if($direction == 0){
-                                        $searchDomain = getDomainPos($groupID,$searchID,$seedID,$info[1],1,$searchSpec);
-					print OUT0 $searchDomain;
-				} elsif($direction == 1){
-                                        $searchDomain = getDomainPos($groupID,$searchID,$seedID,$info[0],1,$searchSpec);
-					print OUT1 $searchDomain;
-				}
-				
-				### get seed's best path
-				my $seedDomain; 
-				if($direction == 0){
-                                        $seedDomain = getDomainPos($groupID,$searchID,$seedID,$archiTMP[0],0,$searchSpec);
-					print OUT0 $seedDomain;
-				} elsif($direction == 1){
-                                        $seedDomain = getDomainPos($groupID,$searchID,$seedID,$info[1],0,$searchSpec);
-					print OUT1 $seedDomain;
-				}
-			}
-		}
-	}
+            ## information in fields of @archiTMP
+            #$archiTMP[0]: paths (query and seed)
+            #$archiTMP[1]: query architecture
+            #$archiTMP[2]: seed architecture
+
+            ### get seed path
+            #$fixture[0]: query path
+            #$fixture[1]: seed path
+            # please note, that seed&query informations are labeled differently in case "0"
+            my @fixture = split(/<\/template_path>/,$archiTMP[0]);
+            my %seedPath = getPathInfo($groupID,$queryID,$seed,$fixture[1],0,$query);
+            my %queryPath = getPathInfo($groupID,$queryID,$seed,$fixture[0],1,$query);
+
+            ### get query domains
+            my $queryDomains = getDomainPos($groupID,$queryID,$seed,$archiTMP[1],1,$query,\%queryPath);
+            print OUT $queryDomains;
+
+            my $seedDomains = getDomainPos($groupID,$queryID,$seed,$archiTMP[2],0,$query,\%seedPath);
+            print OUT $seedDomains;
+        }
+    }
 }
-close (OUT0);
-close (OUT1);
+close (OUT);
 
-print "Finished! Check output at\n\t",$outFile,"_0.domains\n\t",$outFile,"_1.domains\n";
+print "Finished! Check output at\n\t",$outFile,"_".$direction[1].".domains\n";
 exit;
 
 sub getDomainPos{
-	my ($groupID,$searchID,$seedID,$block,$order,$soi) = @_;
+    my ($groupID,$searchID,$seedID,$block,$order,$soi,%pathinfo) = ($_[0], $_[1], $_[2], $_[3], $_[4], $_[5], %{$_[6]});
 
-	my @features = split(/feature/,$block);
-	my $result = "";
+    my @features = split(/feature/,$block);
+    my $result = "";
 
-	foreach my $feature (@features){
-		if($feature =~ /start/){
-			my @info = split(/\n/,$feature);
+    foreach my $feature (@features){
+        if($feature =~ /start/){
+            my @info = split(/\n/,$feature);
 
-			my $firstLine = shift(@info);
-			my $type = "";
-			if($firstLine =~ /type=\"(.)+?\"/){
-				$type = $&;
-				$type =~ s/type=//; $type =~ s/\"//g;
-			}
+            my $firstLine = shift(@info);
+            my $type = "";
+            if($firstLine =~ /type=\"(.)+?\"/){
+                $type = $&;
+                $type =~ s/type=//; $type =~ s/\"//g;
+            }
 
-			my $weight = "NA";
-			if($firstLine =~ /weight=\"(.)+?\"/){
-				$weight = $&; $weight =~ s/weight=//; $weight =~ s/\"//g;
-			}
+            my $weight = "NA";
+            foreach my $infoLine(@info){
+                chomp($infoLine);
+                if($infoLine =~ /start/){
+                    my $start = ""; my $end = "";
+                    if($infoLine =~ /start=\"\d+\"/){
+                        $start = $&; $start =~ s/start=//; $start =~ s/\"//g;
+                    }
+                    if($infoLine =~ /end=\"\d+\"/){
+                        $end = $&; $end =~ s/end=//; $end =~ s/\"//g;
+                    }
 
-			foreach my $infoLine(@info){
-				chomp($infoLine);
-				if($infoLine =~ /start/){
-#					print $line,"\n";
-					my $start = ""; my $end = "";
-					if($infoLine =~ /start=\"\d+\"/){
-						$start = $&; $start =~ s/start=//; $start =~ s/\"//g;
-					}
-					if($infoLine =~ /end=\"\d+\"/){
-						$end = $&; $end =~ s/end=//; $end =~ s/\"//g;
-					}
+                    ## map IDs
+                    my $exp_ID = "$groupID|$soi|$searchID";
+                    my $rep = $exp_ID."|1";
+                    my $co  = $exp_ID."|0";
+                    my $usedID = "";
+                    if ($taxonmap{$exp_ID}){
+                        $usedID = $exp_ID;
+                    }elsif($taxonmap{$rep}){
+                        $usedID = $rep;
+                    }elsif($taxonmap{$co}){
+                        $usedID = $co;
+                    }else{
+                        usage("ERROR: Given IDs do not match for used ID $usedID !\n")
+                    }
+                    ### print query infos
+                    if($order == 1){
+                        my $featureinfo = $type.$start.$end;
+                        if (exists $pathinfo{$featureinfo}){
+                            $result .= "$groupID#$usedID#$seedID\t$usedID\t$type\t$start\t$end\t$pathinfo{$featureinfo}\tY\n";
+                        }else{
+                            $result .= "$groupID#$usedID#$seedID\t$usedID\t$type\t$start\t$end\t$weight\tN\n";
+                        }
+                    #print seed infos        
+                    } elsif($order == 0){
+                        my $featureinfo = $type.$start.$end;
+                        if (exists $pathinfo{$featureinfo}){
+                            $result .= "$groupID#$usedID#$seedID\t$seedID\t$type\t$start\t$end\t$pathinfo{$featureinfo}\tY\n";
+                        }else{
+                            $result .= "$groupID#$usedID#$seedID\t$seedID\t$type\t$start\t$end\t$weight\tN\n";
+                        }
+                    }
+                }
+            }
+        }
+    }
+    return $result;
+}
+sub getPathInfo{
+    my ($groupID,$searchID,$seedID,$block,$order,$soi) = @_;
 
-                                        ## map IDs
-                                        my $exp_ID = "$groupID|$soi|$searchID";
-                                        my $rep = $exp_ID."|1";
-                                        my $co  = $exp_ID."|0";
-                                        my $usedID = "";
-                                        if ($taxonmap{$exp_ID}){
-                                            $usedID = $exp_ID;
-                                        }elsif($taxonmap{$rep}){
-                                            $usedID = $rep;
-                                        }elsif($taxonmap{$co}){
-                                            $usedID = $co;
-                                        }else{
-                                            usage("ERROR: Given IDs do not match for used ID $usedID !\n")
-                                        }
+    my @features = split(/feature/,$block);
+    my %pathinfo;
 
-					if($order == 1){
-						$result .= "$groupID#$usedID#$seedID\t$usedID\t$type\t$start\t$end\t$weight\n";
-					} elsif($order == 0){
-						$result .= "$groupID#$usedID#$seedID\t$seedID\t$type\t$start\t$end\t$weight\n";
-					}
-				}
-			}
-		}
-	}
-	return $result;
+    foreach my $feature (@features){
+        
+        if($feature =~ /start/){
+            my @info = split(/\n/,$feature);
+
+            my $firstLine = shift(@info);
+            my $type = "";
+            if($firstLine =~ /type=\"(.)+?\"/){
+                $type = $&;
+                $type =~ s/type=//; $type =~ s/\"//g;
+            }
+
+            my $weight = "NA";
+            if($firstLine =~ /corrected_weight=\"(.)+?\"/){
+                $weight = $&; $weight =~ s/corrected_weight=//; $weight =~ s/\"//g;
+            }
+
+            foreach my $infoLine(@info){
+                chomp($infoLine);
+                if($infoLine =~ /start/){
+                    if($debug){print $infoLine,"\n";}
+                    my $start = ""; my $end = "";
+                    if($infoLine =~ /start=\"\d+\"/){
+                        $start = $&; $start =~ s/start=//; $start =~ s/\"//g;
+                    }
+                    if($infoLine =~ /end=\"\d+\"/){
+                        $end = $&; $end =~ s/end=//; $end =~ s/\"//g;
+                    }
+                    my $featureID = $type.$start.$end;
+                    $pathinfo{$featureID} = $weight;
+                }
+            }
+        }
+    }
+    return %pathinfo;
 }

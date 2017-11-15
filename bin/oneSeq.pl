@@ -5,7 +5,6 @@ use warnings;
 use File::Copy qw(move);
 
 use Env qw(ONESEQDIR);
-use Env qw(SWATDIR);
 use lib '../lib';
 use Parallel::ForkManager;
 use DBI;
@@ -62,10 +61,14 @@ use File::Basename;
 ##                                      - if you run oneSeq.pl in DB mode, please adapt /bin/run-query.sh to your username and passwort
 ##                                      -
 
-############ NOTES
+## Modified 07. Aug. 2017: - Changes:   - change of alignment program, swat replaced by 
+##                                        ssearch (local:local) and glsearch (global:local) and ggsearch (global:global)
+##                                      - selection of best fitting ortholog candidate modified
+##                                      - coreFilter: strict, relaxed and none
+## 
 
 ############ General settings
-my $version = 'oneSeq v.1.0.1';
+my $version = 'oneSeq v.1.1';
 ##### configure
 my $configure = 0;
 if ($configure == 0){
@@ -87,17 +90,13 @@ if (!(defined $path) or !(-e $path)) {
 $path =~ s/\/$//;
 printDebug("Path is $path");
 
-my $swatPath=$SWATDIR;
-if (!(defined $swatPath) or !(-e $swatPath)) {
-    print "You need your own copy of the alignment tool swat.\n";
-    die "Please set the environmental variabel SWATDIR \n";
-}
-$swatPath =~ s/\/$//;
-printDebug("Swat path is $swatPath"); 
 #### Programs and output
 my $sedprog = 'sed';
 my $grepprog = 'grep';
-my $alignprog = 'swat';
+my $globalaligner = 'ggsearch36';
+my $glocalaligner = 'glsearch36';
+my $localaligner = 'ssearch36';
+
 # my $blast_prog = 'blastall';
 my $algorithm = "blastp";
 my $blast_prog = 'blastp';
@@ -105,7 +104,7 @@ my $outputfmt = 'blastxml';
 my $eval_blast_query = 0.0001;
 my $filter = 'T';
 my $annotation_prog = 'annotation.pl';
-my $fas_prog = 'greedyFAS.py';
+my $fas_prog = 'greedyFAS.py'; ## Baustelle set via configure
 my $profile_prog = 'parseOneSeq.pl';
 my $architecture_prog = 'parseArchitecture.pl';
 ##### ublast Baustelle: not implemented yet
@@ -114,9 +113,9 @@ my $ublast = 0;
 my $accel = 0.8;
 
 ############ database connection details
-my $dbname="123.45.678.910";	#ID adress if DB server
-my $username="username";	#your user name
-my $pw="password";		#your pw
+my $dbname="";
+my $username="";
+my $pw="";
 my $database = "DBI:mysql:database=dbdmpng;host=$dbname";
 my $getThemAll = 0;
 my $updateBlast_dir = 0;
@@ -126,7 +125,7 @@ my $coreOrthologsPath = "$path/core_orthologs/";
 my $outputPath = "$path/output";
 my $hamstrPath = "$path/bin/hamstr";
 my $homeDir = $path;
-my $alignmentMatrix = $path . "/BLOSUM62.txt";
+my $alignmentscoreMatrix = "BP62"; ## opt given by ssearch and glsearch [codaa.mat idnaa.mat P250 P120 BL50 MD40 MD20 MD10 BL62 BL80 BP62 VT160 OPT5]
 my $genome_dir = "genome_dir";
 my $taxaPath = "$path/$genome_dir/";
 my $blastPath = "$path/blast_dir/";
@@ -137,6 +136,8 @@ my $currDir = getcwd;
 my $weightPath = "$path/weight_dir/";
 my $fasPath = "$path/bin/fas/";
 my $visualsPath = "$path/bin/visuals/";
+my $alignerVersion = "fasta-36.3.8e"; #Baustelle: check and set
+my $alignerPath = "$path/bin/aligner/$alignerVersion/bin";
 
 my @defaultRanks = ('superkingdom', 'kingdom',
         'superphylum', 'phylum', 'subphylum',
@@ -160,14 +161,14 @@ my $core_hitlimit = 3; # number of hmm hits in the hamstrsearch to consider for 
 # Note, this limits the number of co-orthologs that can be found.
 my $hitlimit = 10;
 # Setup for FAS score support (FAS support is used by default)
-# Note, fas_t is set to 0.8 by default. Changes will influence sensitivity and selectivity
+# Note, fas_t is set to 0.75 by default. Changes will influence sensitivity and selectivity
 my $fas_support = 1;
 my $countercheck = 0;
-my $fasoff      = 0; 
-my $fas_T       = 0.8;
+my $fasoff      = 0;
+my $fasstrict   = 0; 
+my $fas_T       = 0.75;
 my %profile     = ();
 my %fas_score_keeper = ();
-my $core_filter = 1;
 my $eval_filter = 0.001;
 my $inst_eval_filter = 0.01;
 
@@ -203,11 +204,12 @@ my $cpu = 1;
 my $silent;
 my $checkcoorthologsref;
 my $cccr;
-# Note, the alignment strategy can be local or global
+# Note, the alignment strategy can be local, glocal, or global
 # Default: local
 my $local;
 my $global;
-my $core_filteroff;
+my $glocal;
+my $core_filter_mode;
 my $dbmode = 0;         ## default run in dbmode. consider setting this in the configure step
 my $vlevel = 2;         ## verbosity level
 my @taxonlist = qw();
@@ -250,10 +252,11 @@ GetOptions ("h"                 => \$help,
             "fas"               => \$fas_support,
             "countercheck"      => \$countercheck,
             "fasoff"            => \$fasoff,
-            "corefilteroff"     => \$core_filteroff,
+            "coreFilter=s"     => \$core_filter_mode,
             "minScore=s"        => \$fas_T,
             "local"             => \$local,
             "global"            => \$global,
+            "glocal"            => \$glocal,
             "rep"               => \$representative,
             "cpu=s"             => \$cpu,
             "outpath=s"         => \$outputPath,
@@ -379,10 +382,11 @@ if (!$coreex) {
             }
 
             #clear all alignment files
-            my @files = glob("*.allscores");
+            my @files = glob("*.scorefile");
             foreach my $file (@files) {
                     unlink($file);
             }
+
             ++$curCoreOrthologs;
             printDebug("Subroutine call from core-ortholog compilation\nTaxon is $addedTaxon\nNCBI Id is $taxa{$addedTaxon}\n");
             $treeDelFlag = removeMinDist($taxa{$addedTaxon});
@@ -475,9 +479,12 @@ if(!$coreOnly and $fas_support){
         runAutoCleanUp($processID);
     }
     removeMetaOrthologFiles($processID);
+    printDebug("Output files and directories:\nName: ".$seqName."\nFAS-Scores: ".$evaluationDir."scores_1/0_fas.collection\nFinal Orthologs: ".$finalOutput."\n");
     parseProfile($finalOutput, $seqName);
-    print "XXX::".$evaluationDir."result_scores.collection".",".$finalOutput.",". $seqName.",". $dataDir."/".$seqName."\n";
-    parseArchitecture($evaluationDir."result_scores.collection",$finalOutput, $seqName, $dataDir."/".$seqName);
+    parseArchitecture($evaluationDir."scores_1_fas.collection",$finalOutput, $seqName, $dataDir."/".$seqName);
+    if ($countercheck){
+        parseArchitecture($evaluationDir."scores_0_fas.collection",$finalOutput, $seqName, $dataDir."/".$seqName);
+    }
 }
 
 ## clean up the mess...
@@ -554,7 +561,7 @@ sub nFAS_score_core{
             my $cand_annot   = getAnnotation_Candidate($gene_set,$gene_id,$candseqFile);
             my $seed_annot  = $coreOrthologsPath.$seqName."/fas_dir/annotation_dir/";
             my $mode        = 0; #FAS scoring Model2 (core)
-            my $score_0 = runFAS($seed_annot.$seqName."_seed", $cand_annot, $gene_set."_".$gene_id, $seqName, $e_dir, $weightPath."/".$gene_set,$mode);
+            my $score_0 = runFAS($cand_annot, $seed_annot.$seqName."_seed", $gene_set."_".$gene_id, $seqName, $e_dir, $weightPath."/".$gene_set,$mode);
             $core_fas_0_box{$headerkey} = $score_0;
             $ii++;
         }
@@ -609,7 +616,7 @@ sub nFAS_score_final{
             # seed <--vs-- hit protein
             if ($countercheck){
                 $mode = 0;
-                my $score_0 = runFAS($seed_annot.$seqName."_seed", $cand_annot, $gene_set."_".$gene_id, $seqName, $e_dir, $weightPath."/".$gene_set,$mode);
+                my $score_0 = runFAS($cand_annot, $seed_annot.$seqName."_seed", $gene_set."_".$gene_id, $seqName, $e_dir, $weightPath."/".$gene_set,$mode);
                 $final_fas_0_box{$headerkey} = $score_0;
             }
             $ii++;
@@ -714,47 +721,51 @@ sub removeMetaOrthologFiles{
 
     ## compress *_fas.xml files in coreOrthologs
     opendir(COREFAS,$coreOrthologsPath.$seqName . "/fas_dir/fasscore_dir");
-    my @fasscores = grep(/_fas\.xml/,readdir(COREFAS));
+    my @fasscores = grep(/_fas\.xml/, sort { $a cmp $b } readdir(COREFAS));
     closedir(COREFAS);
-    my @content;
-    my $file;
-    foreach(@fasscores){
-        my $catCommand = "cat ".$coreOrthologsPath.$seqName . "/fas_dir/fasscore_dir/".$_;
-        push (@content, $_); 
-        $file = `$catCommand`;
-        push (@content, $file);
-        my $delCommandXML = "rm -f ".$coreOrthologsPath.$seqName . "/fas_dir/fasscore_dir/".$_;
-        system($delCommandXML) == 0 or die "Error deleting single fas score files\n";        
-    }
-    open(COREFASCOL,">".$coreOrthologsPath.$seqName . "/fas_dir/fasscore_dir/core_scores.collection") or die "Error: Could not create core_scores.collection\n";
-    for (my $ii = 0; $ii < scalar(@content); $ii++){
-        print COREFASCOL $content[$ii];
-        print COREFASCOL "\n";
-    }
-    close(COREFASCOL);
+    compressScoreCollections($coreOrthologsPath.$seqName."/fas_dir/fasscore_dir/", \@fasscores, "core");
     print "--> ".$coreOrthologsPath.$seqName."/fas_dir/fasscore_dir/*_fas.xml\n";
 
-    ## compress *_fas.xml files in results
+    ## compress *_1_fas.xml files in results
     opendir(COREFAS,$dataDir."/".$seqName."_".$processID."/fas_dir/fasscore_dir");
-    @fasscores = grep(/_fas\.xml/,readdir(COREFAS));
+    @fasscores = grep(/_1_fas\.xml/,sort { $a cmp $b } readdir(COREFAS));
     closedir(COREFAS);
-    @content = qw();
-    $file = "";
-    foreach(@fasscores){
-        my $catCommand = "cat ".$dataDir."/".$seqName."_".$processID."/fas_dir/fasscore_dir/".$_;
-        push (@content, $_); 
+    compressScoreCollections($dataDir."/".$seqName."_".$processID."/fas_dir/fasscore_dir/", \@fasscores, "1");
+    
+    if ($countercheck){
+        # compress *_0_fas.xml files: M.countercheck (cc) FAS out
+        opendir(COREFAS,$dataDir."/".$seqName."_".$processID."/fas_dir/fasscore_dir");
+        my @fasscores_cc = grep(/_0_fas\.xml/,sort { $a cmp $b } readdir(COREFAS));
+        closedir(COREFAS);
+        compressScoreCollections($dataDir."/".$seqName."_".$processID."/fas_dir/fasscore_dir/", \@fasscores_cc, "0");
+    }
+
+    print "--> ".$dataDir."/".$seqName."_".$processID."/fas_dir/fasscore_dir/*_fas.xml\n";
+}
+## keep FAS score results (including feature information) as *scores.collection files
+## param: $cur_path - path to fas score files
+## param: @fileset - collected files
+sub compressScoreCollections{
+    my $cur_path = $_[0];
+    my @fileset = @{$_[1]};
+    my $scoremode = $_[2];
+
+    my @cur_content = qw();
+    my $file;
+    foreach(@fileset){
+        my $catCommand = "cat ".$cur_path.$_;
+        push (@cur_content, $_); 
         $file = `$catCommand`;
-        push (@content, $file);
-        my $delCommandXML = "rm -f ".$dataDir."/".$seqName."_".$processID."/fas_dir/fasscore_dir/".$_;
+        push (@cur_content, $file);
+        my $delCommandXML = "rm -f ".$cur_path.$_;
         system($delCommandXML) == 0 or die "Error deleting single fas score files\n";        
     }
-    open(COREFASCOL,">".$dataDir."/".$seqName."_".$processID."/fas_dir/fasscore_dir/result_scores.collection") or die "Error: Could not create result_scores.collection\n";
-    for (my $ii = 0; $ii < scalar(@content); $ii++){
-        print COREFASCOL $content[$ii];
-        print COREFASCOL "\n";
+    open(FASCOL,">".$cur_path."scores_".$scoremode."_fas.collection") or die "Error: Could not create ".$cur_path."scores_".$scoremode."_fas.collection\n";
+    for (my $ii = 0; $ii < scalar(@cur_content); $ii++){
+        print FASCOL $cur_content[$ii];
+        print FASCOL "\n";
     }
-    close(COREFASCOL);
-    print "--> ".$dataDir."/".$seqName."_".$processID."/fas_dir/fasscore_dir/*_fas.xml\n";
+    close(FASCOL);
 }
 ## keep FAS scores for core candidates
 # %subprofile: profile (hash) of gene ids (key) and FAS scores (value) created in forked process
@@ -859,8 +870,8 @@ sub getAnnotation_Set{
 }
 
 ## running actual FAS calculations via IPC
-# $single: annotaions (*xml) for single protein
-# $ortholog: annotations (*xml) for set (ortholog) protein
+# $single: annotaions (*xml) for single protein/seed
+# $ortholog: annotations (*xml) for set (ortholog) protein/query
 # $name: jobname for FAS
 # $group: sequence name given for oneseq
 # $outdir: dir for output files
@@ -873,11 +884,10 @@ sub runFAS{
     my @cmd;
     my $py 	= "python";
     my $fas	= "$fasPath/$fas_prog";
-    my $s	= "--singlepath=$single/";
-    my $p	= "--proteomepath=$ortholog/";
+    my $s	= "--seed=$single/";
+    my $p	= "--query=$ortholog/";
     my $r	= "--ref_proteome=" . $weight;
     my $j	= "--jobname=$outdir/" . $name . "_". $mode ."_fas.xml";
-    my $o	= "--one_vs_all=".$mode;
     my $f       = "--efilter=".$eval_filter;       #dest="efilter", default="0.001", help="E-value filter for hmm based search methods (feature based/complete sequence).")
     my $i       = "--inst_efilter=".$inst_eval_filter;  #dest="inst_efilter", default="0.01", help="E-value filter for hmm bas
     my $a	= "--raw_output=2";
@@ -886,7 +896,7 @@ sub runFAS{
     my ($in, $score, $err);
     $score = "NAN";
     eval {
-    @cmd = ($py,$fas,$s,$p,$r,$j,$o,$a,$f,$i);
+    @cmd = ($py,$fas,$s,$p,$r,$j,$a,$f,$i);
     #printVariableDebug(@cmd);
     print "\n##############################\n";
     print "Begin of FAS score calculation.\n";
@@ -984,7 +994,7 @@ sub checkOptions {
                 $breaker++;
                 $answer = getInput("Please choose a new factor (Integer) for evalue relaxation. [1,100]");
                 if (($breaker > 3) and ($answer !~ /[0-9]/i)){
-                    print "No proper factor is given ... exiting.\n";
+                    print "No proper factor given ... exiting.\n";
                     exit;
                 }
             }
@@ -994,11 +1004,17 @@ sub checkOptions {
         }
     }
     ### check the input file
+    my $optbreaker = 0;
     while ((length $seqFile == 0) or ((! -e "$currDir/$seqFile") and (! -e "$dataDir/$seqFile"))) {
+        if ($optbreaker >= 3){
+            print "No proper file given ... exiting.\n";
+            exit;
+        }
         if (length $seqFile > 0){
                 printOut("\nThe specified file $seqFile does neither exist in current dir: $currDir or in the specified working dir $dataDir\n",1);
         }
         $seqFile = getInput("Please specify a valid file name for the seed sequence", 1);
+        $optbreaker ++;
         if ($seqFile =~ /\//){
             ## user has provided a path
             $seqFile =~ /(.*)\/(.+)/;
@@ -1031,12 +1047,24 @@ sub checkOptions {
         printDebug("Setting datadir to $currDir in sub checkOptions");
     } 
 
-    ### checking the number of core orthologs 
+    ### checking the number of core orthologs
+    $optbreaker = 0;
     while(!$minCoreOrthologs) {
+        if ($optbreaker >= 3){
+            print "No proper number given ... exiting.\n";
+            exit;
+        }
         $minCoreOrthologs = getInput("Please specify the desired number of core orthologs!", 1);
         $minCoreOrthologs = checkInt($minCoreOrthologs);
-    } 
+        $optbreaker++;
+    }
+    ### checking reference species
+    $optbreaker = 0;
     while ((!$refSpec or !$taxa{$refSpec})  && !$blast) {
+        if ($optbreaker >= 3){
+            print "No proper refspec given ... exiting.\n";
+            exit;
+        }
         my $output = '';
         for (my $i = 0; $i < @taxonlist; $i++) {
                 $output = $output . "[$i]" . "\t" . $taxonlist[$i] . "\n"; 
@@ -1046,6 +1074,7 @@ sub checkOptions {
         }
         printDebug("taxa contains $taxa{$refSpec}");
         my $refSpecIdx = getInput("\n" . $output . "\n" . "You did not provide a valid reference species ($refSpec). Please choose the number for the reference species your input sequence was derived from", 1);
+        $optbreaker++;
         $refSpec = $taxonlist[$refSpecIdx];
         checkBlastDb($refSpec, $refSpec); 
     }
@@ -1170,17 +1199,32 @@ sub checkOptions {
     $node->name('supplied', $refSpec);
 
     #### checking for the min and max distance for the core set compilation
+    if (lc($maxDist) eq "root"){
+        $maxDist = 'no rank';
+    }
+    $optbreaker = 0;
     while (!$maxDist or (checkRank($maxDist, $node) == 0)) {
+        if ($optbreaker >= 3){
+            print "No proper maxDist given ... exiting.\n";
+            exit;
+        }
         print "You have not defined a valid maximum distance rank!\n";
         printTaxonomy($node);
         my $in = getInput('Please choose a rank by giving the number in square brackets', 1);
+        $optbreaker++;
         $maxDist = parseInput($node, $in);
         print "You selected ". $maxDist . " as maximum rank\n\n";
     }
+    $optbreaker = 0;
     while (!$minDist or (checkRank($minDist, $node) == 0)) {
+        if ($optbreaker >= 3){
+            print "No proper minDist given ... exiting.\n";
+            exit;
+        }
         print "You have not defined a minimum distant rank!\n";
         printTaxonomy($node);
         my $in = getInput('Please choose a rank by giving the number in square brackets', 1);
+        $optbreaker++;
         $minDist = parseInput($node, $in);
         print "You selected " . $minDist . " as minimum rank\n\n";
     }
@@ -1193,25 +1237,40 @@ sub checkOptions {
     }
     ## check if user defined fas_T is off limits
     if ($fas_T < 0 or $fas_T > 1){
-        print "You chose an odd fas filter (-minScore), default was 0.8.\n";
+        print "You chose an odd FAS score filter (-minScore), default is 0.75.\n";
         my $answer = '';
+        $optbreaker = 0;
         while ($answer < 0 or $answer > 1) {
-            $answer = getInput("Please choose a fas filter [0,1] between 0 (relaxed) and 1 (stringent):");
+            if ($optbreaker >= 3){
+                print "No proper fas filter given ... exiting.\n";
+                exit;
+            }
+            $answer = getInput("Please choose a FAS score filter [0,1] between 0 (relaxed) and 1 (stringent):");
+            $optbreaker++;
         }
         if ($answer > 0 and $answer < 1) {
             $fas_T = $answer;
         }
     }
     ### rather strict fas filter for core orthologs: OFF
-    if($core_filteroff){
-        $core_filter = 0;
+    if(!$core_filter_mode){
+        print "No FAS filter for core-orthologs set.\n";
+    }elsif($core_filter_mode eq "relaxed"){
+        #core ortholog candidates with a FAS score below the threshold will be disadvantaged
+    }elsif($core_filter_mode eq "strict"){
+        #core ortholog candidates with a FAS score below the threshold will not be considered any more
+    }else{
+        print "No known filter mode for core-orthologs specified. Continuing with default settings\n";
+        $core_filter_mode = 0;
     }
+
     ### check alignment strategy
-    if ($local && $global){
+    if (($local && $global) or ($local && $glocal) or ($global && $glocal)){
             print "Please specify only one alignment strategy!\n";
+            print "Possible options are: -glocal, -local, or -global\n";
             print "... exiting.\n";
             exit;
-    }elsif(!$local && !$global){
+    }elsif(!$local && !$global && !$glocal){
             print "No specific alignment strategy set. Continuing with local alignments (Smith-Waterman-Algorithm).\n";
             $local = 1;
     }
@@ -1238,8 +1297,8 @@ sub checkRank {
 }
 
 sub createAlnMsf {
-	my $linsiCommand = "linsi " . $outputFa . " > " . $outputAln;
-	system($linsiCommand) == 0 or die "Could not run linsi\n";
+	my $linsiCommand = "mafft --maxiterate 1000 --localpair " . $outputFa . " > " . $outputAln;
+	system($linsiCommand) == 0 or die "Could not run mafft-linsi\n";
 }
 
 ################ creating folders for fas support usage
@@ -1313,32 +1372,45 @@ sub getBestOrtholog {
 	chdir($coreOrthologsPath . $seqName);
 	my $candidatesFile = $outputFa . ".extended";
         my %fas_box;
-
+        my $scorefile = $$.".scorefile";
 	if(-e $candidatesFile) {
-            my $swatCommand = "$swatPath/$alignprog " . $outputFa . " " . $candidatesFile . " -M " . $alignmentMatrix . " -raw -file";
-            ## adding option -nw for global alignments
-            if($global){
-                $swatCommand = $swatCommand. " -nw";                    
-            }
 
-            ## fas support
-            if ($fas_support){
-
-                ## candidates to hash
-                open (CANDI, "<".$candidatesFile) or die "Error: Could not find $candidatesFile\n";
-                my $head;
-                %candicontent = ();
-                while(<CANDI>){
-                    my $line = $_;
-                    chomp($line);
-                    if ($line =~ m/^>/){
-                        $line =~ s/>//; # clip '>' character
-                        $head = $line;
-                    }else{
-                        $candicontent{$head} = $line;
-                    }
+            ########################
+            ## step: 1
+            ## setup
+            ## set alignment command (glocal, local, or global)
+            #local      local:local    ssearch36   Smith-Waterman
+            #glocal     global:local   glsearch36  Needleman-Wunsch
+            #global     global:global  ggsearch36  Needleman-Wunsch
+            my $loclocCommand = "$alignerPath/$localaligner " . $outputFa . " " . $candidatesFile . " -s " . $alignmentscoreMatrix . " -m 9 -d 0 -z -1 -E 100" . " > " . $scorefile;
+            my $globlocCommand = "$alignerPath/$glocalaligner " . $outputFa . " " . $candidatesFile . " -s " . $alignmentscoreMatrix . " -m 9 -d 0 -z -1 -E 100" . " > " . $scorefile;
+            my $globglobCommand = "$alignerPath/$globalaligner " . $outputFa . " " . $candidatesFile . " -s " . $alignmentscoreMatrix . " -m 9 -d 0 -z -1 -E 100" . " > " . $scorefile;
+            
+            ########################
+            ## step: 2
+            ## setup
+            ## candidates to hash
+            ## %candicontent keeps info about all candidates (header and sequence)
+            open (CANDI, "<".$candidatesFile) or die "Error: Could not find $candidatesFile\n";
+            my $head;
+            %candicontent = ();
+            while(<CANDI>){
+                my $line = $_;
+                chomp($line);
+                if ($line =~ m/^>/){
+                    $line =~ s/>//; # clip '>' character
+                    $head = $line;
+                }else{
+                    $candicontent{$head} = $line;
                 }
-                close (CANDI);
+            }
+            close (CANDI);
+            
+            ########################
+            ## step: 3
+            ## get FAS score
+            ## fas support: on/off
+            if ($fas_support){
 
                 ## create array of keys
                 my @k_ary;
@@ -1350,7 +1422,7 @@ sub getBestOrtholog {
                 my $size = floor(scalar(@k_ary) / $cpu);
 
                 ## create tmp folder
-                my $evaluationDir = $coreOrthologsPath.$seqName."/fas_dir/annotation_dir/";
+                my $evaluationDir = $coreOrthologsPath.$seqName."/fas_dir/fasscore_dir/";
                 mkpath($evaluationDir);
 
                 ## handle candicontent (hamstr core orthologs)
@@ -1373,91 +1445,153 @@ sub getBestOrtholog {
                 close CANDI;
                 unlink($coreProFile);
             }
-
+            
+            ########################
+            ## step: 4
+            ## get alignment scores
             chdir($coreOrthologsPath . $seqName);
-            ### Baustelle. Better to get rid of swat
-            system($swatCommand) == 0 or die "Error: Could not execute swat for sequence alignment\n";
-            #get all pSwat ouptut files and sum up the single scores
-            #add swat scores to the fas score 
-            my @files = glob("*.allscores");
-            my %scores;
-            my $max;
-            foreach my $file (@files) {
-                    open (RESULT, $file) or die "Error: Could not open file with candidate taxa\n";	 
-                    $max = 0;
-                    while(<RESULT>) {
-                        my $line = $_;
-                        chomp($line);
-                        $line =~ /(.+)\s+(\d+)\s+(\d+)/;
-                        my $aln_key = $1;       # first match of exp. in $line
-                        my $aln_score = $3;     # thrid match of exp. in $line
-                        $aln_key =~ s/\s+//g;    # clean key, no trailing whitespaces
-                        chomp($aln_score);      # clean score, no trailing whitespaces
-
-                        # keep scores and keep max score for normalization
-                        if(exists $scores{$aln_key}) {
-                            $scores{$aln_key} = $scores{$aln_key} + $aln_score;
-                            if ($scores{$aln_key} > $max){
-                                $max = $scores{$aln_key};
-                            }
-                        }else {
-                            $scores{$aln_key} = $aln_score;
-                            if ($scores{$aln_key} > $max){
-                                $max = $scores{$aln_key};
-                            }
-                        }
-                    }
-                    close RESULT;
+            if ($glocal){
+                system($globlocCommand);
+            }elsif ($global){            
+                system($globglobCommand);
+            }elsif ($local){
+                system($loclocCommand);
             }
+
+            ########################
+            ## step: 5
+            ## collect alignment score
+            ## keep track about min and max for each query/coreortholog vs candidate set
+            my %scores;
+            my $max = -10000000;
+            my $min = 10000000;
+            
+            %scores = cumulativeAlnScore($scorefile, \%candicontent);
+
+            ## What to do if no alignment scores can be calculated (local fall back?)
+            my $noaln;
+            if (scalar(keys%scores) == 0){
+                print "\nWARNING: No Alignment scores with the selected alignment strategy available.\n";
+                print "Selection of best fitting candidate is based on FAS score only.\n";
+                print "Please consider to choose local alignment strategy to obtain alignment scores.\n";
+                $noaln = 1;
+            }
+            if ($noaln and !$fas_support){
+                print "\nWARNING: No alignment scores and no FAS support. Redo alignments with local alignment strategy.\n";
+                system($loclocCommand);
+                %scores = cumulativeAlnScore($scorefile, \%candicontent);
+            }
+
+            ## Identify min and max alignment scores
+            printDebug("\nCumulative alignment score:\n");
+            foreach my $key(keys%scores){
+                printDebug($key.": ".$scores{$key}."\n");
+                if ($scores{$key} > $max){
+                    $max = $scores{$key};
+                }
+                if ($scores{$key} < $min){
+                    $min = $scores{$key};
+                }
+
+            }
+            printDebug("Min: ".$min." and Max: ".$max."\n");
+
+            ## Normalize Alignment scores (unity-based)
+            printDebug("Normalize alignment scores:\n");
+            if ($min != $max){
+                foreach my $key(keys%scores){
+                    my $normscore = (($scores{$key} - $min) / ($max - $min));
+                    $scores{$key} = $normscore;
+                    printDebug($key.": ".$scores{$key}."\n");
+                }                
+            }else{
+                foreach my $key(keys%scores){
+                    if ($max != 0){
+                        my $normscore = ($scores{$key} / $max);
+                        $scores{$key} = $normscore;
+                        printDebug($key.": ".$scores{$key}."\n");
+                    }
+                }
+            }
+            
+            ########################
+            ## step: 6
+            ## find best fitting taxon
+            ## FAS cut-off: strict (eliminate), relaxed (disadvantage), none
             ## aln score normalization, combined score (aln/max + fas)
-            ## if fas core filter is on combined score will be set to 0 if the threshold of fas_T is not met
             my $bestTaxon;
-            my $bestAlnScore = 0;
             my $bestCombi_AlnFas = 0;
             my $hotCandi = 0;
             ## check for fas support
             if($fas_support){
-                ## choice of best taxon: normalized aln score + fas score driven
-                foreach my $key(keys%scores) { 
-                    ##################################################################################print "_".$key.":::".$scores{$key}."_\n";
-                    my $aln_fas;
-                    if ($core_filter){
-                        # set scores to 0 if they do not meet fas_T
-                        if($fas_box{$key} < $fas_T){
-                            #############################################################################print "_".$key.":::".$scores{$key}."_due to fas: ".$fas_box{$key}." set to 0\n";
-                            $fas_box{$key}= 0;
-                        }else{
-                            $hotCandi++;
+                # FAS support: ON, using rank sum of normalized alignment score and FAS score to identify best fitting candidate
+                foreach my $key (keys%candicontent){
+                    # $rankscore: keeps alignment and fas score, decider about $bestTaxon
+                    my $rankscore;
+                    if ($core_filter_mode){
+                        if ($core_filter_mode eq "strict"){
+                            # case 1: filter
+                            if ($fas_box{$key} < $fas_T){
+                                #eliminate candidate $key
+                                print "Deleting candidate $key from list due to insufficient FAS score.\n";
+                                delete $candicontent{$key};
+                                $rankscore = 0;
+                            }else{
+                                #keep
+                                if ($scores{$key}){
+                                    $rankscore = $fas_box{$key} + $scores{$key};
+                                }else{
+                                    $rankscore = $fas_box{$key};
+                                }                              
+                            }
+                        }elsif ($core_filter_mode eq "relaxed"){
+                            # case 2: disadvantage
+                            if ($fas_box{$key} < $fas_T){
+                                # ignore FAS score for rankscore
+                                printDebug("Candidate $key will be disadvantaged.\n");
+                                if ($scores{$key}){
+                                    $rankscore = $scores{$key};
+                                }else{
+                                    $rankscore = 0;
+                                }
+                            }
                         }
-                        $aln_fas = ($scores{$key} / $max) + $fas_box{$key};
-                        #################################################################################print $aln_fas."\n";
                     }else{
-                        $aln_fas = ($scores{$key} / $max) + $fas_box{$key};
+                        # case 3: no filter
+                        if ($scores{$key}){
+                            $rankscore = $fas_box{$key} + $scores{$key};
+                        }else{
+                            $rankscore = $fas_box{$key};
+                        }
                     }
                     
-                    if($aln_fas > $bestCombi_AlnFas) {
-                        ##################################################################################print "set new best:_".$key.":::".$aln_fas.":::old:".$bestCombi_AlnFas."\n";
+                    ## select candidate ($key) with highest combined score ($rankscore) as best fitting candidate
+                    if($rankscore > $bestCombi_AlnFas) {
                         $bestTaxon = ">" . $key;
-                        $bestCombi_AlnFas = $aln_fas;
+                        $bestCombi_AlnFas = $rankscore;
+                        printDebug("Best Taxon: ". $bestTaxon." with FAS: ".$fas_box{$key}." and ALN: ".$scores{$key}." = rankscore: ".$rankscore."\n");
                     }
                 }
-                ## Note, if no score meets fas_T the best taxon will be choosen by alignment score.
-                if ($hotCandi == 0){
-                    print "Warning: No candidate met the threshold $fas_T\n";
-                    print "Best taxon will be chosen by alignment score only.\n";
-                    $bestTaxon = chooseTaxonByAln(\%scores);
-                }
+
             }else{
                 ## choice of best taxa: alignment score driven only 
                 $bestTaxon = chooseTaxonByAln(\%scores);
             }
-            
+           
             $bestTaxon =~ s/\s//g;
+            
+            if ($bestTaxon eq ""){
+                return '';
+            }
 
             open (EXTFA, $outputFa.".extended");
             my $sequenceLine = 0;
             my $bestSequence = "";
 
+            ########################
+            ## step: 7
+            ## get best sequence from candidate file
+            ## (will be added to the model)
             while(<EXTFA>) {
                     my $line = $_;
                     chomp($line);
@@ -1478,7 +1612,7 @@ sub getBestOrtholog {
             open (COREORTHOLOGS, ">>$outputFa") or die "Error: Could not open file: " . $outputFa . "\n";
             print COREORTHOLOGS "\n" . $header . "\n" . $bestSequence;
             close COREORTHOLOGS;
-            printDebug("bestTaxon is $best[2]\n");
+            printDebug("bestTaxon is $header\n");
             ### the best taxon will be added to the primer taxon list. Create a blastdb for it
             ## Baustelle: not sure about the naming of the files here.
             checkBlastDb($best[1], $best[1]);
@@ -1489,10 +1623,41 @@ sub getBestOrtholog {
 	}
 }
 ######################
+## param: %candicontent - hashed information about candidates (id-> sequence)
+## param: $scorefile - filename with alignment tool output
+## cumulative alignment scores
+## candidates vs sofar core ortholog set
+## return: hash of scores (id->score)
+sub cumulativeAlnScore{
+    my $file = $_[0];
+    my %content = %{$_[1]};
+
+    my %cumscores;
+    foreach my $key(keys%content) {
+        open (RESULT, $file) or die "Error: Could not open file with candidate taxa\n";
+        while(<RESULT>) {
+            my $line = $_;
+            $line =~ s/[\(\)]//g; #
+            my @line = split('\s+',$line);
+
+            if($line[0] && ($line[0] eq $key)){
+                if(exists $cumscores{$key}) {
+                    $cumscores{$key} = $cumscores{$key} + $line[2];
+                }else{
+                    $cumscores{$key} = $line[2];
+                }
+            }
+        }
+        close RESULT;
+    }
+    return %cumscores;
+}
+
+######################
 sub chooseTaxonByAln{
     my %aln_scores = %{$_[0]};
     my $bestFit;
-    my $bestAlnScore = 0;
+    my $bestAlnScore = -10000000;
     foreach my $key(keys%aln_scores) {
         if($aln_scores{$key} > $bestAlnScore) {
             $bestFit = ">" . $key;
@@ -1544,16 +1709,23 @@ sub getTaxa {
             }
 	}
 	else {
-		@taxonlist = `ls $path/$genome_dir`;
-		chomp @taxonlist;
-		for (my $i = 0; $i < @taxonlist; $i++) {
-			my ($taxon_name, $ncbi_id, $src_id) = split /@/, $taxonlist[$i];
-			if (!$src_id) {
-				$src_id = '';
-			}
-			$taxon_name = $taxonlist[$i];
-			$taxa{$taxon_name} = $ncbi_id;
-		}
+            ## removal of misplaced files in genome_dir
+            if (-e "$path/$genome_dir/query.sql"){
+                unlink("$path/$genome_dir/query.sql");
+            }
+            if (-e "$path/$genome_dir/@@.fa"){
+                unlink("$path/$genome_dir/@@.fa");
+            }
+            @taxonlist = `ls $path/$genome_dir`;
+            chomp @taxonlist;
+            for (my $i = 0; $i < @taxonlist; $i++) {
+                    my ($taxon_name, $ncbi_id, $src_id) = split /@/, $taxonlist[$i];
+                    if (!$src_id) {
+                            $src_id = '';
+                    }
+                    $taxon_name = $taxonlist[$i];
+                    $taxa{$taxon_name} = $ncbi_id;
+            }
 	}
 	### if the blast option is chosen, we will need blast databases for all taxa
 	### Baustelle: have one database including all taxa to run just a single instead of n blast searches
@@ -1574,9 +1746,9 @@ sub getTaxa {
 sub getTree {
 	# the full lineages of the species are merged into a single tree
 	my $tree;
-	foreach my $key (keys%taxa) {
+        foreach my $key (keys%taxa) {
 		my $node = $db->get_taxon(-taxonid => $taxa{$key});
-                print "key: ".$key."\n";
+
 		$node->name('supplied', $key);
 		if($tree) {
 			$tree->merge_lineage($node);
@@ -1710,36 +1882,33 @@ sub parseInput {
 	my $node =  $_[0];
 	my $level = $_[1];
 	my $rank = $node->rank;
-	#print "\nLEVEL:".$level."\n";
-        #print "\nRANK:".$rank."\n";    
+	printDebug("\nLEVEL:".$level."\n");
+        printDebug("\nRANK:".$rank."\n");    
 	while($level > 0) {
-               #print "\nLEVEL:".$level."\n";
-		$node = $node->ancestor;
-		#if($node->rank ne "no rank") {
-			$rank = $node->rank;
-                        --$level;
-		#}
+            $node = $node->ancestor;
+            $rank = $node->rank;
+            --$level;		
 	}
         print "\nRETURN RANK: ".$rank."\n";
 	return $rank;
 }
 ##########################
 sub parseTaxaFile {
-	open (INPUT, "<$coreTaxa") or die print "Error opening file with taxa for core orthologs search\n";
-	my @userTaxa;
-	while(<INPUT>) {
-		my $line = $_;
-		chomp($line);
-		if(!$taxa{$line}) {
-			print "You specified " . $line . " in your core orthologs file but the taxon is not in the database!\n";
-			exit;
-		} 
-		else {
-			push(@userTaxa, $line);
-		}
-	}
-	close INPUT;
-	return @userTaxa;
+    open (INPUT, "<$coreTaxa") or die print "Error opening file with taxa for core orthologs search\n";
+    my @userTaxa;
+    while(<INPUT>) {
+        my $line = $_;
+        chomp($line);
+        if(!$taxa{$line}) {
+            print "You specified " . $line . " in your core orthologs file but the taxon is not in the database!\n";
+            exit;
+        } 
+        else {
+            push(@userTaxa, $line);
+        }
+    }
+    close INPUT;
+    return @userTaxa;
 }
 ##########################
 sub printTaxa {
@@ -1767,18 +1936,16 @@ sub printTaxa {
 }
 ###########################
 sub printTaxonomy {
-	my $node = $_[0];
-	my $i = 0;
-	if($node->rank eq "species") {
-		print "[" . $i . "]: " . $node->rank . " (" . $node->scientific_name . ")\n";
-		while($node->ancestor) {
-			$node = $node->ancestor;
-			#if($node->rank ne "no rank") {
-				++$i;
-				print "[" . $i . "]: " . $node->rank . " (" . $node->scientific_name . ")\n";
-			#}
-		}      
-	}
+    my $node = $_[0];
+    my $i = 0;
+    if($node->rank eq "species") {
+        print "[" . $i . "]: " . $node->rank . " (" . $node->scientific_name . ")\n";
+        while($node->ancestor) {
+            $node = $node->ancestor;
+            ++$i;
+            print "[" . $i . "]: " . $node->rank . " (" . $node->scientific_name . ")\n";
+        }      
+    }
 }
 ############################
 sub remove_branch {
@@ -2157,12 +2324,16 @@ ${bold}SPECIFYING FAS SUPPORT OPTIONS$norm
 
 -fasoff
         Turn OFF FAS support. Default is ON.
--corefilteroff
-        Turn OFF the filtering core orthologs. Default is ON.
+-coreFilter=[relaxed|strict]
+        Specifiy mode for filtering core orthologs by FAS score. In 'relaxed' mode candidates with insufficient FAS score will be disadvantaged.
+        In 'strict' mode candidates with insufficient FAS score will be deleted from the candidates list. Default is None.
+        The option '-minScore=<>' specifies the cut-off of the FAS score. 
 -minScore=<>
-        Specify the threshold for corefilter. Default is 0.8.
+        Specify the threshold for coreFilter. Default is 0.75.
 -local
         Specify the alignment strategy during core ortholog compilation. Default is local.
+-glocal
+        Set the alignment strategy during core ortholog compilation to glocal.
 -global
         Set the alignment strategy during core ortholog compilation to global.
 -countercheck
