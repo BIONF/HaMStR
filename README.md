@@ -78,7 +78,7 @@ The resulting file combined_1.matrix and combined_1.domains can be plugged into 
 
 Happy HaMStRing.
 
-For further support or bug reports please contact: bergmann@bio.uni-frankfurt.de
+For further support or bug reports please contact: bergmann[at]bio.uni-frankfurt.de
 
 
 Dependencies
