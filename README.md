@@ -90,7 +90,7 @@ Dependencies
     clustalw2
     mafft-linsi
     Perl
-    Python
+    Python (FAS scoring requires python v2.7)
     
     locale-gen
     en_US
