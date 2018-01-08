@@ -6,7 +6,7 @@ CURRENT=$(pwd)
 echo $CURRENT
 echo "-------------------------------------"
 
-if [[ $CURRENT == */HaMStR ]]; then
+if [[ $CURRENT == */HaMStR ]] || [[ $CURRENT == */hamstr ]]; then
     echo "Processing $CURRENT ..."
     echo "Downloading data from https://applbio.biologie.uni-frankfurt.de/hamstr_qfo/data_HaMStR.tar"
     wget --no-check-certificate https://applbio.biologie.uni-frankfurt.de/hamstr_qfo/data_HaMStR.tar
