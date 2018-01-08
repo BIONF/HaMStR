@@ -13,18 +13,19 @@ This provides you with a clone of the latest version of HaMStR. The repository d
 
 To download the provided data (data_HaMStR.tar):
 
-    cd HaMStR
+    cd hamstr
     bash ./bin/install_data.sh
 
 Please configure your HaMStR to your personal needs and preferences with the following steps.
 To set the ENV variable $ONESEQDIR add the following line to your .bashrc or .bash_profile
 
-    export ONESEQDIR=/absolute/path/to/HaMStR
+    export ONESEQDIR=/absolute/path/to/hamstr
 
 
 Run the provided configure script to wrap everything up:
 
-    bash ./bin/configure -p -n
+    cd bin
+    bash ./configure -p -n
 
 Your personal copy of HaMStR should good to go.
 
