@@ -68,7 +68,7 @@ use File::Basename;
 ## 
 
 ############ General settings
-my $version = 'oneSeq v.1.1';
+my $version = 'oneSeq v.1.2';
 ##### configure
 my $configure = 0;
 if ($configure == 0){
@@ -147,7 +147,6 @@ my @defaultRanks = ('superkingdom', 'kingdom',
         'tribe', 'subtribe',
         'genus', 'subgenus',
         'species group', 'species subgroup', 'species');
-
 #switched from online version to flatfile because it is much faster
 #taxon files can be downloaded from: ftp://ftp.ncbi.nih.gov/pub/taxonomy/
 my $db = Bio::DB::Taxonomy->new(-source    => 'flatfile',
@@ -160,6 +159,10 @@ my $core_hitlimit = 3; # number of hmm hits in the hamstrsearch to consider for 
 # number of hmm hits in the hamstrsearch to consider for reblast during final hamstr search.
 # Note, this limits the number of co-orthologs that can be found.
 my $hitlimit = 10;
+## lagPhase test. Setting the autolimit option to decide from the score distribution how many hits to evaluate.
+my $autoLimit;
+my $scoreThreshold;
+my $scoreCutoff = 10; #value in percent of the hmmscore of the best hit
 # Setup for FAS score support (FAS support is used by default)
 # Note, fas_t is set to 0.75 by default. Changes will influence sensitivity and selectivity
 my $fas_support = 1;
@@ -219,6 +222,8 @@ my $autoclean;
 my $getversion;
 my $coreex; ## flag to set when the core set already exists
 my $addenv;
+my $chooseClosest; ## flag to normalise the score by the distance in the tree
+my $distDeviation = 0.05;
 
 ################# Command line options
 GetOptions ("h"                 => \$help,
@@ -243,6 +248,9 @@ GetOptions ("h"                 => \$help,
             "coreCheckCoorthologsRef"   => \$cccr,
             "hitlimitHamstr=s"          => \$hitlimit,
             "coreHitlimitHamstr=s"      => \$core_hitlimit,
+	    "autoLimitHamstr"	=> \$autoLimit,
+	    "scoreCutoff=s" => \$scoreCutoff,
+            "scoreThreshold" => \$scoreThreshold,
             "corerep"           => \$core_rep,
             "coreStrict"        => \$corestrict,
             "coreOnly"          => \$coreOnly,
@@ -268,7 +276,9 @@ GetOptions ("h"                 => \$help,
             "cleanup"           => \$autoclean,
             "addenv=s"          => \$addenv,
             "version"           => \$getversion,
-	    "reuse_core"        => \$coreex);
+			"reuse_core"        => \$coreex,
+			"chooseClosest"		=> \$chooseClosest,
+			"distDeviation=s"		=> \$distDeviation);
 
 ############# connect to the database
 if ($dbmode) {
@@ -308,6 +318,25 @@ if($group) {
    }
    $tree->set_root_node($groupNode);
 }
+
+## Tree without deletions to use for 
+my $wholeTree = getTree();
+
+if($group) {
+   foreach($wholeTree->get_nodes()) {
+      if($_->id == $groupNode->id) {
+         $groupNode = $_;
+      }
+   }
+   $wholeTree->set_root_node($groupNode);
+}
+
+## initialise control nodes
+my $currentDistNode = $wholeTree->find_node(-ncbi_taxid => $taxa{$refSpec});
+my $currentNoRankDistNode = $currentDistNode->ancestor; ## the node from which the distance to other species will be calculated
+my $currentChildsToIgnoreNode = $currentDistNode;		## the node containing all child species which will not be included in the candidates file
+
+my %hashTree = buildHashTree();
 
 if (!$coreex) {
     removeMaxDist();
@@ -360,14 +389,33 @@ if (!$coreex) {
 
         my $pi = new Parallel::ForkManager($cpu);
 
+		my %toProcess; 		## all species with distance >= last selected ortholog
+		my %notToProcess; 	## all species with distance < last selected ortholog
         foreach my $key (get_leaves($tree)) {
-            my $pid = $pi->start and next;
-            print "Hamstr species: " . $key->scientific_name . " - " . @{$key->name('supplied')}[0] . "\n";
-            runHamstr(@{$key->name('supplied')}[0], $seqName, $outputFa, $refSpec, $core_hitlimit, $core_rep, $corestrict, $coremode, $eval_blast, $eval_hmmer);
-            $pi->finish;
+			my $keyName = @{$key->name('supplied')}[0];
+			my $nodeId = $wholeTree->find_node(-ncbi_taxid => $taxa{$keyName})->id;
+			## check weather species is not closer than the last one
+			if (!defined $hashTree{$currentChildsToIgnoreNode}{$nodeId}){
+				$toProcess{$keyName} = 1;
+            	my $pid = $pi->start and next;
+            	print "Hamstr species: " . $key->scientific_name . " - " . @{$key->name('supplied')}[0] . "\n";
+            	runHamstr(@{$key->name('supplied')}[0], $seqName, $outputFa, $refSpec, $core_hitlimit, $core_rep, $corestrict, $coremode, $eval_blast, $eval_hmmer);
+            	$pi->finish;
+            }
+			else{
+				$notToProcess{$keyName} = 1;
+			}
         }
         $pi->wait_all_children;
 
+		print "To Process: \n";
+		foreach my $key (keys %toProcess){
+			print "$key\n";
+		}
+		print "Not To Process: \n";
+		foreach my $key (keys %notToProcess){
+			print "$key\n";
+		}
 
        my $addedTaxon = getBestOrtholog();
        print "\n\nAdded TAXON: " . $addedTaxon . "\n\n\n\n";
@@ -1522,6 +1570,8 @@ sub getBestOrtholog {
             my $bestTaxon;
             my $bestCombi_AlnFas = 0;
             my $hotCandi = 0;
+            my $newNoRankDistNode;
+            my $newChildsToIgnoreNode;
             ## check for fas support
             if($fas_support){
                 # FAS support: ON, using rank sum of normalized alignment score and FAS score to identify best fitting candidate
@@ -1566,13 +1616,52 @@ sub getBestOrtholog {
                     }
                     
                     ## select candidate ($key) with highest combined score ($rankscore) as best fitting candidate
-                    if($rankscore > $bestCombi_AlnFas) {
-                        $bestTaxon = ">" . $key;
-                        $bestCombi_AlnFas = $rankscore;
-                        printDebug("Best Taxon: ". $bestTaxon." with FAS: ".$fas_box{$key}." and ALN: ".$scores{$key}." = rankscore: ".$rankscore."\n");
+                    ## If score is in an acceptable deviation choose closest
+                    if ($chooseClosest){
+						## better Taxon has been found
+						if($rankscore > $bestCombi_AlnFas * (1+$distDeviation)) {
+							$bestTaxon = ">" . $key;
+							$bestCombi_AlnFas = $rankscore;
+							$newNoRankDistNode = $currentNoRankDistNode;
+							$newChildsToIgnoreNode = $currentChildsToIgnoreNode;
+							my @headers = split(/\|/, $key);
+							my $newNodeId = $tree->find_node(-ncbi_taxid => $taxa{$headers[1]})->id;
+							while (!defined $hashTree{$newNoRankDistNode}{$newNodeId}){
+								$newNoRankDistNode = $newNoRankDistNode->ancestor;
+								$newChildsToIgnoreNode = $newChildsToIgnoreNode->ancestor;
+							}
+							printDebug("Best Taxon: ". $bestTaxon." with FAS: ".$fas_box{$key}." and ALN: ".$scores{$key}." = rankscore: ".$rankscore."\n");
+						}
+						## A Taxon with around the same score as the current best has been found
+						## Now check which one is closer in the taxonomie tree
+						elsif($rankscore >= $bestCombi_AlnFas * (1-$distDeviation) and $rankscore <= $bestCombi_AlnFas * (1+$distDeviation)) {
+							my $newBestTaxon = chooseClosestTaxon($bestTaxon, ">" . $key);
+							if ($newBestTaxon ne $bestTaxon) {
+								$bestTaxon = $newBestTaxon;
+								$bestCombi_AlnFas = $rankscore;
+								$newNoRankDistNode = $currentNoRankDistNode;
+								$newChildsToIgnoreNode = $currentChildsToIgnoreNode;
+								my @headers = split(/\|/, $bestTaxon);
+								my $newNodeId = $tree->find_node(-ncbi_taxid => $taxa{$headers[1]})->id;
+								while (!defined $hashTree{$newNoRankDistNode}{$newNodeId}){
+									$newNoRankDistNode = $newNoRankDistNode->ancestor;
+									$newChildsToIgnoreNode = $newChildsToIgnoreNode->ancestor;
+								}
+							}
+							printDebug("Best Taxon: ". $bestTaxon);
+						}
+					}
+					## Ignore distance
+					else{
+                    	if($rankscore > $bestCombi_AlnFas) {
+                        	$bestTaxon = ">" . $key;
+                        	$bestCombi_AlnFas = $rankscore;
+                        	printDebug("Best Taxon: ". $bestTaxon." with FAS: ".$fas_box{$key}." and ALN: ".$scores{$key}." = rankscore: ".$rankscore."\n");
+                    	}
                     }
                 }
-
+                $currentNoRankDistNode = $newNoRankDistNode;
+                $currentChildsToIgnoreNode = $newChildsToIgnoreNode;
             }else{
                 ## choice of best taxa: alignment score driven only 
                 $bestTaxon = chooseTaxonByAln(\%scores);
@@ -1658,12 +1747,49 @@ sub chooseTaxonByAln{
     my %aln_scores = %{$_[0]};
     my $bestFit;
     my $bestAlnScore = -10000000;
+    my $newNoRankDistNode;
+    my $newChildsToIgnoreNode;
     foreach my $key(keys%aln_scores) {
-        if($aln_scores{$key} > $bestAlnScore) {
-            $bestFit = ">" . $key;
-            $bestAlnScore = $aln_scores{$key};
+		## Norm score by distance if enabled
+		if ($chooseClosest){
+			if($aln_scores{$key} > $bestAlnScore * (1+$distDeviation)) {
+				$bestFit = ">" . $key;
+				$bestAlnScore = $aln_scores{$key};
+				$newNoRankDistNode = $currentNoRankDistNode;
+				$newChildsToIgnoreNode = $currentChildsToIgnoreNode;
+				my @headers = split(/\|/, $key);
+				my $newNodeId = $tree->find_node(-ncbi_taxid => $taxa{$headers[1]})->id;
+				while (!defined $hashTree{$newNoRankDistNode}{$newNodeId}){
+					$newNoRankDistNode = $newNoRankDistNode->ancestor;
+					$newChildsToIgnoreNode = $newChildsToIgnoreNode->ancestor;
+				}
+			}
+			elsif($aln_scores{$key} >= $bestAlnScore * (1-$distDeviation) and $aln_scores{$key} <= $bestAlnScore * (1+$distDeviation)){
+				my $newBestFit = chooseClosestTaxon($bestFit, ">" . $key);
+				if ($newBestFit ne $bestFit){
+					$bestFit = $newBestFit;
+					$bestAlnScore = $aln_scores{$key};
+					$newNoRankDistNode = $currentNoRankDistNode;
+					$newChildsToIgnoreNode = $currentChildsToIgnoreNode;
+					my @headers = split(/\|/, $bestFit);
+					my $newNodeId = $tree->find_node(-ncbi_taxid => $taxa{$headers[1]})->id;
+					while (!defined $hashTree{$newNoRankDistNode}{$newNodeId}){
+						$newNoRankDistNode = $newNoRankDistNode->ancestor;
+						$newChildsToIgnoreNode = $newChildsToIgnoreNode->ancestor;
+					}
+				}
+			}
+		}
+		## Ignore distance
+		else{
+        	if($aln_scores{$key} > $bestAlnScore) {
+            	$bestFit = ">" . $key;
+            	$bestAlnScore = $aln_scores{$key};
+            }
         }
     }
+    $currentNoRankDistNode = $newNoRankDistNode;
+    $currentChildsToIgnoreNode = $newChildsToIgnoreNode;
     return $bestFit;
 }
 ######################
@@ -1800,9 +1926,16 @@ sub runHamstr {
 			     "-eval_blast=".$ev_blst, "-eval_hmmer=".$ev_hmm, "-central");
 
 		    my $resultFile;
-                    if (defined $hitlimit) {
-                        push(@hamstr, "-hit_limit=$hitlimit"); 
-                    }
+			if (defined $autoLimit) {
+				push(@hamstr, "-autoLimit");
+			}
+			elsif (defined $scoreThreshold) {
+				push(@hamstr, "-scoreThreshold"); 
+				push(@hamstr, "-scoreCutoff=$scoreCutoff");
+			}
+			elsif (defined $hitlimit) {
+            	push(@hamstr, "-hit_limit=$hitlimit"); 
+            }
 		    if($sub_strict) {
 		    	push(@hamstr, "-strict");
 		    	$resultFile = $outputPath . "/fa_dir_" . $taxon . '_' . $seqName . "_strict/" . $seqName . ".fa";
@@ -1827,6 +1960,9 @@ sub runHamstr {
 		    if ($silent) {
                         push @hamstr, "-silent";
 		    }
+			if ($debug) {
+				push @hamstr, "-debug";
+			}
                     printDebug(@hamstr);
 	 
 		    system(@hamstr) == 0 or die "Error: hamstr failed for " . $taxon . "\n";
@@ -1836,7 +1972,7 @@ sub runHamstr {
                             $outputFa .= '.extended';
 			}
 		    	## Baustelle: check that this also works with the original hamstrcore module as here a tail command was used.
-			my $tailCommand = "grep -A 1 '$taxon.*|[01]\$' " . $resultFile . "|sed -e 's/\\([^|]\\{1,\\}\\)|[^|]*|\\([^|]\\{1,\\}\\)|\\([^|]\\{1,\\}\\)|\\([01]\\)\$/\\1|\\2|\\3|\\4/' >>" . $outputFa;
+			my $tailCommand = "$grepprog -A 1 '$taxon.*|[01]\$' " . $resultFile . "|sed -e 's/\\([^|]\\{1,\\}\\)|[^|]*|\\([^|]\\{1,\\}\\)|\\([^|]\\{1,\\}\\)|\\([01]\\)\$/\\1|\\2|\\3|\\4/' >>" . $outputFa;
 			printDebug("Post-processing of HaMStR\n$tailCommand\n");
 			system($tailCommand);
 		    }
@@ -2024,6 +2160,130 @@ sub removeMinDist {
 	$delFlag = remove_branch($node);
         return $delFlag;
 }
+
+############################
+## takes keys for two core candidates and determines,
+## which is closer to the current core orthologs
+sub chooseClosestTaxon {
+	my ($key1, $key2) = @_;
+	my $taxa1Id = (split(/\|/, $key1))[1];
+	my $taxa2Id = (split(/\|/, $key2))[1];
+	printDebug("$taxa1Id and $taxa2Id have nearly the same score. Choosing one by distance.");
+	my $originNode = $currentNoRankDistNode;
+	my $node1Id = $wholeTree->find_node(-ncbi_taxid => $taxa{$taxa1Id})->id;
+	my $node2Id = $wholeTree->find_node(-ncbi_taxid => $taxa{$taxa2Id})->id;
+	## raise rank until one or both candidates have been found
+	while (!defined $hashTree{$originNode}{$node1Id} and !defined $hashTree{$originNode}{$node2Id} ){
+		$originNode = $originNode->ancestor;
+	}
+	## first candidate or both have been found
+	if (defined $hashTree{$originNode}{$node1Id}){
+		printDebug("$key1 has been choosen\n");
+		return $key1;
+	}
+	## the second candidtae has been found
+	else {
+		print "$key2 has been choosen\n";
+		return $key2;
+	}
+}
+
+############################
+## builds a 2 dimensional hash in which youcan check for a node,
+## weather there is a path down the tree to a given species
+sub buildHashTree {
+	print "Building hash tree\n";
+	
+	printDebug("Creating variables...");
+	my %hashTree;
+	my %nextNodes;
+	my %processed;
+	my @ancestors;
+	my $rootNode = $wholeTree->get_root_node();
+	
+	print "Processing leafs...\n";
+	## create entry for leafes
+	foreach my $leaf (get_leaves($wholeTree)){
+		my $key = $leaf->id;
+		my %leafHash;
+		$leafHash{$key} = "exists";
+		$hashTree{$leaf}{$key} = "exists";
+		my $nextNode = $leaf->ancestor;
+		my $nextNodeKey = $nextNode->id;
+		my $test = $hashTree{$leaf}{$key};
+		my $nodeTest = $nextNodeKey;
+		printDebug("Leaf $key set to $test");
+		## queue ancestor node for processing, if it hasn't been queued already
+		if (!$nextNodes{$nextNodeKey}){
+			$nextNodes{$nextNodeKey} = $nextNode;
+			push @ancestors, $nextNode;
+			printDebug("Queuing ancestor $nextNodeKey for processing...\n");
+		}
+		$processed{$leaf} = 1;
+	}
+	print "Finished leafs\n";
+
+## create entries for all other nodes
+	print "Processing ancestor nodes\n";
+	foreach my $node (@ancestors){
+		my $test = $node->id;
+		printDebug("Processing node: $test\n");
+		my $bool = 1;
+		## check, weather all childs have already been processed
+		foreach  my $child ($node->each_Descendent()){
+			if (!defined $processed{$child}){
+				$bool = 0;
+			}
+		}
+		## if all childs have been processed, process this node
+		if ($bool == 1){
+			printDebug("All children processed for node: $test");
+			## node is not root
+			if ($node != $rootNode){
+				printDebug("Node $test is not root");
+				foreach my $child ($node->each_Descendent()){
+					while (my ($key, $value) = each %{$hashTree{$child}}){
+						$hashTree{$node}{$key} = $value;
+						printDebug("Node $key $value in node $test");
+					}
+				}
+				my $nextNode = $node->ancestor;
+				my $nextNodeKey = $nextNode->id;
+				## queue ancestor node for processing, if it hasn't been queued already
+				if (!$nextNodes{$nextNodeKey}){
+					$nextNodes{$nextNodeKey} = $nextNode;
+					push @ancestors, $nextNode;
+					printDebug("Queuing ancestor $nextNodeKey for processing...");
+				}
+			}
+			## node is root
+			else{
+				printDebug("Node $test is root");
+				foreach my $child ($node->each_Descendent()){
+					while (my ($key, $value) = each %{$hashTree{$child}}){
+						$hashTree{$node}{$key} = $value;
+						printDebug("Node $key $value in node $test");
+					}
+				}
+			}
+			## mark node as processed
+			$processed{$node} = 1;
+			printDebug("Node $test has been processed\n\n");
+		}
+		## not all childs have been processed
+		## queue node again
+		else{
+			push @ancestors, $node;
+			printDebug("Not all children processed for node: $test");
+			printDebug("Queuing $test again...\n\n");
+		}
+	}
+	print "Finished processing ancestor nodes\n";
+	print "Finished building hash tree\n";
+	print "Returning hash tree...\n";
+	return %hashTree;
+}
+
 ##########################
 sub getProteome {
 	my $taxstring = shift;
@@ -2299,10 +2559,26 @@ ${bold}ADDITIONAL OPTIONS$norm
 -coreHitLimit=<>
 	Provide an integer specifying the number of hits of the initial pHMM based search that should be evaluated
 	via a reverse search. Default: 3
+-autoLimit
+        Setting this flag will invoke a lagPhase analysis on the score distribution from the hmmer search. This will determine automatically
+        a hit limit for each query. Note, when setting this flag, it will be effective for both the core ortholog compilation
+        and the final ortholog search.
+-scoreThreshold
+        Instead of setting an automatic hit limit, you can specify with this flag that only candidates with an hmm score no less
+        than x percent of the hmm score of the best hit are further evaluated. Default is x = 10.
+        You can change this cutoff with the option -scoreCutoff. Note, when setting this flag, it will be effective for
+        both the core ortholog compilation and the final ortholog search.
+-scoreCutoff=<>
+        In combination with -scoreThreshold you can define the percent range of the hmms core of the best hit up to which a
+        candidate of the hmmsearch will be subjected for further evaluation. Default: 10%.
 -coreOnly
 	Set this flag to compile only the core orthologs. These sets can later be used for a stand alone HaMStR search. 
 -reuse_core
 	Set this flag if the core set for your sequence is already existing. No check currently implemented.
+-chooseClosest
+	Set this flag to choose the taxon closest to the current core taxa, if two taxa have a similar score
+-distDeviation=<>
+	Specify the deviation in percent (1=100%, 0=0%) allowed for two taxa to be considered similar
 -blast
 	Set this flag to determine sequence id and refspec automatically. Note, the chosen sequence id and reference species
 	does not necessarily reflect the species the sequence was derived from.

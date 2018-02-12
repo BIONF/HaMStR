@@ -165,9 +165,20 @@ use POSIX;
 	## 12.02.2016
 	## Minor bug fix: In some instances the representative protein was not chosen correctly due to a bug in the subroutine
 	## sortRef. Analyses of transcript data are not affected at all.
+	
+	## 19.12.2017
+	## Extension: HaMStR can now automatically determine the hit limit up to which candidates from the intial
+	## hmm search are evaluated as potential orthologs. Two options are available, either an hmm score driven
+	## cutoff determination, or alternatively, a lagPhase-based estimator.
+
+    ## 02.02.2018
+    ## Bug fix (solved): using grep within the checkcoorthologsref routine could cause an incomplete alignment of the reference gene,
+    ## the candidate ortholog and the best blast hit. The resulting distance (kimura) calculation may caused an overoptimistic
+    ## acceptence of co-ortholgy relations. The bug onyl occured while using the option checkCoOrthologsRef.
+    ## HaMStR keeps original gene sets in FASTA format and *.fa.mod will link to the original FASTA file (no linebreaks within a sequence).
     
 ######################## start main ###########################################
-my $version = "HaMStR v.13.2.6";
+my $version = "HaMStR v.13.2.8";
 ######################## checking whether the configure script has been run ###
 my $configure = 0;
 if ($configure == 0){
@@ -211,6 +222,7 @@ my $fileobj;
 #######################################################
 my $pid = $$;
 my $help;
+my $debug;
 my $seq2store_file='';
 my $cds2store_file='';
 my $hmm;
@@ -257,12 +269,15 @@ my $check = 1;
 my @log = qw();
 my $bhh;
 my $hitlimit;
+my $autoLimit;
+my $scoreThreshold;
+my $scoreCutoff = 10;
 my $nonoverlappingCO;
 my $algorithm = 'blastp';
 my $frame;
 my $checkCoRef;
 my $sortalign;
-my $check_genewise = 1;
+my $check_genewise = 0;
 my $outputfmt = 'blastxml';
 my $fact;
 my $runFACTparameter;
@@ -367,6 +382,17 @@ ${bold}ADDITIONAL OPTIONS$norm
 -hit_limit=<>
 		By default, HaMStR will re-blast all hmmsearch hits against the reference proteome. Reduce the number
 		of hits for reblast with this option.
+-autoLimit	
+		Setting this flag will invoke a lagPhase analysis on the score distribution from the hmmer search. This will determine automatically
+		a hit_limit for each query.
+-scoreThreshold
+		Instead of setting an automatic hit limit, you can specify with this flag that only candidates with an hmm score no less
+		than x percent of the hmm score of the best hit are further evaluated. Default is x = 10. 
+		You can change this cutoff with the option -scoreCutoff. Note, when setting this lag, it will be effective for
+		both the core ortholog compilation and the final ortholog search.
+-scoreCutoff=<>
+		In combination with -scoreThreshold you can define the percent range of the hmms core of the best hit up to which a
+		candidate of the hmmsearch will be subjected for further evaluation. Default: 10%.
 -hmm
 		Option to provide only a single hmm to be used for the search. 
 		Note, this file has to end with .hmm 
@@ -397,21 +423,25 @@ ${bold}ADDITIONAL OPTIONS$norm
 -show_hmmsets
 		setting this flag will list all available core ortholog sets in the specified path. Can be combined with -hmmpath.
 -silent
-		Supresses (almost) all print statements to the screen
+		Supresses (almost) all print statements to the screen.
+-debug
+		Get some additional meta information as print out to the screen.
 -sort_global_align
-		setting this flag will tell hamstr to sort ortholog candidates according to their global alignment score to the reference
+		Setting this flag will tell hamstr to sort ortholog candidates according to their global alignment score to the reference
 		sequence rather than according to the score they have achieved in the hmmer search (local). NOTE: In the case of searching
 		EST data this flag is automatically set.  
 -strict
-		set this flag if the reciprocity criterion is only fulfilled when the re-blast against
+		Set this flag if the reciprocity criterion is only fulfilled when the re-blast against
 		all primer taxa was successfull
 		\n\n";
 GetOptions ("append" => \$append,
+			"autoLimit"	=> \$autoLimit,
 			"blastpath=s" => \$blastpath,
 			"checkCoorthologsRef" => \$checkCoRef,
 			"concat" => \$concat,
 			"cpu=s"  => \$cpu,
 			"central" => \$central,
+            "debug"             => \$debug,
             "est"    => \$estflag,
             "eval_blast=s" => \$eval_blast,
             "eval_hmmer=s" => \$eval,          
@@ -434,6 +464,8 @@ GetOptions ("append" => \$append,
             "representative" => \$rep,
             "reuse"	=> \$reuse,
             "sequence_file=s" => \$dbfile,
+	    "scoreCutoff=s" => \$scoreCutoff,
+	    "scoreThreshold" => \$scoreThreshold,
             "show_hmmsets" => \$show_coreortholog_sets,
             "silent"       => \$silent,
             "sort_global_align" => \$sortalign,
@@ -518,12 +550,20 @@ for (my $i = 0; $i < @hmms; $i++) {
   	## 4a) loop through the individual results
   	## now the modified version for hmmer3 comes
   	my $hitlimit_local = $hitlimit;
-  	my ($query_name, $results) = parseHmmer3pm($hmmout, $hmmsearch_dir);
+  	my ($query_name, $results, $hitlimit_local, $criticalValue) = parseHmmer3pm($hmmout, $hmmsearch_dir);
   	if (! $results) {
     	printOUT("no hit found for $query_name\n");
     	$pm->finish;
     	next;
   	}
+	## Automatic hit limit information
+	if (defined $autoLimit) {
+		printDebug("Automatic cutoff estimation via a lag Phase analysis was selected. Estimated lag point is $criticalValue. Limiting the number of hits for the evaluation from " . scalar(@$results) . " to $hitlimit_local");
+        }
+	elsif (defined $scoreThreshold) {
+		printDebug("Automatic cutoff estimation via a minimal score was selected. Cutoff: $scoreCutoff percent of the best hmm score. Hits with an hmm score below $criticalValue are not considered. Limiting the number of hits for the evaluation from " . scalar(@$results) . " to $hitlimit_local");
+	} 
+	## 
   	printOUT("Results for $query_name\n");
   	my ($check, $refspec_final) = &determineRefspecFinal($query_name, @refspec);
   	if ($check == 0) {
@@ -781,7 +821,7 @@ sub checkInput {
 	
 	#############################################################################
   	my $check = 1;
-
+    
   	if (!defined $dbfile) {
   		push @log, "You need to specify a valid infile with the option -sequence_file\n\n";
   		$check = 0;
@@ -816,16 +856,19 @@ sub checkInput {
 		else {
 			push @log, "\tRemoving line breaks from $dbpath/$dbfile.";
 			printOUT("removing newlines from the infile $dbfile such that a sequence forms a consecutive string\n");
-			`$path/bin/nentferner.pl -in=$dbpath/$dbfile -out=$dboutpath/$dbfile.mod`;
+                        # *.tmp will replace the original FASTA file (keeping the original file name).
+                        # creating a sym link named *.mod (used to check for removed linebreaks)
+                        system("$path/bin/nentferner.pl -in=$dbpath/$dbfile -out=$dboutpath/$dbfile.tmp -replace");
+                        system("ln -s $dboutpath/$dbfile $dboutpath/$dbfile.mod")
 		}
 		if 	(! -e "$dboutpath/$dbfile.mod") { 
 			push @log, "${bold}FATAL:${norm} Problems running the script nentferner.pl";
 			$check = 0;
 		}
 		else {
-			printOUT("nentferner.pl succeeded.\n");
+			printOUT("\nnentferner.pl succeeded.\n");
 			push @log, "\tNewlines from the infile have been removed";
-			$dbfile = $dbfile . '.mod';
+			#$dbfile = $dbfile . '.mod';
 				if (defined $longhead) {
 				`$sedprog -i -e "s/[[:space:]]\\+/$idsep/g" -e 's/\\(>.\\{20\\}\\).*/\\1/' $dboutpath/$dbfile`;
 				push @log, "\tOption -longhead was chosen. Replaced whitespaces in the sequence identifier with '$idsep'";
@@ -839,7 +882,7 @@ sub checkInput {
 		return ($check, @log);
  	 }
 	  ## 1) check for filetype
-	  printOUT("Checking for sequence type\n");
+	  printOUT("checking for sequence type:\n");
 	  if (!defined $estflag and !defined $proteinflag) {
 	  	push @log, "\nCHECKING SEQUENCE TYPE\n";
 	    push @log, "\tNo file sequence type was determined. HaMStR will guess whether EST or protein sequences are analyzed";
@@ -911,7 +954,7 @@ sub checkInput {
 	  }
 	  ## 2) Check for presence of the blast program
 	  push @log, "\nCHECKING FOR PROGRAMS\n";
-	  printOUT("Checking for the blast program\t");
+	  printOUT("checking for the blast program:\t");
 	  if (`which $blast_prog` =~ / no /) {
     	push @log, "${bold}FATAL:${norm} could not execute $blast_prog. Please check if this program is installed and executable";
     	print "failed\n";
@@ -922,7 +965,7 @@ sub checkInput {
     	print "succeeded\n";
 	  }
 	  ## 3) Check for presence of hmmsearch
-	  printOUT("Checking for hmmsearch\t");
+	  printOUT("checking for hmmsearch:\t");
 	  my $hmmcheck = `$prog -h |$grepprog -c 'HMMER 3'`;
 	  if (! `$prog -h`) {
 	  	push @log, "${bold}FATAL:${norm} could not execute $prog. Please check if this program is installed and executable";
@@ -940,7 +983,7 @@ sub checkInput {
 	  }
 	  ## 3b) Check for genewise
 	if ($check_genewise) {
-		  printOUT("Checking for genewise\t");
+		  printOUT("checking for genewise:\t");
 		  if (! `genewise -help`) {
   	  	push @log, "${bold}FATAL:${norm} Could not execute genewise. Please check if this program is installed and executable";
     		print "failed: genewise is not executable\n";
@@ -1039,7 +1082,7 @@ Please consult the installation manual for genewise and set this variable";
     }
   	## 8) Check for reference taxon
   	push @log, "\nCHECKING FOR REFERENCE TAXON\n";
-  	printOUT("Checking for reference species and blast-dbs\t");
+  	printOUT("checking for reference species and blast-dbs:\t");
   	if (!(defined $refspec_string) and (! defined $strict and ! defined $relaxed)) {
       push @log, "${bold}FATAL:${norm} Please provide a reference species for the reblast!";
       print "failed\n";
@@ -1080,24 +1123,73 @@ Please consult the installation manual for genewise and set this variable";
   	printOUT("checking for blast-dbs:\t");
   	push @log, "\nCHECKING FOR BLAST DATABASES\n";
   	for (my $i = 0; $i < @refspec; $i++) {
-    	my $blastpathtmp = "$blastpath/$refspec[$i]/$refspec[$i]";
-    	if (-e $blastpathtmp . $blastdbend) {
-    		push @log, "\tcheck for $blastpathtmp succeeded";
-      		printOUT("succeeded\n");
-    	}
-    	elsif (-e $blastpathtmp . '_prot' . $blastdbend){
-			## the check for the file naming '_prot' is only to maintain backward compatibility
-    		$blastapp = '_prot';
-   			$blastpathtmp = $blastpathtmp . $blastapp;
-   			push @log, "\tcheck for $blastpathtmp succeeded";
-      		printOUT("succeeded\n");
-    	}
-    	else {
-      		push @log, "${bold}FATAL:${norm} please edit the blastpath. Could not find $blastpathtmp or blast database blastpathtmp.pin does not exist.";
-      		print "$blastpathtmp failed\n";
-   			$check = 0;		
-   		}
+            my $blastpathtmp = "$blastpath/$refspec[$i]/$refspec[$i]";
+            if (-e $blastpathtmp . $blastdbend) {
+                    push @log, "\tcheck for $blastpathtmp succeeded";
+                    printOUT("succeeded\n");
+            }
+            elsif (-e $blastpathtmp . '_prot' . $blastdbend){
+                    ## the check for the file naming '_prot' is only to maintain backward compatibility
+                    $blastapp = '_prot';
+                    $blastpathtmp = $blastpathtmp . $blastapp;
+                    push @log, "\tcheck for $blastpathtmp succeeded";
+                    printOUT("succeeded\n");
+            }
+            else {
+                    push @log, "${bold}FATAL:${norm} please edit the blastpath. Could not find $blastpathtmp or blast database blastpathtmp.pin does not exist.";
+                    print "$blastpathtmp failed\n";
+                    $check = 0;		
+            }
+        }
+    ## 9.1) Check for presence of the required FASTA file of reference species
+    printOUT("checking for reference fasta files:\t");
+    push @log, "\nCHECKING FOR REFERENCE FASTA FILES\n";
+    for (my $i = 0; $i < @refspec; $i++) {
+        my $referencedb = "$blastpath/$refspec[$i]/$refspec[$i]".".fa";
+        my $ref_dir = "$blastpath/$refspec[$i]";
+        my $link = `readlink $referencedb`;
+        my $ref_location = $referencedb;
+        chomp($link);
+        if (-e "$referencedb") {
+            if (defined $link){
+                # link to file (.fa)
+                my $cwd = cwd();
+                chdir($ref_dir);
+                $referencedb = abs_path($link);
+                chdir($cwd);
+            }
+            if (-e "$referencedb.mod") {
+                push  @log, "\tA infile is already modified: linked $referencedb.mod existst. Using this one";
+            }
+            else {
+                push @log, "\tRemoving line breaks from $referencedb.";
+                printOUT("\nremoving newlines from $referencedb such that a sequence forms a consecutive string\n");
+                # *.tmp will replace the original FASTA file (keeping the original file name).
+                # creating a sym link named *.mod (used to check for removed linebreaks)
+                system("$path/bin/nentferner.pl -in=$referencedb -out=$referencedb.tmp -replace");
+                system("ln -s $referencedb $referencedb.mod");
+            }
+            if 	(! -e "$referencedb.mod") {
+                push @log, "${bold}FATAL:${norm} Problems running the script nentferner.pl";
+                $check = 0;
+            }
+            else {
+                printOUT("nentferner.pl succeeded.\n");
+                push @log, "\tNewlines from the reference FASTA file have been removed";
+                if (defined $longhead) {
+                    `$sedprog -i -e "s/[[:space:]]\\+/$idsep/g" -e 's/\\(>.\\{20\\}\\).*/\\1/' $referencedb`;
+                    push @log, "\tOption -longhead was chosen. Replaced whitespaces in the sequence identifier with '$idsep'";
+                }
+            }
+            
+        }else{
+            #the provided reference fasta file does not exist or link to file does not exist:
+            push @log, "${bold}FATAL:${norm} FASTA file for the specified reference $refspec[$i] does not exist. PLEASE PROVIDE A VALID REFERENCE SPECIES!\n";
+            $check = 0;
+            return ($check, @log);
+        }
     }
+    
   	## 10) Set the file where the matched seqs are found
   	my $strictstring = '';
   	if (defined $strict) {
@@ -1771,15 +1863,34 @@ sub parseHmmer3pm {
     			}
     		}
     	}
-    }
-	if (defined $hits->[0]) {
-		return ($query, $hits);
- 	}
- 	else {
-		return ($query);
- 	}
-}
+    
+		if (defined $hits->[0]) {
+		    ####### a quick hack to obtain the lagPhase value
+			my $criticalValue; # takes the value used for candidate discrimination
+			my $hitLimitLoc = $hitlimit;
+			if (defined $autoLimit) {
+				printDebug("Entering getLag Routine\n");
+               	## the user has invoked the autmated inference of a hit limit
+               	($hitLimitLoc, $criticalValue)  = getLag($hits, $hitcount);
+				if (!defined $criticalValue) {
+					## there was a problem in the computatation of the lagPhase
+					print "Computation of lagPhase did not succeed, switching to score threshold using a default cutoff of $scoreCutoff\n";
+					($hitLimitLoc, $criticalValue) = getHitLimit($hits, $hitcount);
+				}
+        	}
+			elsif (defined $scoreThreshold) {
+				printDebug("entering the scoreThreshold routine");
+				($hitLimitLoc, $criticalValue) = getHitLimit($hits, $hitcount);
+				printDebug("hitlimitloc is now $hitLimitLoc");
+			}
 
+			return ($query, $hits, $hitLimitLoc, $criticalValue);
+ 		}
+ 		else {
+			return ($query);
+ 		}
+	}
+}
 ##############################
 sub parseSeqfile {
   my $seqref;
@@ -1955,6 +2066,7 @@ sub checkCoorthologRef {
 	my ($localid, $query, $best, $ref) = @_;
 	open (OUT, ">$tmpdir/$localid.co.fa") or die "failed to open $localid.co.fa\n";
 	print OUT ">query\n$query\n>best\n$best\n>ref\n$ref\n";
+        print "\n\n>query\n$query\n>best\n$best\n>ref\n$ref\n\n";
 	close OUT;
 	## aligning sequences
 	`$alignmentprog_co --quiet $tmpdir/$localid.co.fa > "$tmpdir/$localid.co.aln"`;
@@ -2002,5 +2114,113 @@ sub printOUT {
 				print $message;
 		}
 		return();
+}
+###### sub getLag
+sub getLag {
+	print "\nInside getlag\n";
+	my ($hits, $hitcount) = @_;
+	my $minScore = $hits->[$hitcount-1]->{hmmscore};
+        my $maxScore = $hits->[0]->{hmmscore};
+	if ($minScore == $maxScore) {
+		## there is nothing to do, since there is either only one hit, or all hits have the same
+		## hmmscore. Return the value of $hitcount.
+		return($hitcount, 1);
+	}
+	## debug 
+	else {
+		print "hitcount is $hitcount, max is $maxScore, min is $minScore\n";
+		my @yData = qw();
+		my @xData = qw();
+		my @xDataLog = qw();
+		## now we generate a reversed list of the normalized bitscores
+		for (my $i = 0; $i < $hitcount; $i++) {
+			push(@yData, 1 - ($hits->[$i]->{hmmscore} - $minScore)/($maxScore - $minScore));
+			push(@xDataLog, log(0.1*($i+1)));
+			push(@xData, (0.1*($i+1)));
+		}
+		## The module requires a sufficient amount of trailing 1 to measure the lag point,
+		## so we just append them
+		for (my $i = $hitcount; $i < ($hitcount+20); $i++) {
+			push(@yData, 1);
+			push(@xData, 0.1*($i));
+			push(@xDataLog, 0.1*($i));
+		}
+		### calculate end point of lag phase
+		my $R = Statistics::R->new();
+		# set variables for R
+		my $lagPoint = computeLagPoint($R, \@xDataLog, \@yData);
+		if ($lagPoint eq 'NA'){
+			print "Least square fit to data failed! Trying log-transformed data.\n";
+			my $lagPoint = computeLagPoint($R, \@xDataLog, \@yData);
+		}
+		### compute the cutoff
+		if ($lagPoint eq 'NA') {
+			return();
+		}
+		else {
+			my $hitLimitGetLag;
+			print "limit is $lagPoint. Abs is " . abs($lagPoint) . "\n";
+			for (my $i = 0; $i < @xData; $i++) {
+				if ($xData[$i] > abs($lagPoint)) {
+					$hitLimitGetLag = $i + 1;
+					print "Setting hl to $hitLimitGetLag\n";
+					last;
+				}
+			}
+			print "hitlimit in getLag is $hitLimitGetLag\n";
+			return ($hitLimitGetLag, $lagPoint);
+		}
+	}
+}
+##########################
+sub getHitLimit {
+        my ($hits, $hitcount) = @_;
+	my $hitLimitLoc = 0;
+        my $maxScore = $hits->[0]->{hmmscore};
+	my $limit = $maxScore / 100 * (100 - $scoreCutoff);
+	for (my $i = 0; $i < $hitcount; $i++) {
+		if ($hits->[$i]->{hmmscore} >= $limit) {
+			$hitLimitLoc++;
+		}
+		else {
+			last;
+		}
+	}
+	return ($hitLimitLoc, $limit);
+}
+        ## debug
+##########################
+sub printDebug{
+        my @message = @_;
+        if ($debug){
+                print join "\n", @message;
+                print "\n";
+        }
+}
+##########################
+sub computeLagPoint {
+	my ($R, $xdata, $ydata) = @_;	
+	$R->set( 'x', \@$xdata);
+        $R->set( 'y', \@$ydata );
+        # define function
+        $R->run( q`func = function(t,params){ 1/(1 + exp(4 * params[1] * (params[2] - x) + 2)) }`);
+        # do Nonlinear Least Squares Fitting
+        $R->run(q`try <- try(nls(y ~ 1/(1 + exp(4 * mean * (lamda - x) + 2)),
+                                                                start = list(mean=1.4, lamda=0.5),
+                                                                control = list(maxiter=500)), TRUE)`);
+        $R->run(q`if(class(try) != "try-error"){
+                                                f = nls(y ~ 1/(1 + exp(4 * mean * (lamda - x) + 2)),
+                                                start = list(mean=1.4, lamda=0.5),
+                                                control = list(maxiter=500))
+                                                p = coef(f)
+                                                lagPoint = p[2]
+                                                } else {
+                                                lagPoint = "NA"
+                                        }`);
+
+
+        ### return lag point
+        my $lagPoint = $R->get('lagPoint');
+	return($lagPoint);
 }
 
