@@ -2066,8 +2066,7 @@ sub checkCoorthologRef {
 	my ($localid, $query, $best, $ref) = @_;
 	open (OUT, ">$tmpdir/$localid.co.fa") or die "failed to open $localid.co.fa\n";
 	print OUT ">query\n$query\n>best\n$best\n>ref\n$ref\n";
-        print "\n\n>query\n$query\n>best\n$best\n>ref\n$ref\n\n";
-	close OUT;
+        close OUT;
 	## aligning sequences
 	`$alignmentprog_co --quiet $tmpdir/$localid.co.fa > "$tmpdir/$localid.co.aln"`;
 	if (! -e "$tmpdir/$localid.co.aln") {
