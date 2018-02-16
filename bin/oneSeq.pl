@@ -2540,7 +2540,7 @@ ${bold}ADDITIONAL OPTIONS$norm
 	Force the final HaMStR search to create output file. Existing files will be overwritten.
 -coreStrict
 	Run the HaMStR for the compilation of the core set in strict mode.
--checkCoortholgsRef
+-checkCoorthologsRef
 	During the final HaMStR search, accept an ortholog also when its best hit in the reverse search is not the 
 	core ortholog itself, but a co-ortholog of it.
 -CorecheckCoorthologsRef
