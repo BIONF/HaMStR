@@ -13,6 +13,9 @@ use Bio::Align::ProteinStatistics;
 use Bio::AlignIO;
 use Term::Cap;
 use POSIX;
+use Cwd;
+use Cwd 'abs_path';
+use Statistics::R;
 
 
 
@@ -165,7 +168,7 @@ use POSIX;
 	## 12.02.2016
 	## Minor bug fix: In some instances the representative protein was not chosen correctly due to a bug in the subroutine
 	## sortRef. Analyses of transcript data are not affected at all.
-	
+    
 	## 19.12.2017
 	## Extension: HaMStR can now automatically determine the hit limit up to which candidates from the intial
 	## hmm search are evaluated as potential orthologs. Two options are available, either an hmm score driven
@@ -176,7 +179,7 @@ use POSIX;
     ## the candidate ortholog and the best blast hit. The resulting distance (kimura) calculation may caused an overoptimistic
     ## acceptence of co-ortholgy relations. The bug onyl occured while using the option checkCoOrthologsRef.
     ## HaMStR keeps original gene sets in FASTA format and *.fa.mod will link to the original FASTA file (no linebreaks within a sequence).
-    
+
 ######################## start main ###########################################
 my $version = "HaMStR v.13.2.8";
 ######################## checking whether the configure script has been run ###
@@ -187,7 +190,7 @@ if ($configure == 0){
 ########## EDIT THE FOLLOWING LINES TO CUSTOMIZE YOUR SCRIPT ##################
 my $prog = 'hmmsearch'; #program for the hmm search
 my $eval = 1; # default evalue cutoff for the hmm search
-my $path =  '/home/holger/src/oneseq_distri';
+my $path =  '/path/to/your/hamstr';
 my $sedprog = 'sed';
 my $grepprog = 'grep';
 my $alignmentprog = 'clustalw';
@@ -1463,6 +1466,21 @@ sub check4reciprocity {
 					else {
 						($suc, $qhdistance, $rhdistance) = &checkCoorthologRef($localid, $hitseq, $bestseq, $refseq);
 					}
+                                        ## print distances (debug mode)
+                                        if ($debug){
+                                                my $distDebugFile = $path . "/output/" . $taxon_global . ".debug.dist";
+                                                unless (-e $distDebugFile){
+                                                        open (my $DISTDEBUG, ">>$distDebugFile") or die "Error, could not create file: ". "$distDebugFile";
+                                                        print $DISTDEBUG "hmmset\trefid\tbestid\tqueryid\tqhdist\trhdist\n";
+                                                        close $DISTDEBUG;
+                                                }
+                                                if (-e $distDebugFile){
+                                                        open (my $DISTDEBUG, ">>$distDebugFile") or die "Error, could not create file: ". "$distDebugFile";
+                                                        print $DISTDEBUG "$query_name\t$refid\t$bestid\t$hitname\t$qhdistance\t$rhdistance\n";
+                                                        close $DISTDEBUG;
+                                                }
+                                        }
+
 					if ($suc == 1) {
 						printOUT("\t Distance query - blast hit: $qhdistance, Distance blast hit - reference: $rhdistance\tAccepting\n");
 						$refspec_final->[$k]->{hit} = 0;
@@ -2066,7 +2084,7 @@ sub checkCoorthologRef {
 	my ($localid, $query, $best, $ref) = @_;
 	open (OUT, ">$tmpdir/$localid.co.fa") or die "failed to open $localid.co.fa\n";
 	print OUT ">query\n$query\n>best\n$best\n>ref\n$ref\n";
-        close OUT;
+	close OUT;
 	## aligning sequences
 	`$alignmentprog_co --quiet $tmpdir/$localid.co.fa > "$tmpdir/$localid.co.aln"`;
 	if (! -e "$tmpdir/$localid.co.aln") {
@@ -2222,4 +2240,3 @@ sub computeLagPoint {
         my $lagPoint = $R->get('lagPoint');
 	return($lagPoint);
 }
-

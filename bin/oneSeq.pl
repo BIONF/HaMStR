@@ -23,7 +23,10 @@ use IPC::Run qw( run timeout );
 use Time::HiRes;
 use File::Path;
 use File::Basename;
+use List::Util qw(shuffle);
+use File::Copy;
 
+my $startTime = time;
 
 # Copyright (C) 2009 INGO EBERSBERGER, ebersberger@bio.uni-frankfurt.de
 # This program is free software; you can redistribute it and/or modify it
@@ -67,8 +70,21 @@ use File::Basename;
 ##                                      - coreFilter: strict, relaxed and none
 ## 
 
+## Modified 19. Jan. 2018: - Additions 	- added option to prioritize closer taxon if two taxa have a similar score
+##										- after a taxon has been choosen every taxa closer gets discarded in the next cycles
+##										- added commandline parameter to choose the deviation allowed for two taxa to be considered similar
+##
+
+## Modified 09. Feb. 2018: - Changes 	- Now the HaMStR candidate search climbs the tree and evaluates only one taxon at a time
+##										- The FAS score for a candidate will now only be calculated, if the alinmentscore is high enough,
+##										  to top the current best candidate
+##										- If a candidate reaches the maximum score the search stops and a new round starts
+##										- If a candidate is within deviation range of the maximum score only the taxa, which are on the same treebranch,
+##										  will get evaluated and then the search gets cancled and a new round starts
+##
+
 ############ General settings
-my $version = 'oneSeq v.1.2';
+my $version = 'oneSeq v.1.3';
 ##### configure
 my $configure = 0;
 if ($configure == 0){
@@ -222,8 +238,9 @@ my $autoclean;
 my $getversion;
 my $coreex; ## flag to set when the core set already exists
 my $addenv;
-my $chooseClosest; ## flag to normalise the score by the distance in the tree
-my $distDeviation = 0.05;
+my $ignoreDistance = 0; 	## flag to normalise the score by the distance in the tree
+my $distDeviation = 0.05; 	## Span in which a score is consideren similar
+my $breakAfter = 5; 		## Number of Significantly bad candidates after which the current run cancels
 
 ################# Command line options
 GetOptions ("h"                 => \$help,
@@ -277,8 +294,8 @@ GetOptions ("h"                 => \$help,
             "addenv=s"          => \$addenv,
             "version"           => \$getversion,
 			"reuse_core"        => \$coreex,
-			"chooseClosest"		=> \$chooseClosest,
-			"distDeviation=s"		=> \$distDeviation);
+			"ignoreDistance"	=> \$ignoreDistance,
+			"distDeviation=s"	=> \$distDeviation);
 
 ############# connect to the database
 if ($dbmode) {
@@ -319,7 +336,7 @@ if($group) {
    $tree->set_root_node($groupNode);
 }
 
-## Tree without deletions to use for 
+## Tree without deletions
 my $wholeTree = getTree();
 
 if($group) {
@@ -358,6 +375,8 @@ my $noMoreOrthologs = 0;
 my $coremode;
 my %finalcontent;
 my %candicontent;
+my $maxAlnScore = 0;
+
 # create weight_dir in oneseq's home dir (used for annotations,weighting,feature extraction)
 # get annotations for seed sequence if fas support is on
 if ($fas_support){
@@ -368,6 +387,15 @@ if ($fas_support){
 #core-ortholog search
 if (!$coreex) {
     $coremode = 1;
+    
+    if ($ignoreDistance){
+		$distDeviation = 0;
+		$breakAfter = -1;
+	}
+    
+    ## some variables used later
+    my $firstRun = 1;
+    
     while (get_leaves($tree, $treeDelFlag) > 0 && $curCoreOrthologs < $minCoreOrthologs && $noMoreOrthologs == 0) {
 
         # checking the tree which determines the taxa that are going to be searched for hits
@@ -377,76 +405,54 @@ if (!$coreex) {
             my $tree_as_string = $tree->as_text("tabtree");
             print $tree_as_string;
             print "\n";
-        }
+		}
         
-       #generate new aln
-       if($curCoreOrthologs > 0) {
-          createAlnMsf();
-       }
-
-       print "In round $curCoreOrthologs running hmmbuild on $outputAln\n";
-       hmmbuild($coreOrthologsPath.$seqName."/hmm_dir/".$seqName.".hmm", $outputAln);
-
-        my $pi = new Parallel::ForkManager($cpu);
-
-		my %toProcess; 		## all species with distance >= last selected ortholog
-		my %notToProcess; 	## all species with distance < last selected ortholog
-        foreach my $key (get_leaves($tree)) {
-			my $keyName = @{$key->name('supplied')}[0];
-			my $nodeId = $wholeTree->find_node(-ncbi_taxid => $taxa{$keyName})->id;
-			## check weather species is not closer than the last one
-			if (!defined $hashTree{$currentChildsToIgnoreNode}{$nodeId}){
-				$toProcess{$keyName} = 1;
-            	my $pid = $pi->start and next;
-            	print "Hamstr species: " . $key->scientific_name . " - " . @{$key->name('supplied')}[0] . "\n";
-            	runHamstr(@{$key->name('supplied')}[0], $seqName, $outputFa, $refSpec, $core_hitlimit, $core_rep, $corestrict, $coremode, $eval_blast, $eval_hmmer);
-            	$pi->finish;
-            }
-			else{
-				$notToProcess{$keyName} = 1;
+		#generate new aln
+		if($curCoreOrthologs > 0) {
+			createAlnMsf();
+		}
+       
+		print "In round $curCoreOrthologs running hmmbuild on $outputAln\n";
+		hmmbuild($coreOrthologsPath.$seqName."/hmm_dir/".$seqName.".hmm", $outputAln);
+		
+		## get the max alignment score per ortholog
+		printDebug("Discovering maximum alignmentscore");
+		
+		## Align every current core ortholog against all curretn core orthologs
+		## the maximum found in this alignment is the maximun any other sequence can reach
+		copy($outputFa, $outputFa . ".extended") or die "Error, could not copy to file: ". "$outputFa" . ".extended\n";
+		
+		## get the max alnscore
+		my %maxAlnScores = getCumulativeAlnScores();
+		foreach my $score (values %maxAlnScores){
+			if ($score > $maxAlnScore){
+				$maxAlnScore = $score;
 			}
-        }
-        $pi->wait_all_children;
-
-		print "To Process: \n";
-		foreach my $key (keys %toProcess){
-			print "$key\n";
 		}
-		print "Not To Process: \n";
-		foreach my $key (keys %notToProcess){
-			print "$key\n";
+		printDebug("The maximum alignmentscore is: $maxAlnScore");
+		clearTmpFiles();
+
+		my $addedTaxon = getBestOrtholog();
+		print "\n\nAdded TAXON: " . $addedTaxon . "\n\n\n\n";
+
+		#if a new core ortholog was found
+		if($addedTaxon ne "") {
+                    $hamstrSpecies = $hamstrSpecies . "," . $addedTaxon;
+
+                    clearTmpFiles();
+
+                    ++$curCoreOrthologs;
+                    printDebug("Subroutine call from core-ortholog compilation\nTaxon is $addedTaxon\nNCBI Id is $taxa{$addedTaxon}\n");
+                    $treeDelFlag = removeMinDist($taxa{$addedTaxon});
+		} 
+		else {
+			#there are no more core orthologs
+			$noMoreOrthologs = 1;
+			print "\nThe desired number of core orthologs could not be reached.\n";
 		}
+	}
 
-       my $addedTaxon = getBestOrtholog();
-       print "\n\nAdded TAXON: " . $addedTaxon . "\n\n\n\n";
-
-       #if a new core ortholog was found
-       if($addedTaxon ne "") {
-            $hamstrSpecies = $hamstrSpecies . "," . $addedTaxon;
-
-            #clear temporary result file
-            if(-e $outputFa.".extended") {
-                    unlink($outputFa.".extended");
-            }
-
-            #clear all alignment files
-            my @files = glob("*.scorefile");
-            foreach my $file (@files) {
-                    unlink($file);
-            }
-
-            ++$curCoreOrthologs;
-            printDebug("Subroutine call from core-ortholog compilation\nTaxon is $addedTaxon\nNCBI Id is $taxa{$addedTaxon}\n");
-            $treeDelFlag = removeMinDist($taxa{$addedTaxon});
-       } 
-       else {
-            #there are no more core orthologs
-            $noMoreOrthologs = 1;
-            print "\nThe desired number of core orthologs could not be reached.\n";
-       }
-    }
-
-    ## This is now the final round of alignment and profile hidden Markov model building
+	## This is now the final round of alignment and profile hidden Markov model building
     ## It concludes the core ortholog set compilation
     if ($curCoreOrthologs < $minCoreOrthologs ){
             print "\nWARNING: The desired number of core orthologs could not be reached. Training with only $curCoreOrthologs sequences\n";
@@ -571,6 +577,9 @@ if (($outputPath ne './') and !$autoclean) {
 	}
 }
 
+my $endTime = time - $startTime;
+print "OneSeq finished after $endTime seconds\n";
+
 ######################## SUBROUTINES ########################
 ## handle forked score calculations(sliced key array (k_ary))
 ## for CORE candidates
@@ -579,6 +588,7 @@ if (($outputPath ne './') and !$autoclean) {
 # $c_dir: dir for candidate sequences and tmp. coreProFile
 sub nFAS_score_core{
 
+    my %candicontent = getCandicontent();
     my $n = shift;
     my $e_dir = shift;
     my $c_dir = $coreOrthologsPath . $seqName . "/fas_dir/";
@@ -597,7 +607,7 @@ sub nFAS_score_core{
 
             my ($name,$gene_set,$gene_id,$rep_id) = split (/\|/,$next_n[$ii]); 
             my $candseqFile = $coreOrthologsPath . $seqName . "/fas_dir/" . $gene_set . "_" . $gene_id . ".candidate";
-
+            
             open(CANDI_SEQ, ">".$candseqFile) or die "Error: Could not create $candseqFile\n";
             print CANDI_SEQ ">" . $next_n[$ii] . "\n" . $candicontent{$next_n[$ii]};
             close CANDI_SEQ;
@@ -678,6 +688,301 @@ sub nFAS_score_final{
     }
     $ps->wait_all_children;
 }
+
+#################################
+## Clears Temporary files
+sub clearTmpFiles{
+	#clear temporary result file
+    if(-e $outputFa.".extended") {
+            unlink($outputFa.".extended");
+    }
+
+    #clear all alignment files
+    my @files = glob("*.scorefile");
+    foreach my $file (@files) {
+            unlink($file);
+    }
+}
+
+sub getCandicontent{
+	my %candicontent;
+	my $candidatesFile = $outputFa . ".extended";
+	if (-e $candidatesFile) {
+	
+		########################
+		## step: 2
+		## setup
+		## candidates to hash
+		## %candicontent keeps info about all candidates (header and sequence)
+		open (CANDI, "<".$candidatesFile) or die "Error: Could not find $candidatesFile\n";
+		my $head;
+		%candicontent = ();
+		while(<CANDI>){
+			my $line = $_;
+			chomp($line);
+			if ($line =~ m/^>/){
+				$line =~ s/>//; # clip '>' character
+				$head = $line;
+			}else{
+				$candicontent{$head} = $line;
+			}
+		}
+		close (CANDI);
+	}
+	return %candicontent;
+}
+
+#################################
+## Get the alinment score for the current candidate file
+## only works for files holding only one candidate
+sub getCumulativeAlnScores{
+	chdir($coreOrthologsPath . $seqName);
+	my $candidatesFile = $outputFa . ".extended";
+    my $scorefile = $$.".scorefile";
+    my %scores;
+		
+	########################
+	## step: 1
+	## setup
+	## set alignment command (glocal, local, or global)
+	#local      local:local    ssearch36   Smith-Waterman
+	#glocal     global:local   glsearch36  Needleman-Wunsch
+	#global     global:global  ggsearch36  Needleman-Wunsch
+	my $loclocCommand = "$alignerPath/$localaligner " . $outputFa . " " . $candidatesFile . " -s " . $alignmentscoreMatrix . " -m 9 -d 0 -z -1 -E 100" . " > " . $scorefile;
+	my $globlocCommand = "$alignerPath/$glocalaligner " . $outputFa . " " . $candidatesFile . " -s " . $alignmentscoreMatrix . " -m 9 -d 0 -z -1 -E 100" . " > " . $scorefile;
+	my $globglobCommand = "$alignerPath/$globalaligner " . $outputFa . " " . $candidatesFile . " -s " . $alignmentscoreMatrix . " -m 9 -d 0 -z -1 -E 100" . " > " . $scorefile;
+			
+	########################
+	## step: 2
+	## setup
+	## candidates to hash
+	## %candicontent keeps info about all candidates (header and sequence)
+	my %candicontent = getCandicontent();
+	
+	########################
+	## step: 3
+	## get alignment scores
+	chdir($coreOrthologsPath . $seqName);
+	if ($glocal){
+		system($globlocCommand);
+	}elsif ($global){            
+		system($globglobCommand);
+	}elsif ($local){
+		system($loclocCommand);
+	}
+
+	########################
+	## step: 4
+	## collect alignment score
+	## keep track about min and max for each query/coreortholog vs candidate set
+	my $max = -10000000;
+	my $min = 10000000;
+		 
+	%scores = cumulativeAlnScore($scorefile, \%candicontent);
+	return %scores;
+}
+
+#################################
+## Get the alinment scores for the current candidate file
+sub getAlnScores{
+	chdir($coreOrthologsPath . $seqName);
+	my $candidatesFile = $outputFa . ".extended";
+        my $scorefile = $$.".scorefile";
+        my %scores;
+		
+	########################
+	## step: 1
+	## setup
+	## set alignment command (glocal, local, or global)
+	#local      local:local    ssearch36   Smith-Waterman
+	#glocal     global:local   glsearch36  Needleman-Wunsch
+	#global     global:global  ggsearch36  Needleman-Wunsch
+	my $loclocCommand = "$alignerPath/$localaligner " . $outputFa . " " . $candidatesFile . " -s " . $alignmentscoreMatrix . " -m 9 -d 0 -z -1 -E 100" . " > " . $scorefile;
+	my $globlocCommand = "$alignerPath/$glocalaligner " . $outputFa . " " . $candidatesFile . " -s " . $alignmentscoreMatrix . " -m 9 -d 0 -z -1 -E 100" . " > " . $scorefile;
+	my $globglobCommand = "$alignerPath/$globalaligner " . $outputFa . " " . $candidatesFile . " -s " . $alignmentscoreMatrix . " -m 9 -d 0 -z -1 -E 100" . " > " . $scorefile;
+	        		
+	########################
+	## step: 2
+	## setup
+	## candidates to hash
+	## %candicontent keeps info about all candidates (header and sequence)
+	my %candicontent = getCandicontent();
+	
+	########################
+	## step: 3
+	## get alignment scores
+	chdir($coreOrthologsPath . $seqName);
+	if ($glocal){
+		system($globlocCommand);
+	}elsif ($global){            
+		system($globglobCommand);
+	}elsif ($local){
+		system($loclocCommand);
+	}
+        
+        print "\n\nSCOREFILE\n";
+        my $alnscorefile = `cat $coreOrthologsPath/$seqName/$scorefile`;
+        print "$alnscorefile\n";
+
+	########################
+	## step: 4
+	## collect alignment score
+	## keep track about min and max for each query/coreortholog vs candidate set
+	my $max = -10000000;
+	my $min = 10000000;
+		 
+	%scores = cumulativeAlnScore($scorefile, \%candicontent);
+	
+	## Normalize Alignment scores (unity-based)
+	printDebug("Normalize alignment scores:\n");
+	foreach my $key (keys %scores){
+		my $score = $scores{$key};
+		print "Cumulative alignmentscore is: $score\n";
+		$scores{$key} = $scores{$key} / $maxAlnScore;
+		$score = $scores{$key};
+		print "Normalised alignmentscore is: $score\n";
+	}
+	return %scores;
+}
+
+#################################
+## Get the fas scores for the current candidate file
+sub getFasScore{
+	printDebug("Changing to $coreOrthologsPath$seqName", "Candidate file is $outputFa".'.extended');
+	chdir($coreOrthologsPath . $seqName);
+    my %fas_box;
+    my $scorefile = $$.".scorefile";
+    my $rankscore;
+		
+	########################
+	## step: 1
+	## setup
+	## candidates to hash
+	## %candicontent keeps info about all candidates (header and sequence)
+	my %candicontent = getCandicontent();
+	
+	########################
+	## step: 2
+	## get FAS score
+	## fas support: on/off
+	if ($fas_support){
+		## create array of keys
+		my @k_ary;
+		foreach my $k (sort keys(%candicontent)){
+			push(@k_ary, $k);
+		}
+
+		## define chunk size for forking (Parallel::ForkManager)
+		my $size = floor(scalar(@k_ary) / $cpu);
+
+		## create tmp folder
+		my $evaluationDir = $coreOrthologsPath.$seqName."/fas_dir/fasscore_dir/";
+		mkpath($evaluationDir);
+
+		## handle candicontent (hamstr core orthologs)
+		## evaluate hamstr core orthologs with FAS score
+		## $size: declares the chunk size 
+		## $evaluationDir: FAS output for core orthologs
+		## @k_ary: contains all identifier (header, keys) from finalcontet (used to distribute workload to cpus)
+		nFAS_score_core($size, $evaluationDir, @k_ary);
+
+		# read core profile
+		# to be cleared after usage
+		my $coreProFile = $coreOrthologsPath.$seqName."/fas_dir/candidates.profile";
+		open (CANDI, "<".$coreProFile) or die "Error: Could not find $coreProFile\n";
+		while(<CANDI>){
+			my $line = $_;
+			chomp($line);
+			my @pair = split(/\t/,$line);
+			$fas_box{$pair[0]}=$pair[1];
+		}
+		close CANDI;
+		unlink($coreProFile);
+	}
+	return %fas_box;
+}
+
+#################################
+## Add fas and alignment score together while using specified filters (coreFilter option)
+sub getFilteredRankScore{
+	my $alnScore = $_[0];
+	my $fasScore = $_[1];
+	my $rankscore;
+	# $rankscore: keeps alignment and fas score, decider about $bestTaxon
+	if ($core_filter_mode){
+		if ($core_filter_mode eq "strict"){
+			# case 1: filter
+			if ($fasScore < $fas_T){
+				#eliminate candidate $key
+				print "Deleting candidate from list due to insufficient FAS score.\n";
+				$rankscore = 0;
+			}else{
+				#keep
+				if ($alnScore){
+					$rankscore = $fasScore + $alnScore;
+				}else{
+					$rankscore = $fasScore;
+				}                              
+			}
+		}elsif ($core_filter_mode eq "relaxed"){
+			# case 2: disadvantage
+			if ($fasScore < $fas_T){
+				# ignore FAS score for rankscore
+				printDebug("Candidate will be disadvantaged.\n");
+				if ($alnScore){
+					$rankscore = $alnScore;
+				}else{
+					$rankscore = 0;
+				}
+			}
+			else{
+				#keep
+				if ($alnScore){
+					$rankscore = $fasScore + $alnScore;
+				}else{
+					$rankscore = $fasScore;
+				}
+			}
+		}
+	}else{
+		# case 3: no filter
+		if ($alnScore){
+			$rankscore = $fasScore + $alnScore;
+		}else{
+			$rankscore = $fasScore;
+		}
+	}
+	return $rankscore;
+}
+
+sub getHeaderSeq{
+	my $bestTaxon = $_[0];
+	open (EXTFA, $outputFa.".extended");
+	my $sequenceLine = 0;
+	my $bestSequence = "";
+
+	########################
+	## step: 7
+	## get best sequence from candidate file
+	## (will be added to the model)
+	while(<EXTFA>) {
+		my $line = $_;
+		chomp($line);
+		if($sequenceLine == 1) {
+			$bestSequence = $line;
+			$sequenceLine = -1;
+		}
+
+		if($line eq $bestTaxon) {
+			$sequenceLine = 1;
+		}
+	}
+	close EXTFA;
+	my @best = split '\|', $bestTaxon;
+	my $header = $best[0] . '|' . $best[1] . '|' . $best[2];
+	return ($header, $bestSequence);
+}
+
 ## parse profile
 sub parseProfile{
     my ($file, $out) = ($_[0], $_[1]);
@@ -956,6 +1261,9 @@ sub runFAS{
     #could become debug output:
     if($err){
         print "\nERROR:\n" . $err ."\n";	
+    }
+    if(!$score){
+        $score = 0;
     }
     return $score;
 }
@@ -1413,304 +1721,143 @@ sub fetchSequence {
 	printOut($seq, 2);
 	return $seq;
 }
-#################
-#choose the ortholog which reaches the highest score
+#################################
+## choose the ortholog which reaches the highest score
 sub getBestOrtholog {
-	printDebug("Changing to $coreOrthologsPath$seqName", "Candidate file is $outputFa".'.extended');
-	chdir($coreOrthologsPath . $seqName);
+	## max possible score is either one or two
+	my $maxScore = 1;
+	if ($fas_support){
+		$maxScore += 1;
+	}
+	
+	## get leavs to evaluate
+	my @leaves = get_leaves($tree, $treeDelFlag);
+	## sort by distance in taxonomy tree
+	if (!$ignoreDistance){
+		@leaves = sort_leaves(@leaves);
+	}
+	## don't sort by distance
+	else{
+		my @unsortedLeaves = @leaves;
+		@leaves = qw();
+		push @leaves, \@unsortedLeaves;
+	}
+	
+	## create needed variables
+	my $bestTaxon = '';
+	my $rankScore = 0;
+	my $header = '';
+	my $seq = '';
+	my $newNoRankDistNode;		## this will be the new Distance node, after a new candidate has been choosen
+	my $newChildsToIgnoreNode;	## all leaves under this node will be ignored in future runs, after a new candidate has been choosen
+	my $sufficientlyClose = 0;	## flag to break outer loop
 	my $candidatesFile = $outputFa . ".extended";
-        my %fas_box;
-        my $scorefile = $$.".scorefile";
-	if(-e $candidatesFile) {
-
-            ########################
-            ## step: 1
-            ## setup
-            ## set alignment command (glocal, local, or global)
-            #local      local:local    ssearch36   Smith-Waterman
-            #glocal     global:local   glsearch36  Needleman-Wunsch
-            #global     global:global  ggsearch36  Needleman-Wunsch
-            my $loclocCommand = "$alignerPath/$localaligner " . $outputFa . " " . $candidatesFile . " -s " . $alignmentscoreMatrix . " -m 9 -d 0 -z -1 -E 100" . " > " . $scorefile;
-            my $globlocCommand = "$alignerPath/$glocalaligner " . $outputFa . " " . $candidatesFile . " -s " . $alignmentscoreMatrix . " -m 9 -d 0 -z -1 -E 100" . " > " . $scorefile;
-            my $globglobCommand = "$alignerPath/$globalaligner " . $outputFa . " " . $candidatesFile . " -s " . $alignmentscoreMatrix . " -m 9 -d 0 -z -1 -E 100" . " > " . $scorefile;
-            
-            ########################
-            ## step: 2
-            ## setup
-            ## candidates to hash
-            ## %candicontent keeps info about all candidates (header and sequence)
-            open (CANDI, "<".$candidatesFile) or die "Error: Could not find $candidatesFile\n";
-            my $head;
-            %candicontent = ();
-            while(<CANDI>){
-                my $line = $_;
-                chomp($line);
-                if ($line =~ m/^>/){
-                    $line =~ s/>//; # clip '>' character
-                    $head = $line;
-                }else{
-                    $candicontent{$head} = $line;
-                }
-            }
-            close (CANDI);
-            
-            ########################
-            ## step: 3
-            ## get FAS score
-            ## fas support: on/off
-            if ($fas_support){
-
-                ## create array of keys
-                my @k_ary;
-                foreach my $k (sort keys(%candicontent)){
-                    push(@k_ary, $k);
-                }
-
-                ## define chunk size for forking (Parallel::ForkManager)
-                my $size = floor(scalar(@k_ary) / $cpu);
-
-                ## create tmp folder
-                my $evaluationDir = $coreOrthologsPath.$seqName."/fas_dir/fasscore_dir/";
-                mkpath($evaluationDir);
-
-                ## handle candicontent (hamstr core orthologs)
-                ## evaluate hamstr core orthologs with FAS score
-                ## $size: declares the chunk size 
-                ## $evaluationDir: FAS output for core orthologs
-                ## @k_ary: contains all identifier (header, keys) from finalcontet (used to distribute workload to cpus)
-                nFAS_score_core($size, $evaluationDir, @k_ary);
-
-                # read core profile
-                # to be cleared after usage
-                my $coreProFile = $coreOrthologsPath.$seqName."/fas_dir/candidates.profile";
-                open (CANDI, "<".$coreProFile) or die "Error: Could not find $coreProFile\n";
-                while(<CANDI>){
-                    my $line = $_;
-                    chomp($line);
-                    my @pair = split(/\t/,$line);
-                    $fas_box{$pair[0]}=$pair[1];
-                }
-                close CANDI;
-                unlink($coreProFile);
-            }
-            
-            ########################
-            ## step: 4
-            ## get alignment scores
-            chdir($coreOrthologsPath . $seqName);
-            if ($glocal){
-                system($globlocCommand);
-            }elsif ($global){            
-                system($globglobCommand);
-            }elsif ($local){
-                system($loclocCommand);
-            }
-
-            ########################
-            ## step: 5
-            ## collect alignment score
-            ## keep track about min and max for each query/coreortholog vs candidate set
-            my %scores;
-            my $max = -10000000;
-            my $min = 10000000;
-            
-            %scores = cumulativeAlnScore($scorefile, \%candicontent);
-
-            ## What to do if no alignment scores can be calculated (local fall back?)
-            my $noaln;
-            if (scalar(keys%scores) == 0){
-                print "\nWARNING: No Alignment scores with the selected alignment strategy available.\n";
-                print "Selection of best fitting candidate is based on FAS score only.\n";
-                print "Please consider to choose local alignment strategy to obtain alignment scores.\n";
-                $noaln = 1;
-            }
-            if ($noaln and !$fas_support){
-                print "\nWARNING: No alignment scores and no FAS support. Redo alignments with local alignment strategy.\n";
-                system($loclocCommand);
-                %scores = cumulativeAlnScore($scorefile, \%candicontent);
-            }
-
-            ## Identify min and max alignment scores
-            printDebug("\nCumulative alignment score:\n");
-            foreach my $key(keys%scores){
-                printDebug($key.": ".$scores{$key}."\n");
-                if ($scores{$key} > $max){
-                    $max = $scores{$key};
-                }
-                if ($scores{$key} < $min){
-                    $min = $scores{$key};
-                }
-
-            }
-            printDebug("Min: ".$min." and Max: ".$max."\n");
-
-            ## Normalize Alignment scores (unity-based)
-            printDebug("Normalize alignment scores:\n");
-            if ($min != $max){
-                foreach my $key(keys%scores){
-                    my $normscore = (($scores{$key} - $min) / ($max - $min));
-                    $scores{$key} = $normscore;
-                    printDebug($key.": ".$scores{$key}."\n");
-                }                
-            }else{
-                foreach my $key(keys%scores){
-                    if ($max != 0){
-                        my $normscore = ($scores{$key} / $max);
-                        $scores{$key} = $normscore;
-                        printDebug($key.": ".$scores{$key}."\n");
-                    }
-                }
-            }
-            
-            ########################
-            ## step: 6
-            ## find best fitting taxon
-            ## FAS cut-off: strict (eliminate), relaxed (disadvantage), none
-            ## aln score normalization, combined score (aln/max + fas)
-            my $bestTaxon;
-            my $bestCombi_AlnFas = 0;
-            my $hotCandi = 0;
-            my $newNoRankDistNode;
-            my $newChildsToIgnoreNode;
-            ## check for fas support
-            if($fas_support){
-                # FAS support: ON, using rank sum of normalized alignment score and FAS score to identify best fitting candidate
-                foreach my $key (keys%candicontent){
-                    # $rankscore: keeps alignment and fas score, decider about $bestTaxon
-                    my $rankscore;
-                    if ($core_filter_mode){
-                        if ($core_filter_mode eq "strict"){
-                            # case 1: filter
-                            if ($fas_box{$key} < $fas_T){
-                                #eliminate candidate $key
-                                print "Deleting candidate $key from list due to insufficient FAS score.\n";
-                                delete $candicontent{$key};
-                                $rankscore = 0;
-                            }else{
-                                #keep
-                                if ($scores{$key}){
-                                    $rankscore = $fas_box{$key} + $scores{$key};
-                                }else{
-                                    $rankscore = $fas_box{$key};
-                                }                              
-                            }
-                        }elsif ($core_filter_mode eq "relaxed"){
-                            # case 2: disadvantage
-                            if ($fas_box{$key} < $fas_T){
-                                # ignore FAS score for rankscore
-                                printDebug("Candidate $key will be disadvantaged.\n");
-                                if ($scores{$key}){
-                                    $rankscore = $scores{$key};
-                                }else{
-                                    $rankscore = 0;
-                                }
-                            }
-                        }
-                    }else{
-                        # case 3: no filter
-                        if ($scores{$key}){
-                            $rankscore = $fas_box{$key} + $scores{$key};
-                        }else{
-                            $rankscore = $fas_box{$key};
-                        }
-                    }
-                    
-                    ## select candidate ($key) with highest combined score ($rankscore) as best fitting candidate
-                    ## If score is in an acceptable deviation choose closest
-                    if ($chooseClosest){
-						## better Taxon has been found
-						if($rankscore > $bestCombi_AlnFas * (1+$distDeviation)) {
-							$bestTaxon = ">" . $key;
-							$bestCombi_AlnFas = $rankscore;
+	
+	## iterate over each array with leaves of same distance
+	foreach my $array (@leaves) {
+		## break loop if a candidate was close to the max score and no more candidates remain with the same distance
+		if ($sufficientlyClose){
+			print "Best Taxon is sufficiently close to max score and no more candidates with same distance remain.\nStopping evaluation.\n";
+			last;
+		}
+		## iterate over each leaf with the same distance
+		foreach my $key (@$array){
+			my $keyName = @{$key->name('supplied')}[0];
+			my $nodeId = $wholeTree->find_node(-ncbi_taxid => $taxa{$keyName})->id;
+			print "Hamstr species: " . $key->scientific_name . " - " . @{$key->name('supplied')}[0] . "\n";
+			runHamstr(@{$key->name('supplied')}[0], $seqName, $outputFa, $refSpec, $core_hitlimit, $core_rep, $corestrict, $coremode, $eval_blast, $eval_hmmer);
+			## check weather a candidate was found in the searched taxon
+			if(-e $candidatesFile) {
+				
+				## get found candidates for one taxon in hash to iterate over
+				my %candicontent = getCandicontent();
+				
+				## get scores in hashes because there might be more than one candidate sequence per taxon
+				my %alnScores = getAlnScores();
+				my %fas_box;
+				my $gotFasScore = 0;
+				## iterate over found candidates
+				foreach my $candiKey (keys %candicontent){
+					## candidates alnScore is high enought, that it would be better with a fasScore of one
+					## -> evaluate
+                                     	if ($alnScores{$candiKey} > $rankScore * (1 + $distDeviation) - 1){
+						if (!$gotFasScore and $fas_support){
+							%fas_box = getFasScore();
+							$gotFasScore = 1;
+						}
+						## get rankscore
+						my $newRankScore = getFilteredRankScore($alnScores{$candiKey}, $fas_box{$candiKey});
+						## candidate is significantly better, than the last one
+						if ($newRankScore > $rankScore * (1 + $distDeviation)){ #uninit
+							$bestTaxon = ">" . $candiKey;
+							$rankScore = $newRankScore;
+							($header, $seq) = getHeaderSeq($bestTaxon);
 							$newNoRankDistNode = $currentNoRankDistNode;
 							$newChildsToIgnoreNode = $currentChildsToIgnoreNode;
-							my @headers = split(/\|/, $key);
-							my $newNodeId = $tree->find_node(-ncbi_taxid => $taxa{$headers[1]})->id;
+							my $newNodeId = $key->id;
+							## set new distance nodes, which will replace the old ones given, that this candidate will remain the best
 							while (!defined $hashTree{$newNoRankDistNode}{$newNodeId}){
 								$newNoRankDistNode = $newNoRankDistNode->ancestor;
 								$newChildsToIgnoreNode = $newChildsToIgnoreNode->ancestor;
 							}
-							printDebug("Best Taxon: ". $bestTaxon." with FAS: ".$fas_box{$key}." and ALN: ".$scores{$key}." = rankscore: ".$rankscore."\n");
-						}
-						## A Taxon with around the same score as the current best has been found
-						## Now check which one is closer in the taxonomie tree
-						elsif($rankscore >= $bestCombi_AlnFas * (1-$distDeviation) and $rankscore <= $bestCombi_AlnFas * (1+$distDeviation)) {
-							my $newBestTaxon = chooseClosestTaxon($bestTaxon, ">" . $key);
-							if ($newBestTaxon ne $bestTaxon) {
-								$bestTaxon = $newBestTaxon;
-								$bestCombi_AlnFas = $rankscore;
-								$newNoRankDistNode = $currentNoRankDistNode;
-								$newChildsToIgnoreNode = $currentChildsToIgnoreNode;
-								my @headers = split(/\|/, $bestTaxon);
-								my $newNodeId = $tree->find_node(-ncbi_taxid => $taxa{$headers[1]})->id;
-								while (!defined $hashTree{$newNoRankDistNode}{$newNodeId}){
-									$newNoRankDistNode = $newNoRankDistNode->ancestor;
-									$newChildsToIgnoreNode = $newChildsToIgnoreNode->ancestor;
-								}
-							}
-							printDebug("Best Taxon: ". $bestTaxon);
+							print "New Best Taxon: $bestTaxon\n";
 						}
 					}
-					## Ignore distance
-					else{
-                    	if($rankscore > $bestCombi_AlnFas) {
-                        	$bestTaxon = ">" . $key;
-                        	$bestCombi_AlnFas = $rankscore;
-                        	printDebug("Best Taxon: ". $bestTaxon." with FAS: ".$fas_box{$key}." and ALN: ".$scores{$key}." = rankscore: ".$rankscore."\n");
-                    	}
-                    }
-                }
-                $currentNoRankDistNode = $newNoRankDistNode;
-                $currentChildsToIgnoreNode = $newChildsToIgnoreNode;
-            }else{
-                ## choice of best taxa: alignment score driven only 
-                $bestTaxon = chooseTaxonByAln(\%scores);
-            }
-           
-            $bestTaxon =~ s/\s//g;
-            
-            if ($bestTaxon eq ""){
-                return '';
-            }
-
-            open (EXTFA, $outputFa.".extended");
-            my $sequenceLine = 0;
-            my $bestSequence = "";
-
-            ########################
-            ## step: 7
-            ## get best sequence from candidate file
-            ## (will be added to the model)
-            while(<EXTFA>) {
-                    my $line = $_;
-                    chomp($line);
-                    if($sequenceLine == 1) {
-                        $bestSequence = $line;
-                        $sequenceLine = -1;
-                    }
-
-                    if($line eq $bestTaxon) {
-                            $sequenceLine = 1;
-                    }
-            }
-            close EXTFA;
-
-            my @best = split '\|', $bestTaxon;
-            my $header = $best[0] . '|' . $best[1] . '|' . $best[2];
-            #check for duplicates
+					## candidate has the same distance, as the last one and could be better, with a fasScore of one
+					elsif (defined $hashTree{$newNoRankDistNode}{$key->id} and $alnScores{$candiKey} > $rankScore - 1){
+						if (!$gotFasScore and $fas_support){
+							%fas_box = getFasScore();
+							$gotFasScore = 1;
+						}
+						## get rankscore
+						my $newRankScore = getFilteredRankScore($alnScores{$candiKey}, $fas_box{$candiKey});
+						## candidate is better, than the last one
+						if ($newRankScore > $rankScore){
+							$bestTaxon = ">" . $candiKey;
+							$rankScore = $newRankScore;
+							($header, $seq) = getHeaderSeq($bestTaxon);
+							printDebug("New Taxon has the same distance, choosing the one with higher score");
+							print "New Best Taxon: $bestTaxon\n";
+						}
+					}
+				}
+				## candidate reached the maximum score, no need to evaluate further
+				if ($rankScore >= $maxScore){
+					$sufficientlyClose = 1;
+					printDebug("Rankscore is at maximum. Breaking loop...");
+					last;
+				}
+				## rankscore got sufficiently close to the maximum, only evaluate candidates with the same distance now
+				elsif ($rankScore >= $maxScore * (1 - $distDeviation) and !$ignoreDistance){
+					printDebug("Sufficiently close to max score. Only evaluating leafs with same distance now.");
+					print "MaxScore: $maxScore\n";
+					print "RankScore: $rankScore\n";
+					$sufficientlyClose = 1;
+				}
+				clearTmpFiles();
+			}
+			## no candidate file was created -> so no candidate was found
+			else{
+				print "No Candidate was found for $keyName\n";
+			}
+		}
+	}
+	
+	my @best = (split '\|', $bestTaxon);
+	$currentNoRankDistNode = $newNoRankDistNode;
+	$currentChildsToIgnoreNode = $newChildsToIgnoreNode;
+	clearTmpFiles();
+	
+	if ($bestTaxon ne ''){
             open (COREORTHOLOGS, ">>$outputFa") or die "Error: Could not open file: " . $outputFa . "\n";
-            print COREORTHOLOGS "\n" . $header . "\n" . $bestSequence;
+            print COREORTHOLOGS "\n" . $header . "\n" . $seq;
             close COREORTHOLOGS;
-            printDebug("bestTaxon is $header\n");
-            ### the best taxon will be added to the primer taxon list. Create a blastdb for it
-            ## Baustelle: not sure about the naming of the files here.
-            checkBlastDb($best[1], $best[1]);
-	    return $best[1];
-	} 
-	else {
-		return '';
+            return $best[1];
+        }else{
+            return '';
 	}
 }
+
 ######################
 ## param: %candicontent - hashed information about candidates (id-> sequence)
 ## param: $scorefile - filename with alignment tool output
@@ -1723,75 +1870,31 @@ sub cumulativeAlnScore{
 
     my %cumscores;
     foreach my $key(keys%content) {
+        my $gotScore = 0;
         open (RESULT, $file) or die "Error: Could not open file with candidate taxa\n";
         while(<RESULT>) {
             my $line = $_;
-            $line =~ s/[\(\)]//g; #
+            $line =~ s/[\(\)]//g;
             my @line = split('\s+',$line);
-
+            
             if($line[0] && ($line[0] eq $key)){
                 if(exists $cumscores{$key}) {
+                    $gotScore = 1;
                     $cumscores{$key} = $cumscores{$key} + $line[2];
                 }else{
+                    $gotScore = 1;
                     $cumscores{$key} = $line[2];
                 }
             }
         }
         close RESULT;
+        if ($gotScore == 0){
+            $cumscores{$key} = 0;
+        }
     }
     return %cumscores;
 }
 
-######################
-sub chooseTaxonByAln{
-    my %aln_scores = %{$_[0]};
-    my $bestFit;
-    my $bestAlnScore = -10000000;
-    my $newNoRankDistNode;
-    my $newChildsToIgnoreNode;
-    foreach my $key(keys%aln_scores) {
-		## Norm score by distance if enabled
-		if ($chooseClosest){
-			if($aln_scores{$key} > $bestAlnScore * (1+$distDeviation)) {
-				$bestFit = ">" . $key;
-				$bestAlnScore = $aln_scores{$key};
-				$newNoRankDistNode = $currentNoRankDistNode;
-				$newChildsToIgnoreNode = $currentChildsToIgnoreNode;
-				my @headers = split(/\|/, $key);
-				my $newNodeId = $tree->find_node(-ncbi_taxid => $taxa{$headers[1]})->id;
-				while (!defined $hashTree{$newNoRankDistNode}{$newNodeId}){
-					$newNoRankDistNode = $newNoRankDistNode->ancestor;
-					$newChildsToIgnoreNode = $newChildsToIgnoreNode->ancestor;
-				}
-			}
-			elsif($aln_scores{$key} >= $bestAlnScore * (1-$distDeviation) and $aln_scores{$key} <= $bestAlnScore * (1+$distDeviation)){
-				my $newBestFit = chooseClosestTaxon($bestFit, ">" . $key);
-				if ($newBestFit ne $bestFit){
-					$bestFit = $newBestFit;
-					$bestAlnScore = $aln_scores{$key};
-					$newNoRankDistNode = $currentNoRankDistNode;
-					$newChildsToIgnoreNode = $currentChildsToIgnoreNode;
-					my @headers = split(/\|/, $bestFit);
-					my $newNodeId = $tree->find_node(-ncbi_taxid => $taxa{$headers[1]})->id;
-					while (!defined $hashTree{$newNoRankDistNode}{$newNodeId}){
-						$newNoRankDistNode = $newNoRankDistNode->ancestor;
-						$newChildsToIgnoreNode = $newChildsToIgnoreNode->ancestor;
-					}
-				}
-			}
-		}
-		## Ignore distance
-		else{
-        	if($aln_scores{$key} > $bestAlnScore) {
-            	$bestFit = ">" . $key;
-            	$bestAlnScore = $aln_scores{$key};
-            }
-        }
-    }
-    $currentNoRankDistNode = $newNoRankDistNode;
-    $currentChildsToIgnoreNode = $newChildsToIgnoreNode;
-    return $bestFit;
-}
 ######################
 sub get_leaves {
 	my $tree = $_[0];
@@ -1816,6 +1919,41 @@ sub get_leaves {
         }else{
             return @leaves;
         }
+}
+
+#################################
+## sorts given leaves by distance
+## and delets all leaves to close to the current core
+sub sort_leaves {
+	my @leaves = @_;
+	my $distNode = $currentChildsToIgnoreNode;
+	my @candiLeaves;
+	my @finalLeaves;
+	
+	for (@leaves) {
+		if (!defined $hashTree{$distNode}{$_->id}){
+			push @candiLeaves, $_ if defined($_->name('supplied'));
+		}
+	}
+	while ($distNode->id != $tree->get_root_node->id and scalar @candiLeaves != 0){
+		$distNode = $distNode->ancestor;
+		my @nextCandiLeaves;
+		my @sameDistLeaves;
+		for (@candiLeaves){
+			if (defined $hashTree{$distNode}{$_->id}){
+				push @sameDistLeaves, $_ if defined($_->name('supplied'));
+			}
+			else{
+				push @nextCandiLeaves, $_ if defined($_->name('supplied'));
+			}
+		}
+		@sameDistLeaves = shuffle @sameDistLeaves;
+		if (scalar @sameDistLeaves != 0){
+			push @finalLeaves, \@sameDistLeaves;
+			}
+		@candiLeaves = @nextCandiLeaves;
+	}
+	return @finalLeaves;
 }
 ####### get all taxa from the database (or the $genome_dir) where a genome is available 
 sub getTaxa {
@@ -2162,34 +2300,7 @@ sub removeMinDist {
 }
 
 ############################
-## takes keys for two core candidates and determines,
-## which is closer to the current core orthologs
-sub chooseClosestTaxon {
-	my ($key1, $key2) = @_;
-	my $taxa1Id = (split(/\|/, $key1))[1];
-	my $taxa2Id = (split(/\|/, $key2))[1];
-	printDebug("$taxa1Id and $taxa2Id have nearly the same score. Choosing one by distance.");
-	my $originNode = $currentNoRankDistNode;
-	my $node1Id = $wholeTree->find_node(-ncbi_taxid => $taxa{$taxa1Id})->id;
-	my $node2Id = $wholeTree->find_node(-ncbi_taxid => $taxa{$taxa2Id})->id;
-	## raise rank until one or both candidates have been found
-	while (!defined $hashTree{$originNode}{$node1Id} and !defined $hashTree{$originNode}{$node2Id} ){
-		$originNode = $originNode->ancestor;
-	}
-	## first candidate or both have been found
-	if (defined $hashTree{$originNode}{$node1Id}){
-		printDebug("$key1 has been choosen\n");
-		return $key1;
-	}
-	## the second candidtae has been found
-	else {
-		print "$key2 has been choosen\n";
-		return $key2;
-	}
-}
-
-############################
-## builds a 2 dimensional hash in which youcan check for a node,
+## builds a 2 dimensional hash in which you can check for a node,
 ## weather there is a path down the tree to a given species
 sub buildHashTree {
 	print "Building hash tree\n";
@@ -2560,25 +2671,25 @@ ${bold}ADDITIONAL OPTIONS$norm
 	Provide an integer specifying the number of hits of the initial pHMM based search that should be evaluated
 	via a reverse search. Default: 3
 -autoLimit
-        Setting this flag will invoke a lagPhase analysis on the score distribution from the hmmer search. This will determine automatically
-        a hit limit for each query. Note, when setting this flag, it will be effective for both the core ortholog compilation
-        and the final ortholog search.
+                Setting this flag will invoke a lagPhase analysis on the score distribution from the hmmer search. This will determine automatically
+                a hit limit for each query. Note, when setting this flag, it will be effective for both the core ortholog compilation
+		and the final ortholog search.
 -scoreThreshold
-        Instead of setting an automatic hit limit, you can specify with this flag that only candidates with an hmm score no less
-        than x percent of the hmm score of the best hit are further evaluated. Default is x = 10.
-        You can change this cutoff with the option -scoreCutoff. Note, when setting this flag, it will be effective for
-        both the core ortholog compilation and the final ortholog search.
+                Instead of setting an automatic hit limit, you can specify with this flag that only candidates with an hmm score no less
+		than x percent of the hmm score of the best hit are further evaluated. Default is x = 10.
+                You can change this cutoff with the option -scoreCutoff. Note, when setting this flag, it will be effective for
+		both the core ortholog compilation and the final ortholog search.
 -scoreCutoff=<>
-        In combination with -scoreThreshold you can define the percent range of the hmms core of the best hit up to which a
-        candidate of the hmmsearch will be subjected for further evaluation. Default: 10%.
+                In combination with -scoreThreshold you can define the percent range of the hmms core of the best hit up to which a
+                candidate of the hmmsearch will be subjected for further evaluation. Default: 10%.
 -coreOnly
 	Set this flag to compile only the core orthologs. These sets can later be used for a stand alone HaMStR search. 
 -reuse_core
 	Set this flag if the core set for your sequence is already existing. No check currently implemented.
--chooseClosest
-	Set this flag to choose the taxon closest to the current core taxa, if two taxa have a similar score
+-ignoreDistance
+	Set this flag to ignore the distance between Taxa and to choose orthologs only based on score
 -distDeviation=<>
-	Specify the deviation in percent (1=100%, 0=0%) allowed for two taxa to be considered similar
+	Specify the deviation in score in percent (1=100%, 0=0%) allowed for two taxa to be considered similar
 -blast
 	Set this flag to determine sequence id and refspec automatically. Note, the chosen sequence id and reference species
 	does not necessarily reflect the species the sequence was derived from.
@@ -2626,4 +2737,3 @@ ${bold}SPECIFYING EXTENT OF OUTPUT TO SCREEN$norm
 	return($helpmessage);	
 
 }
-
