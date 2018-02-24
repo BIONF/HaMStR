@@ -1149,6 +1149,7 @@ Please consult the installation manual for genewise and set this variable";
     push @log, "\nCHECKING FOR REFERENCE FASTA FILES\n";
     for (my $i = 0; $i < @refspec; $i++) {
         my $referencedb = "$blastpath/$refspec[$i]/$refspec[$i]".".fa";
+        my $referencedb_prot = "$blastpath/$refspec[$i]/$refspec[$i]"."_prot.fa";
         my $ref_dir = "$blastpath/$refspec[$i]";
         my $link = `readlink $referencedb`;
         my $ref_location = $referencedb;
@@ -1185,6 +1186,10 @@ Please consult the installation manual for genewise and set this variable";
                 }
             }
             
+        }elsif (-e "$referencedb_prot"){
+            #checking files
+            push @log, "$referencedb_prot succeeded.\n";
+        
         }else{
             #the provided reference fasta file does not exist or link to file does not exist:
             push @log, "${bold}FATAL:${norm} FASTA file for the specified reference $refspec[$i] does not exist. PLEASE PROVIDE A VALID REFERENCE SPECIES!\n";
