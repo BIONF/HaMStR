@@ -180,8 +180,12 @@ use Statistics::R;
     ## acceptence of co-ortholgy relations. The bug onyl occured while using the option checkCoOrthologsRef.
     ## HaMStR keeps original gene sets in FASTA format and *.fa.mod will link to the original FASTA file (no linebreaks within a sequence).
 
+    ## 28.02.2018
+    ## Minor Bug fix (solved): HaMStR is not longer asking infinite times for the replacement of already existing output files.
+    ## Minor Bug fix (solved): Backward compatibility extended. Naming of reference fasta files: (*.fa and *_prot.fa)
+
 ######################## start main ###########################################
-my $version = "HaMStR v.13.2.8";
+my $version = "HaMStR v.13.2.9";
 ######################## checking whether the configure script has been run ###
 my $configure = 0;
 if ($configure == 0){
@@ -1149,7 +1153,7 @@ Please consult the installation manual for genewise and set this variable";
     push @log, "\nCHECKING FOR REFERENCE FASTA FILES\n";
     for (my $i = 0; $i < @refspec; $i++) {
         my $referencedb = "$blastpath/$refspec[$i]/$refspec[$i]".".fa";
-        my $referencedb_prot = "$blastpath/$refspec[$i]/$refspec[$i]"."_prot.fa";
+	my $referencedb_prot = "$blastpath/$refspec[$i]/$refspec[$i]"."_prot.fa"; # backward compatibility
         my $ref_dir = "$blastpath/$refspec[$i]";
         my $link = `readlink $referencedb`;
         my $ref_location = $referencedb;
@@ -1188,9 +1192,31 @@ Please consult the installation manual for genewise and set this variable";
             
         }elsif (-e "$referencedb_prot"){
             #checking files
-            push @log, "$referencedb_prot succeeded.\n";
+            if (-e "$referencedb_prot.mod") {
+                push  @log, "\tA infile is already modified: linked $referencedb.mod existst. Using this one";
+            }
+            else {
+                push @log, "\tRemoving line breaks from $referencedb_prot.";
+                printOUT("\nremoving newlines from $referencedb_prot such that a sequence forms a consecutive string\n");
+                # *.tmp will replace the original FASTA file (keeping the original file name).
+                # creating a sym link named *.mod (used to check for removed linebreaks)
+                system("$path/bin/nentferner.pl -in=$referencedb_prot -out=$referencedb_prot.tmp -replace");
+                system("ln -s $referencedb_prot $referencedb_prot.mod");
+            }
+            if 	(! -e "$referencedb_prot.mod") {
+                push @log, "${bold}FATAL:${norm} Problems running the script nentferner.pl";
+                $check = 0;
+            }
+            else {
+                printOUT("nentferner.pl succeeded.\n");
+                push @log, "\tNewlines from the reference FASTA file have been removed";
+                if (defined $longhead) {
+                    `$sedprog -i -e "s/[[:space:]]\\+/$idsep/g" -e 's/\\(>.\\{20\\}\\).*/\\1/' $referencedb_prot`;
+                    push @log, "\tOption -longhead was chosen. Replaced whitespaces in the sequence identifier with '$idsep'";
+                }
+            }
         
-        }else{
+	}else{
             #the provided reference fasta file does not exist or link to file does not exist:
             push @log, "${bold}FATAL:${norm} FASTA file for the specified reference $refspec[$i] does not exist. PLEASE PROVIDE A VALID REFERENCE SPECIES!\n";
             $check = 0;
@@ -1208,15 +1234,21 @@ Please consult the installation manual for genewise and set this variable";
 
 	if (! $append){
 			if (-e "$seqs2store_file") {
-				my $answer = 'Y';	
+				my $answer = 'Y';
+                                my $breaker = 0;
 				if (!$force){
-					print "A HaMStR outfile $seqs2store_file already exists and option -force has not been chosen! Shall I overwrite this file [Y|N]: ";
+                                    print "A HaMStR outfile $seqs2store_file already exists and option -force has not been chosen! Shall I overwrite this file [Y|N]: ";
 				    $answer = <STDIN>;
 				    chomp $answer;				
-				    while ($answer !~ /[YN]/i) {	
+				    while ($answer !~ /[YN]/i and ($breaker < 4)) {
+                                            $breaker ++;
 					    print "Please answer with 'Y' or 'N':\t";
 					    $answer = <STDIN>;
 					    chomp $answer;
+                                            if (($breaker > 3) and ($answer !~ /[YN]/i)){
+                                                print "No proper answer is given: exiting.\nPlease re-start HaMStR with the -append option, or alternatively remove the file manually, or force the replacement of exsiting files with option -force.\n";
+                                                exit;
+                                            }
 				    }
 				}
 				if ($answer =~ /Y/i) {
@@ -1278,7 +1310,7 @@ Please consult the installation manual for genewise and set this variable";
   	}
   	
   	if ($relaxed) {
-      $fa_dir_neu .= '_relaxed';
+            $fa_dir_neu .= '_relaxed';
   	}
   	if ($check == 1) {
     	if (!(-e "$hmmsearch_dir")) {
@@ -1327,10 +1359,16 @@ Please consult the installation manual for genewise and set this variable";
 	
 	## check how hamstr should deal with possible introns in transcripts:
 	if ($estflag) {
-		while ($keepintron !~ /^[kmr]/i){	
+                my $breaker = 0;
+		while ($keepintron !~ /^[kmr]/i and ($breaker < 4)){
+                        $breaker ++;
 			print "option intron was set to $keepintron: Please answer either with 'k(eep)', 'm(ask)', or 'r(emove)':\t";
 			$keepintron = <STDIN>;
 			chomp $keepintron;
+                        if (($breaker > 3) and ($keepintron !~ /^[kmr]/i)){
+                            print "No proper answer is given: exiting.\nPlease re-start HaMStR with the option -intron=[kmr].\nOptions are 'k(eep)', 'm(ask)', or 'r(emove)'. Default is 'k(eep)' introns.\n";
+                            exit;
+                        }
 		}
 		if ($keepintron =~ /^k/i) {
 			push @log, "\tKeep introns (Default) has been chosen. HaMStR will keep any introns in lower case in the reported CDS. Thus, CDS cannot be directly translated into the aa sequence.";
@@ -2245,3 +2283,4 @@ sub computeLagPoint {
         my $lagPoint = $R->get('lagPoint');
 	return($lagPoint);
 }
+
