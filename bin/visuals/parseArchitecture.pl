@@ -13,16 +13,14 @@ use Env qw(ONESEQDIR);
 #######################
 # NAME:         parseArchitecture.pl
 # AUTHOR:       Vinh Tran, tran@bio.uni-frankfurt.de
-# MODIFIED:     Holger Bergmann, bergmann@bio.uni-frankfurt.de
+# AUTHOR:		Holger Bergmann, bergmann@bio.uni-frankfurt.de
 # DESCRIPTION:  parsing output of oneSeq.pl and FAS to create input to phyloprofile app
 # DATE:         16.12.2016
-# SUPPORT:      sge,qsub
-# STATUS:       devo
 
 #######
 #SETUP
 #######
-my $version = 1.1;
+my $version = 1.3;
 my $configure = 1;
 my $useIDasis = 1;
 if ($configure == 0){
@@ -124,6 +122,8 @@ foreach my $archi(@xml){
             ### get information #
             my $seed        = "";
             my $query       = "";
+            my $seedlen		= "";
+            my $querylen	= "";
             my $queryid     = "";
             my $queryID     = "";
             my $direction   = "";
@@ -137,12 +137,25 @@ foreach my $archi(@xml){
                 }
                 $queryid = pop (@hit);
                 $query = join("_",@hit);
-                if ($debug){print $query." and ".$queryid."\n";}
+                if ($debug){print $query." and ".$queryid."\ndirection: ".$direction."\n";}
             }
-            if($archiTMP[0] =~ /template id=\"(.)+?\"/){
-                $seed = $&;
-                $seed =~ s/template id=//; $seed =~ s/\"//g;
-                if ($debug){print $seed."\n";}
+            if($archiTMP[0] =~ /template id=\"(.)+?length=\"(.)+?\"/){
+            	my $templateline = $&;
+            	$seed = $templateline;
+            	$seed =~ s/template id=//; $seed =~ s/\sscore=.*//; $seed =~ s/\"//g;
+                if ($debug){print "SEED ID: ".$seed."\n";}
+                
+               	$seedlen = $templateline;
+                $seedlen =~ s/.*length=//;
+   	            $seedlen =~ s/\"//g;
+   	            if ($debug){print "SEED LENGTH: ".$seedlen."\n";}
+            }
+            if($archiTMP[0] =~ /query id=\"(.)+?length=\"(.)+?\"/){
+            	my $queryline = $&;
+               	$querylen = $queryline;
+                $querylen =~ s/.*length=//;
+   	            $querylen =~ s/\"//g;
+   	            if ($debug){print "QUERY LENGTH: ".$querylen."\n";}
             }
             
             if(length($query) > 0 && !$useIDasis){
@@ -174,11 +187,11 @@ foreach my $archi(@xml){
 #            }
 
             ### get query domains + path
-            my $queryDomains = getDomainPos($groupID,$queryID,$seed,$archiTMP[2],1,$query, \%queryPath);
+            my $queryDomains = getDomainPos($groupID,$queryID,$seed,$archiTMP[2],1,$query, $querylen, \%queryPath);
             print OUT $queryDomains;
             
             ### get seed domains + path
-            my $seedDomains = getDomainPos($groupID,$queryID,$seed,$archiTMP[1],0,$query, \%seedPath);
+            my $seedDomains = getDomainPos($groupID,$queryID,$seed,$archiTMP[1],0,$query, $seedlen, \%seedPath);
             print OUT $seedDomains;
         }
         if ($direction[1] == "0"){
@@ -186,6 +199,8 @@ foreach my $archi(@xml){
             ### get information #
             my $seed        = "";
             my $query       = "";
+            my $seedlen		= "";
+            my $querylen	= "";
             my $queryid     = "";
             my $queryID     = "";
             my $direction   = "";
@@ -199,12 +214,25 @@ foreach my $archi(@xml){
                 }
                 $queryid = pop (@hit);
                 $query = join("_",@hit);
-                if ($debug){print $query." and ".$queryid."\n";}
+                if ($debug){print $query." and ".$queryid."\ndirection: ".$direction."\n";}
             }
-            if($archiTMP[0] =~ /query id=\"(.)+?\"/){
-                $seed = $&;
-                $seed =~ s/query id=//; $seed =~ s/\"//g;
-                if ($debug){print $seed."\n";}
+            if($archiTMP[0] =~ /query id=\"(.)+?length=\"(.)+?\"/){
+            	my $queryline = $&;
+            	$seed = $queryline;
+            	$seed =~ s/query id=//; $seed =~ s/\slength=.*//; $seed =~ s/\"//g;
+                if ($debug){print "SEED ID: ".$seed."\n";}
+                
+               	$seedlen = $queryline;
+                $seedlen =~ s/.*length=//;
+   	            $seedlen =~ s/\"//g;
+   	            if ($debug){print "SEED LENGTH: ".$seedlen."\n";}
+            }
+            if($archiTMP[0] =~ /template id=\"(.)+?length=\"(.)+?\"/){
+            	my $templateline = $&;
+               	$querylen = $templateline;
+                $querylen =~ s/.*length=//;
+   	            $querylen =~ s/\"//g;
+   	            if ($debug){print "QUERY LENGTH: ".$querylen."\n";}
             }
 
             if(length($query) > 0 && !$useIDasis){
@@ -228,10 +256,10 @@ foreach my $archi(@xml){
             my %queryPath = getPathInfo($groupID,$queryID,$seed,$fixture[0],1,$query);
 
             ### get query domains
-            my $queryDomains = getDomainPos($groupID,$queryID,$seed,$archiTMP[1],1,$query,\%queryPath);
+            my $queryDomains = getDomainPos($groupID,$queryID,$seed,$archiTMP[1],1,$query, $querylen,\%queryPath);
             print OUT $queryDomains;
 
-            my $seedDomains = getDomainPos($groupID,$queryID,$seed,$archiTMP[2],0,$query,\%seedPath);
+            my $seedDomains = getDomainPos($groupID,$queryID,$seed,$archiTMP[2],0,$query, $seedlen,\%seedPath);
             print OUT $seedDomains;
         }
     }
@@ -242,7 +270,7 @@ print "Finished! Check output at\n\t",$outFile,"_".$direction[1].".domains\n";
 exit;
 
 sub getDomainPos{
-    my ($groupID,$searchID,$seedID,$block,$order,$soi,%pathinfo) = ($_[0], $_[1], $_[2], $_[3], $_[4], $_[5], %{$_[6]});
+    my ($groupID,$searchID,$seedID,$block,$order,$soi,$seqlen,%pathinfo) = ($_[0], $_[1], $_[2], $_[3], $_[4], $_[5], $_[6], %{$_[7]});
 
     my @features = split(/feature/,$block);
     my $result = "";
@@ -288,17 +316,17 @@ sub getDomainPos{
                     if($order == 1){
                         my $featureinfo = $type.$start.$end;
                         if (exists $pathinfo{$featureinfo}){
-                            $result .= "$groupID#$usedID#$seedID\t$usedID\t$type\t$start\t$end\t$pathinfo{$featureinfo}\tY\n";
+                            $result .= "$groupID#$usedID\t$usedID\t$seqlen\t$type\t$start\t$end\t$pathinfo{$featureinfo}\tY\n";
                         }else{
-                            $result .= "$groupID#$usedID#$seedID\t$usedID\t$type\t$start\t$end\t$weight\tN\n";
+                            $result .= "$groupID#$usedID\t$usedID\t$seqlen\t$type\t$start\t$end\t$weight\tN\n";
                         }
                     #print seed infos        
                     } elsif($order == 0){
                         my $featureinfo = $type.$start.$end;
                         if (exists $pathinfo{$featureinfo}){
-                            $result .= "$groupID#$usedID#$seedID\t$seedID\t$type\t$start\t$end\t$pathinfo{$featureinfo}\tY\n";
+                            $result .= "$groupID#$usedID\t$seedID\t$seqlen\t$type\t$start\t$end\t$pathinfo{$featureinfo}\tY\n";
                         }else{
-                            $result .= "$groupID#$usedID#$seedID\t$seedID\t$type\t$start\t$end\t$weight\tN\n";
+                            $result .= "$groupID#$usedID\t$seedID\t$seqlen\t$type\t$start\t$end\t$weight\tN\n";
                         }
                     }
                 }

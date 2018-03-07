@@ -135,6 +135,9 @@ Dependencies
     lib32ncurses5
     lib32z1
 
+    Packages for Perl:
+    Parallel/ForkManager.pm
+
 
 
 
