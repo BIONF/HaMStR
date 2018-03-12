@@ -166,6 +166,6 @@ print OUT $outline;
 close (OUT);
 close (IN);
 if ($replace) {
-	`mv $outname $infile`; 
+	`mv $path2outfile/$outname $path2infile/$infile`; 
 }
 exit;
