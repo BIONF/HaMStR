@@ -106,7 +106,7 @@ For further support or bug reports please contact: bergmann@bio.uni-frankfurt.de
 
 
 Dependencies
-* blastall
+* blastp (blastall)
 * genewise
 * hmmsearch
 * hmmbuild
