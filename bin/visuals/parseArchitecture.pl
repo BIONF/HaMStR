@@ -135,10 +135,17 @@ foreach my $archi(@xml){
                 if ($direction[1] != $direction){
                     print "\nWARNING: please check file format for:\t".$inFile."\n";
                 }
-                $queryid = pop (@hit);
-                $query = join("_",@hit);
+           }
+           if($archiTMP[0] =~ /query id=\"(.)+?length=\"(.)+?\"/){
+                my $hit = $&;
+                $hit =~ s/query id=//; $hit =~ s/\slength=.*//; $hit =~ s/\"//g;
+                my @hit =  split(/\|/,$hit);
+                $queryid = $hit[2];
+
+                $query = $hit[1];
                 if ($debug){print $query." and ".$queryid."\ndirection: ".$direction."\n";}
             }
+
             if($archiTMP[0] =~ /template id=\"(.)+?length=\"(.)+?\"/){
             	my $templateline = $&;
             	$seed = $templateline;
@@ -212,10 +219,17 @@ foreach my $archi(@xml){
                 if ($direction[1] != $direction){
                     print "\nWARNING: please check file format for:\t".$inFile."\n";
                 }
-                $queryid = pop (@hit);
-                $query = join("_",@hit);
-                if ($debug){print $query." and ".$queryid."\ndirection: ".$direction."\n";}
             }
+            if($archiTMP[0] =~ /template id=\"(.)+?length=\"(.)+?\"/){
+                my $hit = $&;
+                $hit =~ s/template id=//; $seed =~ s/\sscore=.*//; $seed =~ s/\"//g;
+                my @hit =  split(/\|/,$hit);
+                $queryid = $hit[2];
+
+                $query = $hit[1];
+                if ($debug){print $query." and ".$queryid."\ndirection: ".$direction."\n";}
+            }   
+
             if($archiTMP[0] =~ /query id=\"(.)+?length=\"(.)+?\"/){
             	my $queryline = $&;
             	$seed = $queryline;
