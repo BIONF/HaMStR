@@ -38,14 +38,14 @@ Please change into your main hamstr directory and follow the stepwise instructio
 	6. bash ./bin/install_data.sh
 
 Please configure your HaMStR to your personal needs and preferences with the following steps.
-To set the ENV variable $ONESEQDIR add the following line to your .bashrc or .bash_profile.
+To set the ENV variable $ONESEQDIR add the following line to your .bashrc or .bash_profile (and reload your terminal).
 
 	7. export ONESEQDIR=/absolute/path/to/your/hamstr
 
-Run the provided configure script to wrap everything up.
+Run the provided configure script to wrap everything up. Please change into your hamstr/bin directory.
 For Linux users:
 
-	8. bash ./bin/configure -p -n
+	8. bash ./configure -p -n
 
 OR for MaxOSX users:
 
@@ -137,6 +137,7 @@ Dependencies
 
     Packages for Perl:
     Parallel/ForkManager.pm
+    IPC/Run.pm
 
 
 
