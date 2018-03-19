@@ -820,10 +820,6 @@ sub getAlnScores{
 		system($loclocCommand);
 	}
         
-        print "\n\nSCOREFILE\n";
-        my $alnscorefile = `cat $coreOrthologsPath/$seqName/$scorefile`;
-        print "$alnscorefile\n";
-
 	########################
 	## step: 4
 	## collect alignment score
