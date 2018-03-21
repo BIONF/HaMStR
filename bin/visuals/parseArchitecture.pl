@@ -40,7 +40,7 @@ my $groupID;
 my $outFile;
 my $help;
 my $getversion;
-my $debug = 1;
+my $debug = 0;
 
 ##### Command line options
 GetOptions ("h"             => \$help,
