@@ -49,7 +49,7 @@ For Linux users:
 
 OR for MaxOSX users:
 
-	8. bash ./bin/configure_mac -p -n
+	8. bash ./configure_mac -p -n
 
 Your personal copy of HaMStR should be good to go.
 
