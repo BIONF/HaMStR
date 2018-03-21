@@ -40,7 +40,7 @@ my $groupID;
 my $outFile;
 my $help;
 my $getversion;
-my $debug = 0;
+my $debug = 1;
 
 ##### Command line options
 GetOptions ("h"             => \$help,
@@ -140,9 +140,9 @@ foreach my $archi(@xml){
                 my $hit = $&;
                 $hit =~ s/query id=//; $hit =~ s/\slength=.*//; $hit =~ s/\"//g;
                 my @hit =  split(/\|/,$hit);
-                $queryid = $hit[2];
+                $queryid = $hit[1];
 
-                $query = $hit[1];
+                $query = $hit[0];
                 if ($debug){print $query." and ".$queryid."\ndirection: ".$direction."\n";}
             }
 
@@ -222,11 +222,11 @@ foreach my $archi(@xml){
             }
             if($archiTMP[0] =~ /template id=\"(.)+?length=\"(.)+?\"/){
                 my $hit = $&;
-                $hit =~ s/template id=//; $seed =~ s/\sscore=.*//; $seed =~ s/\"//g;
+                $hit =~ s/template id=//; $hit =~ s/\sscore=.*//; $hit =~ s/\"//g;
                 my @hit =  split(/\|/,$hit);
-                $queryid = $hit[2];
+                $queryid = $hit[1];
 
-                $query = $hit[1];
+                $query = $hit[0];
                 if ($debug){print $query." and ".$queryid."\ndirection: ".$direction."\n";}
             }   
 

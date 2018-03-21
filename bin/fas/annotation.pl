@@ -75,7 +75,7 @@ my $PFAM_tool       = "pfam_scan.pl";
 my $SMART_tool      = "smart_scan_v4.pl";
 ## number of above stated programs for annotation
 my $tool_count      = 7;
-my $version         = 1.0;
+my $version         = 1.1;
 
 #### SETUP PATH ####
 my $location	= abs_path($0);
@@ -256,7 +256,7 @@ sub extractAnnotation{
     my ($gene_id) = ($_[0]);
     # for all files
     my @annotationFiles = glob($annot."/*.xml");
-    
+	my $pathbase = basename($annot);
     foreach(@annotationFiles){
         open (EXTRACT, "<".$_) or die ("ERROR: could not find file: $_. $!\n");
         my @content = <EXTRACT>;
@@ -275,7 +275,9 @@ sub extractAnnotation{
             if($content[$ii] =~ m/<protein id=/){
                 my @protein = split(/\"/,$content[$ii]);
                 if($protein[1] eq $qORp){
-                    my $jj = $ii;
+                    $content[$ii] =~ s/\"$qORp\"/\"$pathbase\|$qORp\"/;
+                    print WRITE_EX $content[$ii];
+                    my $jj = $ii+1;
                     while($content[$jj] !~ m/<\/protein>/){
                         print WRITE_EX $content[$jj];
                         $jj++;
