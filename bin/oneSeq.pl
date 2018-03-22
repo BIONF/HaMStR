@@ -220,6 +220,7 @@ my $eval_hmmer = 0.00001; #1E-5
 my $eval_relaxfac = 10; #checked in checkInput
 my $coreOnly;
 my $cpu = 1;
+my $corecpu = 1;
 my $silent;
 my $checkcoorthologsref;
 my $cccr;
@@ -592,7 +593,7 @@ sub nFAS_score_core{
     my $n = shift;
     my $e_dir = shift;
     my $c_dir = $coreOrthologsPath . $seqName . "/fas_dir/";
-    my $py = new Parallel::ForkManager($cpu);
+    my $py = new Parallel::ForkManager($corecpu);
     
     while (my @next_n = splice @_, 0, $n) {
         
@@ -869,7 +870,7 @@ sub getFasScore{
 		}
 
 		## define chunk size for forking (Parallel::ForkManager)
-		my $size = floor(scalar(@k_ary) / $cpu);
+		my $size = floor(scalar(@k_ary) / $corecpu);
 
 		## create tmp folder
 		my $evaluationDir = $coreOrthologsPath.$seqName."/fas_dir/fasscore_dir/";
