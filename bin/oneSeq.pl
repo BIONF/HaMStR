@@ -219,8 +219,8 @@ my $eval_blast = 0.00001; #1E-5
 my $eval_hmmer = 0.00001; #1E-5
 my $eval_relaxfac = 10; #checked in checkInput
 my $coreOnly;
-my $cpu = 1;
-my $corecpu = 1;
+my $cpu = 1;    #sets number of forks for final ortholog search (can be set via option -cpu=<>)
+my $corecpu = 1;    #sets number of forks for core-ortholog assembly (MUST BE 1, due to directed search process through the tree)
 my $silent;
 my $checkcoorthologsref;
 my $cccr;
