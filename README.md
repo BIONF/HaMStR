@@ -60,8 +60,8 @@ HaMStR will run smoothly with the provided sample file if everything is set corr
 
 * hamstr/data/infile.fa (your input files should be placed here)
 
-	1. oneSeq.pl -help (gives you an overview about available options)
-	2. oneSeq.pl -sequence_file=infile.fa -seqid=P83876 -refspec=HUMAN@9606@1 -minDist=genus -maxDist=kingdom -coreOrth=5 -cleanup -global
+	1. `oneSeq.pl -h` (gives you an overview about available options)
+	2. `oneSeq.pl -sequence_file=infile.fa -seqid=P83876 -refspec=HUMAN@9606@1 -minDist=genus -maxDist=kingdom -coreOrth=5 -cleanup -global`
 
 HaMStR-OneSeq integrates the prediction of orthologs and the comparison of their Feature Architecture Similarity score (FAS). The provided output file seqname.extended.profile contains the ID’s and the FAS scores for the orthologs in a TAB-separated file format (FAS scores are computed pairwise between the seeding input gene and it’s predicted orthologous genes). 
 
