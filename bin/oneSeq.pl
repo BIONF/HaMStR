@@ -190,6 +190,7 @@ my %profile     = ();
 my %fas_score_keeper = ();
 my $eval_filter = 0.001;
 my $inst_eval_filter = 0.01;
+my $weight_seed = 0;
 
 my $help;
 my $showTaxa;
@@ -293,6 +294,7 @@ GetOptions ("h"                 => \$help,
             "force"             => \$force,
             "cleanup"           => \$autoclean,
             "addenv=s"          => \$addenv,
+            "weight_seed"       => \$weight_seed,
             "version"           => \$getversion,
 			"reuse_core"        => \$coreex,
 			"ignoreDistance"	=> \$ignoreDistance,
@@ -620,7 +622,15 @@ sub nFAS_score_core{
             my $cand_annot   = getAnnotation_Candidate($gene_set,$gene_id,$candseqFile);
             my $seed_annot  = $coreOrthologsPath.$seqName."/fas_dir/annotation_dir/";
             my $mode        = 0; #FAS scoring Model2 (core)
-            my $score_0 = runFAS($cand_annot, $seed_annot.$seqName."_seed", $gene_set."_".$gene_id, $seqName, $e_dir, $weightPath."/".$gene_set,$mode);
+            my $score_0;
+            unless($weight_seed){
+                #weight will be determined on the basis of orthologs origin (taxon where the orthologs is dereived from)
+                $score_0 = runFAS($cand_annot, $seed_annot.$seqName."_seed", $gene_set."_".$gene_id, $seqName, $e_dir, $weightPath."/".$gene_set,$mode);
+            }else{
+                #weight will be determined on the basis of seed species (taxon where the seed is dereived from)
+                $score_0 = runFAS($cand_annot, $seed_annot.$seqName."_seed", $gene_set."_".$gene_id, $seqName, $e_dir, $weightPath."/".$refspec,$mode);
+            }
+            
             $core_fas_0_box{$headerkey} = $score_0;
             $ii++;
         }
@@ -669,13 +679,27 @@ sub nFAS_score_final{
             my $cand_annot  = getAnnotation_Candidate($gene_set,$gene_id,$finOrth_seqFile);
             my $seed_annot  = $coreOrthologsPath.$seqName."/fas_dir/annotation_dir/";
             my $mode        = 1; #FAS scoring Model1 (final)
-            my $score_1 = runFAS($seed_annot.$seqName."_seed", $cand_annot, $gene_set."_".$gene_id, $seqName, $e_dir, $weightPath."/".$gene_set,$mode);
+            my $score_1;
+            unless($weight_seed){
+                #weight will be determined on the basis of orthologs origin (taxon where the orthologs is dereived from)
+                $score_1 = runFAS($seed_annot.$seqName."_seed", $cand_annot, $gene_set."_".$gene_id, $seqName, $e_dir, $weightPath."/".$gene_set,$mode);
+            }else{
+                #weight will be determined on the basis of seed species (taxon where the seed is dereived from)
+                $score_1 = runFAS($seed_annot.$seqName."_seed", $cand_annot, $gene_set."_".$gene_id, $seqName, $e_dir, $weightPath."/".$refspec,$mode);
+            }
             $final_fas_1_box{$headerkey} = $score_1;
             # double check the FAS results (extra calculation needed, change of direction)
             # seed <--vs-- hit protein
             if ($countercheck){
                 $mode = 0;
-                my $score_0 = runFAS($cand_annot, $seed_annot.$seqName."_seed", $gene_set."_".$gene_id, $seqName, $e_dir, $weightPath."/".$gene_set,$mode);
+                my $score_0;
+                unless($weight_seed){
+                    #weight will be determined on the basis of orthologs origin (taxon where the orthologs is dereived from)
+                    $score_0 = runFAS($cand_annot, $seed_annot.$seqName."_seed", $gene_set."_".$gene_id, $seqName, $e_dir, $weightPath."/".$gene_set,$mode);
+                }else{
+                    #weight will be determined on the basis of seed species (taxon where the seed is dereived from)
+                    $score_0 = runFAS($cand_annot, $seed_annot.$seqName."_seed", $gene_set."_".$gene_id, $seqName, $e_dir, $weightPath."/".$refspec,$mode);
+                }
                 $final_fas_0_box{$headerkey} = $score_0;
             }
             $ii++;
@@ -2714,6 +2738,8 @@ ${bold}SPECIFYING FAS SUPPORT OPTIONS$norm
         The option '-minScore=<>' specifies the cut-off of the FAS score. 
 -minScore=<>
         Specify the threshold for coreFilter. Default is 0.75.
+-weight_seed
+        Specify the gene set (either seed species or orthologs origin) which is used to determine the weight of a feature. If this flag is set the weights will be determined on the basis of the seed species. Default is the origin of the respective ortholog.
 -local
         Specify the alignment strategy during core ortholog compilation. Default is local.
 -glocal

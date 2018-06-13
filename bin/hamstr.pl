@@ -2056,7 +2056,9 @@ sub identifyCoorthologsProt{
 	my @genes2check = @$idobject;
 	my $refseq = $fileobj->{$spec}->{refprot};
 	my $refid = $fileobj->{$spec}->{refid};
-	$refid =~ s/-[0-9]*$//;
+        if ($estflag) {
+                $refid =~ s/-[0-9]+$//;
+        }
 	my $refspec_final = $fileobj->{$spec}->{refspec_final};
 	## initialize the array with the sequences to be aligned with the reference sequence
 	my @out = qw();
