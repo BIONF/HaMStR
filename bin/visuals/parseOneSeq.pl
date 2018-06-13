@@ -91,6 +91,7 @@ foreach my $file(@allOutFiles){
 		my $taxonID = $hit[1];
 #		my $hitID = $hit[0].":".$tmp[2];
 		my $hitID = $tmp[0]."|".$tmp[1]."|".$tmp[2]."|".$tmp[3];
+                my $rep = $tmp[3]; #true if rep. ortholog
 #		print "$geneID - $taxonID - $fas";<>;
 
 		### save to %taxaList, %allGenes and %fas
@@ -107,6 +108,11 @@ foreach my $file(@allOutFiles){
 					if($fasTMP[1] < $fas0){
 						$fas0{"$geneID#ncbi$taxonID"} = $hitID."#".$fas0;
 					}
+                                        if($fasTMP[1] == $fas0){
+                                                if($rep){
+                                                        $fas0{"$geneID#ncbi$taxonID"} = $hitID."#".$fas0;
+                                                }
+					}
 				}
 			}
 			
@@ -117,6 +123,11 @@ foreach my $file(@allOutFiles){
 					my @fasTMP = split(/\#/,$fas1{"$geneID#ncbi$taxonID"});		
 					if($fasTMP[1] < $fas1){
 						$fas1{"$geneID#ncbi$taxonID"} = $hitID."#".$fas1;
+					}
+                                        if($fasTMP[1] == $fas1){
+                                                if($rep){
+                                                        $fas1{"$geneID#ncbi$taxonID"} = $hitID."#".$fas1;
+                                                }
 					}
 				}
 			}
