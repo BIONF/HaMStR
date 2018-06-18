@@ -628,7 +628,7 @@ sub nFAS_score_core{
                 $score_0 = runFAS($cand_annot, $seed_annot.$seqName."_seed", $gene_set."_".$gene_id, $seqName, $e_dir, $weightPath."/".$gene_set,$mode);
             }else{
                 #weight will be determined on the basis of seed species (taxon where the seed is dereived from)
-                $score_0 = runFAS($cand_annot, $seed_annot.$seqName."_seed", $gene_set."_".$gene_id, $seqName, $e_dir, $weightPath."/".$refspec,$mode);
+                $score_0 = runFAS($cand_annot, $seed_annot.$seqName."_seed", $gene_set."_".$gene_id, $seqName, $e_dir, $weightPath."/".$refSpec,$mode);
             }
             
             $core_fas_0_box{$headerkey} = $score_0;
@@ -685,7 +685,7 @@ sub nFAS_score_final{
                 $score_1 = runFAS($seed_annot.$seqName."_seed", $cand_annot, $gene_set."_".$gene_id, $seqName, $e_dir, $weightPath."/".$gene_set,$mode);
             }else{
                 #weight will be determined on the basis of seed species (taxon where the seed is dereived from)
-                $score_1 = runFAS($seed_annot.$seqName."_seed", $cand_annot, $gene_set."_".$gene_id, $seqName, $e_dir, $weightPath."/".$refspec,$mode);
+                $score_1 = runFAS($seed_annot.$seqName."_seed", $cand_annot, $gene_set."_".$gene_id, $seqName, $e_dir, $weightPath."/".$refSpec,$mode);
             }
             $final_fas_1_box{$headerkey} = $score_1;
             # double check the FAS results (extra calculation needed, change of direction)
@@ -698,7 +698,7 @@ sub nFAS_score_final{
                     $score_0 = runFAS($cand_annot, $seed_annot.$seqName."_seed", $gene_set."_".$gene_id, $seqName, $e_dir, $weightPath."/".$gene_set,$mode);
                 }else{
                     #weight will be determined on the basis of seed species (taxon where the seed is dereived from)
-                    $score_0 = runFAS($cand_annot, $seed_annot.$seqName."_seed", $gene_set."_".$gene_id, $seqName, $e_dir, $weightPath."/".$refspec,$mode);
+                    $score_0 = runFAS($cand_annot, $seed_annot.$seqName."_seed", $gene_set."_".$gene_id, $seqName, $e_dir, $weightPath."/".$refSpec,$mode);
                 }
                 $final_fas_0_box{$headerkey} = $score_0;
             }
