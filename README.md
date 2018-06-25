@@ -119,6 +119,7 @@ However, if needed the user can manually add further gene sets (multifasta forma
      - the following bash command uses sed to cut the header at the first whitespace: sed -i "s/ .*//" SPECIES@12345@1.fa
      - example:
 before:
+
 	>EXR66326.1 biofilm-associated domain protein, partial [Acinetobacter baumannii 339786]
 	MTGEGPVAIHAEAVDAQGNVDVADADVTLTIDTTPQDLITAITVPEDLNGDGILNAAELGTDGSFNAQVALGPDAVDGTV
 	VNVNGTNYTVTAADLANGYITATLDATAADPVTGQIVIHAEAVDAQGNVD
@@ -130,6 +131,7 @@ before:
 	VTVTYPDGTTATVVAGTDGSWSVPNPGNLVDGDTVTATAT
 	...
 after (this is how your sequence data should look like):
+
 	>EXR66326.1
 	MTGEGPVAIHAEAVDAQGNVDVADADVTLTIDTTPQDLITAITVPEDLNGDGILNAAELGTDGSFNAQVALGPDAVDGTV
 	VNVNGTNYTVTAADLANGYITATLDATAADPVTGQIVIHAEAVDAQGNVD
