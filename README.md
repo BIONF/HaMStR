@@ -53,6 +53,7 @@ OR for MaxOSX users:
 
 Your personal copy of HaMStR should be good to go.
 
+
 Usage
 #####
 
