@@ -100,6 +100,65 @@ To prepare the additional input file (*.domains) you just need to concatenate th
 The resulting file combined_1.matrix and combined_1.domains can be plugged into the Phyloprofile tool (R shiny) for further investigation.
 
 
+Gene sets, Annotations, Blast DBs
+#################################
+
+Within the data package (https://fasta.bioch.virginia.edu/fasta_www2/fasta_list2.shtml) we provide a set of 78 reference taxa (gene sets in genome_dir, annotations in weight_dir, blast databases in blast_dir). They can be automatically downloaded und put into place with the install_data.sh script (please see above: Installation 5. and 6.). This data comes "ready to use" with the HaMStR-OneSeq framework. Species data must be present in the three directories listed below. For each species/taxon there is a sub-directory named in accordance to the naming schema ([Species acronym]@[NCBI ID]@[Proteome version]).:
+
+I.	genome_dir (Contains sub-directories for proteome fasta files for each species)
+II.	blast_dir (Contains sub-directories for BLAST databases made with makeblastdb out of your proteomes)
+III.	weight_dir (Contains sub-directories for feature annotation files for each proteome)
+
+
+However, if needed the user can manually add further gene sets (multifasta format) and place them into the respective directories (genome_dir, weight_dir, blast_dir). Please note, that every taxon/species must be present in the NCBI taxonomy. The following steps need to be conducted:
+
+1.) Download the gene set of your taxon of interest as amino acid sequences from the NCBI database.
+2.) Rename the file in accordance to the naming schema of hamstr:     SPECIES@12345@1.fa
+     - ([Species acronym]@[NCBI ID]@[Proteome version])
+3.) Fasta header must be whitespace free and unique within the gene set (short header make your life easier for downstream analysis).
+     - the following bash command uses sed to cut the header at the first whitespace: sed -i "s/ .*//" SPECIES@12345@1.fa
+     - example:
+before:
+	>EXR66326.1 biofilm-associated domain protein, partial [Acinetobacter baumannii 339786]
+	MTGEGPVAIHAEAVDAQGNVDVADADVTLTIDTTPQDLITAITVPEDLNGDGILNAAELGTDGSFNAQVALGPDAVDGTV
+	VNVNGTNYTVTAADLANGYITATLDATAADPVTGQIVIHAEAVDAQGNVD
+	>EXR66351.1 hypothetical protein J700_4015, partial [Acinetobacter baumannii 339786]
+	NRRLLITTQPTATDSNYKTPIYINAPNGELYFANQDETSVSSVVFKRVIGATAANAPYVASDSWTKKIRKWNTYNHEVSK
+	VGRFIAPMMLTYDVTFTTQQNNAGWSISKESTGVYRLQRDSGVTTELANPHIEVSGIFAGTGLGSGDVILPPTLQAIEAY
+	>EXR66376.1 bacterial Ig-like domain family protein, partial [Acinetobacter baumannii 339786]
+	DGVDYPAVNNGDGTWTLADNTLPTLADGPHTITVTATDAAGNVGNDTAVVTIDTVAPNAPVLDPINATDPVSGQAEPGST
+	VTVTYPDGTTATVVAGTDGSWSVPNPGNLVDGDTVTATAT
+	...
+after (this is how your sequence data should look like):
+	>EXR66326.1
+	MTGEGPVAIHAEAVDAQGNVDVADADVTLTIDTTPQDLITAITVPEDLNGDGILNAAELGTDGSFNAQVALGPDAVDGTV
+	VNVNGTNYTVTAADLANGYITATLDATAADPVTGQIVIHAEAVDAQGNVD
+	>EXR66351.1
+	NRRLLITTQPTATDSNYKTPIYINAPNGELYFANQDETSVSSVVFKRVIGATAANAPYVASDSWTKKIRKWNTYNHEVSK
+	VGRFIAPMMLTYDVTFTTQQNNAGWSISKESTGVYRLQRDSGVTTELANPHIEVSGIFAGTGLGSGDVILPPTLQAIEAY
+	>EXR66376.1
+	DGVDYPAVNNGDGTWTLADNTLPTLADGPHTITVTATDAAGNVGNDTAVVTIDTVAPNAPVLDPINATDPVSGQAEPGST
+	VTVTYPDGTTATVVAGTDGSWSVPNPGNLVDGDTVTATAT
+
+4.) After your gene set (proteomic data) is prepared and placed into the respective sub-directory in the genome_dir directory you can conduct the following instructions:
+
+5.) Create a Blast DB for the species within the blast_dir
+
+	makeblastdb -dbtype prot -in genome_dir/SPECI@00001@1/SPECI@00001@1.fa -out blast_dir/SPECI@00001@1/SPECI@00001@1
+
+6.) Create the annotation files for your taxon with the provided perl script
+
+	perl /path/to/your/hamstr/bin/fas/annotation.pl -fasta=/path/to/your/hamstr/genome_dir/SPECI@00001@1/SPECI@00001@1.fa -path=/path/to/your/hamstr/weight_dir -name=SPECI@00001@1
+
+Please take care that all parameter paths are provided as absolute paths. This action takes considerably longer than the BLAST database creation with makeblastdb (it takes about one hour to annotate a gene set with 5000 sequences).
+
+To prove if your manually added species is integrated into the HaMStR framework your can run:
+
+	perl bin/oneSeq.pl -showTaxa
+	
+This command simply prints a list of all available taxa.
+
+
 Happy HaMStRing.
 
 For further support or bug reports please contact: bergmann@bio.uni-frankfurt.de
