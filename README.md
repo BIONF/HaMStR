@@ -119,6 +119,7 @@ However, if needed the user can manually add further gene sets (multifasta forma
 * 3.) Fasta header must be whitespace free and unique within the gene set (short header make your life easier for downstream analysis).
      - the following bash command uses sed to cut the header at the first whitespace: sed -i "s/ .*//" SPECIES@12345@1.fa
      - example:
+     
 before:
 
 	>EXR66326.1 biofilm-associated domain protein, partial [Acinetobacter baumannii 339786]
