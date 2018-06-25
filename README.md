@@ -106,17 +106,17 @@ Gene sets, Annotations, Blast DBs
 
 Within the data package (https://fasta.bioch.virginia.edu/fasta_www2/fasta_list2.shtml) we provide a set of 78 reference taxa (gene sets in genome_dir, annotations in weight_dir, blast databases in blast_dir). They can be automatically downloaded und put into place with the install_data.sh script (please see above: Installation 5. and 6.). This data comes "ready to use" with the HaMStR-OneSeq framework. Species data must be present in the three directories listed below. For each species/taxon there is a sub-directory named in accordance to the naming schema ([Species acronym]@[NCBI ID]@[Proteome version]).:
 
-I.	genome_dir (Contains sub-directories for proteome fasta files for each species)
-II.	blast_dir (Contains sub-directories for BLAST databases made with makeblastdb out of your proteomes)
-III.	weight_dir (Contains sub-directories for feature annotation files for each proteome)
+* I.	genome_dir (Contains sub-directories for proteome fasta files for each species)
+* II.	blast_dir (Contains sub-directories for BLAST databases made with makeblastdb out of your proteomes)
+* III.	weight_dir (Contains sub-directories for feature annotation files for each proteome)
 
 
 However, if needed the user can manually add further gene sets (multifasta format) and place them into the respective directories (genome_dir, weight_dir, blast_dir). Please note, that every taxon/species must be present in the NCBI taxonomy. The following steps need to be conducted:
 
-1.) Download the gene set of your taxon of interest as amino acid sequences from the NCBI database.
-2.) Rename the file in accordance to the naming schema of hamstr:     SPECIES@12345@1.fa
+* 1.) Download the gene set of your taxon of interest as amino acid sequences from the NCBI database.
+* 2.) Rename the file in accordance to the naming schema of hamstr:     SPECIES@12345@1.fa
      - ([Species acronym]@[NCBI ID]@[Proteome version])
-3.) Fasta header must be whitespace free and unique within the gene set (short header make your life easier for downstream analysis).
+* 3.) Fasta header must be whitespace free and unique within the gene set (short header make your life easier for downstream analysis).
      - the following bash command uses sed to cut the header at the first whitespace: sed -i "s/ .*//" SPECIES@12345@1.fa
      - example:
 before:
