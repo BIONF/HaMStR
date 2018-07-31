@@ -146,10 +146,15 @@ after (this is how your sequence data should look like):
 
 4.) After your gene set (proteomic data) is prepared and placed into the respective sub-directory in the genome_dir directory you can conduct the following instructions:
 
-5.) Create a Blast DB for the species within the blast_dir
+5.1) Create a Blast DB for the species within the blast_dir
 
 	makeblastdb -dbtype prot -in genome_dir/SPECI@00001@1/SPECI@00001@1.fa -out blast_dir/SPECI@00001@1/SPECI@00001@1
-
+	
+5.2) Create a symbolic link with the blast_dir (change into the respective sub-directory in the blast_dir)
+	
+	cd blast_dir/SPECI@00001@1 
+	ln -s ../../genome_dir/SPECI@00001@1/SPECI@00001@1.fa SPECI@00001@1.fa
+	
 6.) Create the annotation files for your taxon with the provided perl script
 
 	perl /path/to/your/hamstr/bin/fas/annotation.pl -fasta=/path/to/your/hamstr/genome_dir/SPECI@00001@1/SPECI@00001@1.fa -path=/path/to/your/hamstr/weight_dir -name=SPECI@00001@1
