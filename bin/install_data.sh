@@ -15,7 +15,7 @@ if [[ $CURRENT == */HaMStR ]] || [[ $CURRENT == */hamstr ]]; then
     else
         CHECKSUM=$(cksum data_HaMStR.tar)
         echo "Checksum: $CHECKSUM"
-        if [ "$CHECKSUM" == "853264577 1869487224 data_HaMStR.tar" ]; then
+        if [ "$CHECKSUM" == "1769234642 1822556137 data_HaMStR.tar" ]; then
             echo "Extracting archive data_HaMStR.tar"
             tar xfv $CURRENT/data_HaMStR.tar
             echo "Archive data_HaMStR.tar extracted into $CURRENT"
@@ -55,6 +55,7 @@ if [[ $CURRENT == */HaMStR ]] || [[ $CURRENT == */hamstr ]]; then
                 printf "\nMoving TMHMM ...\n----------------\n"
                 #sleep 3
                 rsync -rva data_HaMStR/TMHMM/* $CURRENT/bin/fas/TMHMM
+                rsync -rva data_HaMStR/README* $CURRENT/
                 printf "\nRemoving duplicated data. Please wait.\n------------------------------------\n"
                 rm -rf $CURRENT/data_HaMStR
                 printf "\nFinished. Data should be in place to run HaMStR.\n"
