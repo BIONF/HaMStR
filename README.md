@@ -31,7 +31,7 @@ Please try the following command for a quick test of your installation:
 
 	4. ../bin/fasta36 -q ../seq/mgstm1.aa ../seq/prot_test.lseg
 
-You can download and extract the provided data package (data_HaMStR.tar (1.7GB)) with the help of the script install_data.sh.
+You can download and extract the provided data package (data_HaMStR.tar version2018 (1.7GB)) with the help of the script install_data.sh.
 Please change into your main hamstr directory and follow the stepwise instructions below.
 
 	5. cd to/your/hamstr
