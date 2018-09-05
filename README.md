@@ -60,6 +60,7 @@ Usage
 HaMStR will run smoothly with the provided sample file if everything is set correctly:
 
 * hamstr/data/infile.fa (your input files should be placed here)
+* running oneSeq.pl for the first time may take a while due to indexing steps of the NCBI taxonomy files. 
 
 	1. `oneSeq.pl -h` (gives you an overview about available options)
 	2. `oneSeq.pl -sequence_file=infile.fa -seqid=P83876 -refspec=HUMAN@9606@1 -minDist=genus -maxDist=kingdom -coreOrth=5 -cleanup -global`
