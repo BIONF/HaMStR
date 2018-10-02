@@ -15,7 +15,7 @@ if [[ $CURRENT == */HaMStR ]] || [[ $CURRENT == */hamstr ]]; then
     else
         CHECKSUM=$(cksum data_HaMStR.tar)
         echo "Checksum: $CHECKSUM"
-        if [ "$CHECKSUM" == "1769234642 1822556137 data_HaMStR.tar" ]; then
+        if [ "$CHECKSUM" == "557087663 1952579568 data_HaMStR.tar" ]; then
             echo "Extracting archive data_HaMStR.tar"
             tar xfv $CURRENT/data_HaMStR.tar
             echo "Archive data_HaMStR.tar extracted into $CURRENT"
