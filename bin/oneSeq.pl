@@ -76,15 +76,17 @@ my $startTime = time;
 ##
 
 ## Modified 09. Feb. 2018: - Changes 	- Now the HaMStR candidate search climbs the tree and evaluates only one taxon at a time
-##										- The FAS score for a candidate will now only be calculated, if the alinmentscore is high enough,
+##										- The FAS score for a candidate will now only be calculated, if the alignment score is high enough,
 ##										  to top the current best candidate
 ##										- If a candidate reaches the maximum score the search stops and a new round starts
-##										- If a candidate is within deviation range of the maximum score only the taxa, which are on the same treebranch,
-##										  will get evaluated and then the search gets cancled and a new round starts
-##
+##										- If a candidate is within deviation range of the maximum score only the taxa, which are on the same tree branch,
+##										  will get evaluated and then the search gets canceled and a new round starts
+
+## Modified 24. Nov. 2018: Release      - release oneSeq v1.3.1
+##                                      - Not included feature/feature-updated-fas-util
 
 ############ General settings
-my $version = 'oneSeq v.1.3';
+my $version = 'oneSeq v.1.3.1';
 ##### configure
 my $configure = 0;
 if ($configure == 0){
@@ -763,7 +765,7 @@ sub getCandicontent{
 sub getCumulativeAlnScores{
 	chdir($coreOrthologsPath . $seqName);
 	my $candidatesFile = $outputFa . ".extended";
-    my $scorefile = $$.".scorefile";
+    my $scorefile = $$ . ".scorefile";
     my %scores;
 		
 	########################
@@ -812,7 +814,7 @@ sub getCumulativeAlnScores{
 sub getAlnScores{
 	chdir($coreOrthologsPath . $seqName);
 	my $candidatesFile = $outputFa . ".extended";
-        my $scorefile = $$.".scorefile";
+        my $scorefile = $$ . ".scorefile";
         my %scores;
 		
 	########################
@@ -872,7 +874,7 @@ sub getFasScore{
 	printDebug("Changing to $coreOrthologsPath$seqName", "Candidate file is $outputFa".'.extended');
 	chdir($coreOrthologsPath . $seqName);
     my %fas_box;
-    my $scorefile = $$.".scorefile";
+    my $scorefile = $$ . ".scorefile";
     my $rankscore;
 		
 	########################
