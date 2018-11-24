@@ -765,7 +765,7 @@ sub getCandicontent{
 sub getCumulativeAlnScores{
 	chdir($coreOrthologsPath . $seqName);
 	my $candidatesFile = $outputFa . ".extended";
-    my $scorefile = $$.".scorefile";
+    my $scorefile = $$ . ".scorefile";
     my %scores;
 		
 	########################
@@ -814,7 +814,7 @@ sub getCumulativeAlnScores{
 sub getAlnScores{
 	chdir($coreOrthologsPath . $seqName);
 	my $candidatesFile = $outputFa . ".extended";
-        my $scorefile = $$.".scorefile";
+        my $scorefile = $$ . ".scorefile";
         my %scores;
 		
 	########################
@@ -874,7 +874,7 @@ sub getFasScore{
 	printDebug("Changing to $coreOrthologsPath$seqName", "Candidate file is $outputFa".'.extended');
 	chdir($coreOrthologsPath . $seqName);
     my %fas_box;
-    my $scorefile = $$.".scorefile";
+    my $scorefile = $$ . ".scorefile";
     my $rankscore;
 		
 	########################
