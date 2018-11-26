@@ -1,5 +1,5 @@
 from operator import itemgetter
-import xml.etree.ElementTree as ET
+import xml.etree.ElementTree as ElTre
 import logging
 import inspect
 import os
@@ -12,7 +12,7 @@ from copy import deepcopy
 import multiprocessing
 # import sys
 
-version = "1.6.0"
+version = "1.6.1"
 greedyfas_path = inspect.getfile(inspect.currentframe())
 expath = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
 
@@ -269,7 +269,7 @@ except ValueError:
 # logging into stdout with time stamp:
 logging.basicConfig(level=loglevel, format='%(asctime)s - %(levelname)s - %(message)s')
 # logging into file with line number:
-#logging.basicConfig(filename='testlog.log', filemode='w', level=loglevel,
+# logging.basicConfig(filename='testlog.log', filemode='w', level=loglevel,
 #                    format='%(lineno)s - %(levelname)s - %(message)s')
 # logging into stdout with line number:
 # logging.basicConfig(level=loglevel, format='%(lineno)s - %(levelname)s - %(message)s')
@@ -684,7 +684,7 @@ def fc_main(relevant_features, prot_count, domain_count, seed_proteome, query_pr
                 out.write("\t\t<template id=\"" + protein + "\" score=\"" + str(score[3]) + "\" MS=\"" + str(
                     score[0]) + "\" PS=\"" + str(score[1]) + "\" CS=\"" + str(score[2]) + "\" LS=\"" + str(
                     score[6]) + "\" length=\"" + str(int(protein_lengths["seed_" + str(protein)])) + "\" mode=\"" +
-                    mode_out + "\" calculationTime=\"" + runtime + "\" >\n")
+                          mode_out + "\" calculationTime=\"" + runtime + "\" >\n")
                 if option["e_output"] == 1 and turn == 0:
                     a_out.write("\t<template id=\"" + protein + "\" length=\"" + str(
                         int(protein_lengths["seed_" + str(protein)])) + "\">\n")
@@ -963,12 +963,14 @@ def su_set_path(jobname, path):
 # Path-building Functions # <pb>
 # Used for the Pfam/Smart domains (default)
 def pb_create_jobs(graph, option):
-    """
-    ToDo: doku
+    """Does a breadth-first search to divide the feature architecture graph into several sub-problems so that it can be
+    worked on by multiple cores. There are more jobs created than there are cores to counter the possibility of a core
+    having nothing to do because of different running times for each job.
 
-    :param graph: ToDo: doku
-    :param option: ToDo: doku
-    :return: ToDo: doku
+    :param graph: graph containing all paths through a protein architecture
+    :param option: dictionary that contains the main option variables of FAS
+    :return: queue (contains the starting points and sub-paths of the jobs), paths (empty unless b-f search reaches end
+             node)
     """
     limit = 4 * option["cores"]
     queue = [("START", [])]
@@ -985,25 +987,25 @@ def pb_create_jobs(graph, option):
 
 def pb_graph_traversal_sub(search_protein, protein, search_features, weights, query_features, seed_proteome, a_s_f,
                            a_q_f, clan_dict, query_clans, protein_lengths, timelimit, query_graph, option, stack):
-    """
-    Sub function for multi-processing
-    ToDo: doku
+    """Sub function for multi-processing: This function does a depth-first search in the feature graph. The starting
+     point in the graph is given in the stack.
 
-    :param search_protein:
-    :param protein:
-    :param search_features:
-    :param weights:
-    :param query_features:
-    :param seed_proteome:
-    :param a_s_f:
-    :param a_q_f:
-    :param clan_dict:
-    :param query_clans:
-    :param protein_lengths:
-    :param timelimit:
-    :param option:
-    :param stack:
-    :return: max_fixture, timecheck - tmp_calcstart ToDo: doku
+    :param search_protein: contains feature architecture of the current seed protein [dictionary]
+    :param protein: String that contains the identifier of the seed protein
+    :param search_features: all features to be linearized in the seed protein
+    :param weights: feature weights
+    :param query_features: all features to be linearized in the query protein
+    :param seed_proteome: dictionary that contains the feature architecture of all seed proteins
+    :param a_s_f: additional seed features [non linearized]
+    :param a_q_f: additional query features [non linearized]
+    :param clan_dict: dictionary that maps features to clans
+    :param query_clans: (Pfam)-clans of the current query protein
+    :param protein_lengths: dictionary that contains the length of each protein in the seed and query
+    :param timelimit: the amount of time this job is allowed to take before the calculation is stopped and priority
+                      mode is used instead
+    :param option: dictionary that contains the main option variables of FAS
+    :param stack: contains the starting point in the graph and sub-path
+    :return: max_fixture, timecheck - tmp_calcstart (time taken for calculation)
     """
     tmp_calcstart = time.time()
     max_fixture = ([], (0.0, 0.0, 0.0, 0.0, 0, 0, False), [], protein)
@@ -1054,23 +1056,24 @@ def pb_graph_traversal_sub(search_protein, protein, search_features, weights, qu
 
 def pb_calc_sub(search_protein, protein, search_features, weights, query_features, seed_proteome, a_s_f, a_q_f,
                 clan_dict, query_clans, protein_lengths, timelimit, option, jobpaths):
-    """
-    ToDo: doku
-    :param search_protein:
-    :param protein:
-    :param search_features:
-    :param weights:
-    :param query_features:
-    :param seed_proteome:
-    :param a_s_f:
-    :param a_q_f:
-    :param clan_dict:
-    :param query_clans:
-    :param protein_lengths:
-    :param timelimit:
-    :param option:
-    :param jobpaths:
-    :return:
+    """Sub function for multiprocessing [2]: Goes through a list of (query) paths an evaluates them.
+
+    :param search_protein: contains feature architecture of the current seed protein [dictionary]
+    :param protein: String that contains the identifier of the seed protein
+    :param search_features: all features to be linearized in the seed protein
+    :param weights: feature weights
+    :param query_features: all features to be linearized in the query protein
+    :param seed_proteome: dictionary that contains the feature architecture of all seed proteins
+    :param a_s_f: additional seed features [non linearized]
+    :param a_q_f: additional query features [non linearized]
+    :param clan_dict: dictionary that maps features to clans
+    :param query_clans: (Pfam)-clans of the current query protein
+    :param protein_lengths: dictionary that contains the length of each protein in the seed and query
+    :param timelimit: the amount of time this job is allowed to take before the calculation is stopped and priority
+                      mode is used instead
+    :param option: dictionary that contains the main option variables of FAS
+    :param jobpaths: a group of (query) paths to be evaluated
+    :return: max_fixture, tmpcheck - tmpstart (time taken for calculation)
     """
     max_fixture = ([], (0.0, 0.0, 0.0, 0.0, 0, 0, False), [], protein)
     tmpstart = time.time()
@@ -1185,16 +1188,16 @@ def pb_entire_priority_mode(protein, query_path, search_graph, search_features, 
             priority_list.append(domain_type)
     priority_list.append("NONE")
     for domain_type in priority_list:
-            path_score_w = pb_entire_graphtraversal_priority(search_graph, domain_type, query_path, 0, search_features,
-                                                             weights, query_features, seed_proteome, a_s_f, a_q_f,
-                                                             clan_dict, query_clans, protein_lengths, option)
-            if path_score_w[1][5]:
-                if path_score_w[1][3] >= best_path[1][3]:
-                    best_path = (path_score_w[0], path_score_w[1], path_score_w[2])
-            else:
-                # if so far no path with common features found AND the weight is higher
-                if (not best_path[1][5]) and (path_score_w[1][4] >= best_path[1][4]):
-                    best_path = (path_score_w[0], path_score_w[1], path_score_w[2])
+        path_score_w = pb_entire_graphtraversal_priority(search_graph, domain_type, query_path, 0, search_features,
+                                                         weights, query_features, seed_proteome, a_s_f, a_q_f,
+                                                         clan_dict, query_clans, protein_lengths, option)
+        if path_score_w[1][5]:
+            if path_score_w[1][3] >= best_path[1][3]:
+                best_path = (path_score_w[0], path_score_w[1], path_score_w[2])
+        else:
+            # if so far no path with common features found AND the weight is higher
+            if (not best_path[1][5]) and (path_score_w[1][4] >= best_path[1][4]):
+                best_path = (path_score_w[0], path_score_w[1], path_score_w[2])
     return best_path
 
 
@@ -2239,7 +2242,7 @@ def xmlreader(path, mode, tool, assess, proteome, protein_lengths, clan_dict, op
     """
     start = 0
     if os.path.exists(path):
-        xmltree = ET.parse(path)
+        xmltree = ElTre.parse(path)
         root = xmltree.getroot()
         for protein in root:
             p_id = protein.attrib["id"]
@@ -2335,14 +2338,15 @@ def xmlreader(path, mode, tool, assess, proteome, protein_lengths, clan_dict, op
 
 
 def bidirectionout(outpath):
-    """
-    ToDo: doku
-    :param outpath:
-    :return:
+    """Output function for bidirectional mode: This function summarizes the scores of the both scoring directions into a
+    table (csv format).
+
+    :param outpath: path to the out directory
+    :return: no returns
     """
     outdict = {}
-    forwardtree = ET.parse(outpath + ".xml")
-    reversetree = ET.parse(outpath + "_reverse.xml")
+    forwardtree = ElTre.parse(outpath + ".xml")
+    reversetree = ElTre.parse(outpath + "_reverse.xml")
     forwardroot = forwardtree.getroot()
     reverseroot = reversetree.getroot()
     for query in forwardroot:
@@ -2423,4 +2427,3 @@ if option_dict["weight_const"] == 1:
 option_dict = featuretypes(options.featuretypes, option_dict)
 
 fc_start(option_dict)
-

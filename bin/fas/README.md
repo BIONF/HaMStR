@@ -6,11 +6,11 @@ The main FAS script is written in Python and should run on both Python 2 and Pyt
 # Table of Contents
 * [Installation](#installation)
 * [Usage](#usage)
-  * [How to get started](##how-to-get-started)
-  * [Weighting](##weighting)
-  * [In/Output Options](##in/output-options)
-  * [Threshold Options](##threshold-options)
-  * [Additional Options](##additional-options)
+  * [How to get started](#how-to-get-started)
+  * [Weighting](#weighting)
+  * [In/Output Options](#in/output-options)
+  * [Threshold Options](#threshold-options)
+  * [Additional Options](#additional-options)
 * [Contact](#contact)
 
 
