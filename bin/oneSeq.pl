@@ -1011,7 +1011,7 @@ sub parseProfile{
     my ($file, $out) = ($_[0], $_[1]);
     my ($fO_base, $fO_path, $fO_suffix) = fileparse( $file, qr/\.[^.]*/ );
     my $pro_File = $fO_path."/".$fO_base.".profile";
-    my $outfile = $fO_path."/".$out;
+    my $outfile = $fO_path."/".$out.".phyloprofile";
     my @cmd;
     my $pl 	= "perl";
     my $viz	= "$visualsPath/$profile_prog";
