@@ -123,7 +123,7 @@ my $eval_blast_query = 0.0001;
 my $filter = 'T';
 my $annotation_prog = 'annotation.pl';
 my $fas_prog = 'greedyFAS.py'; ## Baustelle set via configure
-my $profile_prog = 'parseOneSeq.pl';
+my $profile_prog = 'parseOneSeq_single.pl';
 my $architecture_prog = 'parseArchitecture.pl';
 ##### ublast Baustelle: not implemented yet
 my $runublast = 0;
