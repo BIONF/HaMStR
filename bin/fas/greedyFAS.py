@@ -1280,8 +1280,13 @@ def pb_entire_graphtraversal(search_graph, query_path, search_features, weights,
     best_path = ([], (0.0, 0.0, 0.0, 0.0, 0.0, False, 0.0), [])
     first = 1
     timecheck = time.time()
+    if timelimit == "OFF":
+        timelimit_off = True
+        timelimit = 0.0
+    else:
+        timelimit_off = False
     if len(query_path) > 0:
-        while v_stack and (timecheck - calcstart < timelimit or first or timelimit == "OFF"):
+        while v_stack and (timecheck - calcstart < timelimit or first or timelimit_off):
             vertex = v_stack.pop()
             if len(p_stack) == 0:
                 path = []
