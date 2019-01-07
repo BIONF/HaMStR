@@ -524,9 +524,9 @@ def fc_main(relevant_features, prot_count, domain_count, seed_proteome, query_pr
             elif option["priority_mode"] == 0:
                 mode[protein] = 0
                 stack, jobpaths = pb_create_jobs(tmp_query_graph, option)
-                jobpool = multiprocessing.Pool(processes=option["cores"])
                 timelimit = 0.0
                 if len(stack) > 0:
+                    jobpool = multiprocessing.Pool(processes=option["cores"])
                     if option["timelimit"] > 0:
                         timelimit = option["timelimit"] / len(stack)
                         func = partial(pb_graph_traversal_sub, search_protein, protein, search_features, weights,
@@ -572,9 +572,10 @@ def fc_main(relevant_features, prot_count, domain_count, seed_proteome, query_pr
                     else:
                         # case M2.2.2 graph(query)-graph(search)
                         # regular traversal of graph based on search_protein
+                        jobpool = multiprocessing.Pool(processes=option["cores"])
                         logging.warning("CASE M2.2.2: graph vs graph.")
                         jobs = []
-                        jobcount = (len(jobpaths) / option["cores"], len(jobpaths) % option["cores"])
+                        jobcount = (int(len(jobpaths) / option["cores"]), len(jobpaths) % option["cores"])
                         if jobcount[0] == 0:
                             timelimit = (option["timelimit"] - (timecheck - calcstart)) / float(jobcount[1])
                             for i in range(jobcount[1]):
