@@ -22,6 +22,12 @@ parser.add_option("-q", "--query", dest="query", default=expath + "/annotations_
 parser.add_option("-s", "--seed", dest="seed", default=expath + "/annotations_out/template",
                   help="Path to the folder containing the xml-files of the template protein set, "
                        "default is fas/in/template")
+parser.add_option("--query_id", dest="query_id", default="NULL",
+                  help="Choose a single protein from the query input for calculation, by default this is NULL (all "
+                       "proteins are used for calculation)")
+parser.add_option("--seed_id", dest="seed_id", default="NULL",
+                  help="Choose a single protein from the seed input for calculation, by default this is NULL (all "
+                       "proteins are used for calculation)")
 parser.add_option("-w", "--score_weights", dest="score_weights", nargs=3, default=(0.7, 0.0, 0.3),
                   help="Defines how the three scores MS, CS and PS are weighted (MS, CS, PS), "
                        "the default is 0.7, 0.0, 0.3")
@@ -106,7 +112,7 @@ taciturn = 1
 
 # READ OPTIONS #
 option_dict = {"p_path": options.seed, "s_path": options.query, "ref_proteome": options.ref_proteome, "weight_const": 0,
-               "version": version}
+               "version": version, "seed_id": options.seed_id, "query_id": options.query_id}
 loglevel = options.loglevel.upper()
 try:
     option_dict["score_weights"] = []
@@ -2255,87 +2261,91 @@ def xmlreader(path, mode, tool, assess, proteome, protein_lengths, clan_dict, op
             plength = protein.attrib["length"]
             # set up of protein IDs, differentiate between proteins from different files
             if mode == 1:
-                protein_lengths["query_" + str(p_id)] = float(plength)
+                if option["query_id"] == "NULL" or p_id == option["query_id"]:
+                    protein_lengths["query_" + str(p_id)] = float(plength)
             elif mode == 0:
-                protein_lengths["seed_" + str(p_id)] = float(plength)
+                if option["seed_id"] == "NULL" or p_id == option["seed_id"]:
+                    protein_lengths["seed_" + str(p_id)] = float(plength)
             elif mode == 2:
                 protein_lengths[p_id] = float(plength)
             # set up of datastructure to store annotations
-            if not (p_id in proteome):
-                proteome[p_id] = {}
+            if mode == 2 or (mode == 1 and (option["query_id"] == "NULL" or p_id == option["query_id"])) or (
+               mode == 0 and (option["seed_id"] == "NULL" or p_id == option["seed_id"])):
+                if not (p_id in proteome):
+                    proteome[p_id] = {}
 
-            for feature in protein:
-                if len(feature) > 0:
-                    ftype = tool + "_" + feature.attrib["type"]
-                    feat_eval = 'NULL'
+                for feature in protein:
+                    if len(feature) > 0:
+                        ftype = tool + "_" + feature.attrib["type"]
+                        feat_eval = 'NULL'
 
-                    # evalue check: family/ftype based
-                    if 'evalue' in feature.attrib and float(feature.attrib["evalue"]) > option["efilter"]:
-                        logging.debug("reject feature type: " + ftype)
-                        # print "reject feature"
-                        # skip current ftype and continue with the next one
-                        continue
-                    else:
-                        # keep feature type bases evalue
-                        if 'evalue' in feature.attrib:
-                            feat_eval = float(feature.attrib["evalue"])
-
-                        if 'clan' in feature.attrib:
-                            fclan = feature.attrib["clan"]
+                        # evalue check: family/ftype based
+                        if 'evalue' in feature.attrib and float(feature.attrib["evalue"]) > option["efilter"]:
+                            logging.debug("reject feature type: " + ftype)
+                            # print "reject feature"
+                            # skip current ftype and continue with the next one
+                            continue
                         else:
-                            fclan = "NO_CLAN"
-                        proteome[p_id][ftype] = []
-                        proteome[p_id][ftype].append(assess)
-                        proteome[p_id][ftype].append(feat_eval)
+                            # keep feature type bases evalue
+                            if 'evalue' in feature.attrib:
+                                feat_eval = float(feature.attrib["evalue"])
 
-                        i = 0
-                        # counting appended instances
-                        inst_count = 0
-                        for instance in feature:
-                            inst_eval = 'NULL'
-                            # XMLcase 1: feature instance contains evalue information (XML field inst_eval)
-                            if 'inst_eval' in instance.attrib:
-                                # print tool + " instance evalue: "+ str(instance.attrib)
-                                inst_eval = float(instance.attrib["inst_eval"])
-                                start = int(instance.attrib["start"])
-                                end = int(instance.attrib["end"])
-
-                                if inst_eval <= option["inst_efilter"]:
-                                    logging.debug("append instance: " + ftype + ": " + str(instance.attrib))
-
-                                    proteome[p_id][ftype].append((inst_eval, start, end))
-                                    inst_count += 1
-
-                                else:
-                                    logging.debug("reject instance: " + ftype + ": " + str(instance.attrib))
-
-                            # XMLcase 2: feature instance contains NO evalue information (XML field inst_eval)
+                            if 'clan' in feature.attrib:
+                                fclan = feature.attrib["clan"]
                             else:
-                                # NO instance based evalue information --> no instances can be rejected:
-                                # set inst_count = 1
-                                inst_count = 1
-                                if len(instance.attrib) == 2:
+                                fclan = "NO_CLAN"
+                            proteome[p_id][ftype] = []
+                            proteome[p_id][ftype].append(assess)
+                            proteome[p_id][ftype].append(feat_eval)
+
+                            i = 0
+                            # counting appended instances
+                            inst_count = 0
+                            for instance in feature:
+                                inst_eval = 'NULL'
+                                # XMLcase 1: feature instance contains evalue information (XML field inst_eval)
+                                if 'inst_eval' in instance.attrib:
+                                    # print tool + " instance evalue: "+ str(instance.attrib)
+                                    inst_eval = float(instance.attrib["inst_eval"])
                                     start = int(instance.attrib["start"])
                                     end = int(instance.attrib["end"])
-                                    proteome[p_id][ftype].append((inst_eval, start, end))
 
-                                else:
-                                    if i == 0:
-                                        start = int(instance.attrib["start"])
-                                        i = 1
+                                    if inst_eval <= option["inst_efilter"]:
+                                        logging.debug("append instance: " + ftype + ": " + str(instance.attrib))
+
+                                        proteome[p_id][ftype].append((inst_eval, start, end))
+                                        inst_count += 1
+
                                     else:
+                                        logging.debug("reject instance: " + ftype + ": " + str(instance.attrib))
+
+                                # XMLcase 2: feature instance contains NO evalue information (XML field inst_eval)
+                                else:
+                                    # NO instance based evalue information --> no instances can be rejected:
+                                    # set inst_count = 1
+                                    inst_count = 1
+                                    if len(instance.attrib) == 2:
+                                        start = int(instance.attrib["start"])
                                         end = int(instance.attrib["end"])
                                         proteome[p_id][ftype].append((inst_eval, start, end))
-                                        i = 0
-                        # any instance appended?
-                        if inst_count < 1:
-                            # delete feature type
-                            logging.info("Rejecting feature type " + str(ftype) + " due to rejection of all instances. "
-                                                                                  "Check for thresholds and E-values "
-                                                                                  "(instance based)")
-                            proteome[p_id].pop(ftype)
-                        if ftype not in clan_dict:
-                            clan_dict[ftype] = fclan
+
+                                    else:
+                                        if i == 0:
+                                            start = int(instance.attrib["start"])
+                                            i = 1
+                                        else:
+                                            end = int(instance.attrib["end"])
+                                            proteome[p_id][ftype].append((inst_eval, start, end))
+                                            i = 0
+                            # any instance appended?
+                            if inst_count < 1:
+                                # delete feature type
+                                logging.info("Rejecting feature type " + str(ftype) + " due to rejection of all "
+                                                                                      "instances. Check for thresholds "
+                                                                                      "and E-values (instance based)")
+                                proteome[p_id].pop(ftype)
+                            if ftype not in clan_dict:
+                                clan_dict[ftype] = fclan
     else:
         print("Error: " + path + " does not exist")
         quit()
