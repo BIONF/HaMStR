@@ -1022,7 +1022,7 @@ sub parseProfile{
     my ($in, $stdout, $err);
     eval {
     @cmd = ($pl,$viz,$i,$o);
-    printVariableDebug(@cmd);
+    #printVariableDebug(@cmd);
     print "\n##############################\n";
     print "Writing of Visualisation file for profile.\n";
 
@@ -1288,7 +1288,7 @@ sub runFAS{
     $score = "NAN";
     eval {
     @cmd = ($py,$fas,$s,$p,$r,$j,$a,$f,$i,$si);
-    printVariableDebug(@cmd);
+    #printVariableDebug(@cmd);
     print "\n##############################\n";
     print "Begin of FAS score calculation.\n";
     print "--> Running ". $fas_prog ."\n";
