@@ -5,7 +5,7 @@ use warnings;
 use File::Copy qw(move);
 
 use Env qw(ONESEQDIR);
-use lib '../lib';
+use lib '/share/project/ingo/src/HaMStR/lib';
 use Parallel::ForkManager;
 use DBI;
 use IO::Handle;
@@ -88,7 +88,7 @@ my $startTime = time;
 ############ General settings
 my $version = 'oneSeq v.1.3.1';
 ##### configure
-my $configure = 0;
+my $configure = 1;
 if ($configure == 0){
 	die "\n\n$version\n\nPLEASE RUN THE CONFIGURE OR CONFIGURE_MAC SCRIPT BEFORE USING oneSeq.pl\n\n";
 }
@@ -179,7 +179,7 @@ my $core_hitlimit = 3; # number of hmm hits in the hamstrsearch to consider for 
 my $hitlimit = 10;
 ## lagPhase test. Setting the autolimit option to decide from the score distribution how many hits to evaluate.
 my $autoLimit;
-my $scoreThreshold;
+my $scoreThreshold = 1; # evaluate only hmmsearch hits whose score is within the 10% margin of the best hmmsearch hit
 my $scoreCutoff = 10; #value in percent of the hmmscore of the best hit
 # Setup for FAS score support (FAS support is used by default)
 # Note, fas_t is set to 0.75 by default. Changes will influence sensitivity and selectivity
@@ -227,8 +227,9 @@ my $corecpu = 1;    #sets number of forks for core-ortholog assembly (MUST BE 1,
 my $silent;
 my $checkcoorthologsref;
 my $cccr;
-# Note, the alignment strategy can be local, glocal, or global
-# Default: local
+### Details about the alignment strategy
+### Note, the alignment strategy can be local, glocal, or global
+### Default: local
 my $local;
 my $global;
 my $glocal;
@@ -245,7 +246,7 @@ my $addenv;
 my $ignoreDistance = 0; 	## flag to normalise the score by the distance in the tree
 my $distDeviation = 0.05; 	## Span in which a score is consideren similar
 my $breakAfter = 5; 		## Number of Significantly bad candidates after which the current run cancels
-
+my %hashTree;
 ################# Command line options
 GetOptions ("h"                 => \$help,
             "showTaxa"          => \$showTaxa,
@@ -331,8 +332,8 @@ checkOptions();
 
 my $tree = getTree();
 my $treeDelFlag = 0;
-
-if($group) {
+## modified 2019-02-04 / change tree only when also computing the core set
+if($group and !$coreex) {
    foreach($tree->get_nodes()) {
       if($_->id == $groupNode->id) {
          $groupNode = $_;
@@ -343,8 +344,8 @@ if($group) {
 
 ## Tree without deletions
 my $wholeTree = getTree();
-
-if($group) {
+## modified 2019-02-04 / change tree only when also computing the core set
+if($group and !$coreex) {
    foreach($wholeTree->get_nodes()) {
       if($_->id == $groupNode->id) {
          $groupNode = $_;
@@ -358,8 +359,9 @@ my $currentDistNode = $wholeTree->find_node(-ncbi_taxid => $taxa{$refSpec});
 my $currentNoRankDistNode = $currentDistNode->ancestor; ## the node from which the distance to other species will be calculated
 my $currentChildsToIgnoreNode = $currentDistNode;		## the node containing all child species which will not be included in the candidates file
 
-my %hashTree = buildHashTree();
-
+if (!defined $coreex){
+  %hashTree = buildHashTree();
+}
 if (!$coreex) {
     removeMaxDist();
 
@@ -531,7 +533,7 @@ if(!$coreOnly and $fas_support){
     ## evaluate final hamstr orthologs with FAS score
     ## $size: declares the chunk size 
     ## $evaluationDir: FAS output 
-    ## @k_ary: contains all identifier (header, keys) from finalcontet (used to distribute workload to cpus)
+    ## @k_ary: contains all identifier (header, keys) from finalcontent (used to distribute workload to cpus)
     nFAS_score_final($size, $evaluationDir, @k_ary);
 
     if($autoclean){
@@ -1010,28 +1012,27 @@ sub getHeaderSeq{
 sub parseProfile{
     my ($file, $out) = ($_[0], $_[1]);
     my ($fO_base, $fO_path, $fO_suffix) = fileparse( $file, qr/\.[^.]*/ );
-    my $pro_File = $fO_path."/".$fO_base.".profile";
-    my $outfile = $fO_path."/".$out.".phyloprofile";
+    my $pro_File = $fO_path.$fO_base.".profile";
+    my $outfile = $fO_path.$out.".phyloprofile";
     my @cmd;
     my $pl 	= "perl";
-    my $viz	= "$visualsPath/$profile_prog";
-    my $i	= "-i $pro_File";
-    my $o	= "-o $outfile";
-    
+    my $viz	= "$visualsPath$profile_prog";
+    my $i	= "-i$pro_File";
+    my $o	= "-o$outfile";
     my ($in, $stdout, $err);
     eval {
     @cmd = ($pl,$viz,$i,$o);
-    #printVariableDebug(@cmd);
+    printVariableDebug(@cmd);
     print "\n##############################\n";
     print "Writing of Visualisation file for profile.\n";
 
     run \@cmd, \$in, \$stdout, \$err, timeout( 600 ) or die "$profile_prog killed.\n";
     
-    print "$stdout\n";
+    print "stdout is $stdout\n";
     };
     #could become debug output:
     if($err){
-        print "\nERROR:\n" . $err ."\n";	
+        print "\nERROR in sub parseProfile:\n" . $err ."\n";	
     }
 }
 
@@ -1062,7 +1063,7 @@ sub parseArchitecture{
     };
     #could become debug output:
     if($err){
-        print "\nERROR:\n" . $err ."\n";	
+        print "\nERROR in sub parseArchitecture:\n" . $err ."\n";	
     }
 }
 ## auto clean up can be invoked via the "-cleanup" option
@@ -1179,7 +1180,7 @@ sub printEvaluationTab{
             print PROFILE "\n";
         }
     }
-    close PROFILE;
+    close PROFILE or die "Error during closing the filehandle PROFILE";
 }
 ## starting annotation_prog for given seed sequence file
 # $seedseqFile: fasta file with seed sequence
@@ -1269,11 +1270,25 @@ sub runFAS{
     my $a	= "--raw_output=2";
     my $h	= "--help";
 
+## adding the option to extract a particular sequence from the annotation directory
+## becomes relevant when using the pre-computed core sets, where feature annotation for
+## all sequences is available in the core set
+    my $si = '';
+    if ($mode == 1){
+       ## this is the standard search, features of the seed protein, which are absent in the
+       ## ortholog will be penalized
+       $si      = "--seed_id=$seqName|$refSpec|$seqId";
+    }
+    else {
+      ## This is the reverse scoring, features of the ortholog, which are absent in the seed
+      ## will be penalized
+       $si      = "--query_id=$seqName|$refSpec|$seqId";
+    }
     my ($in, $score, $err);
     $score = "NAN";
     eval {
-    @cmd = ($py,$fas,$s,$p,$r,$j,$a,$f,$i);
-    #printVariableDebug(@cmd);
+    @cmd = ($py,$fas,$s,$p,$r,$j,$a,$f,$i,$si);
+    printVariableDebug(@cmd);
     print "\n##############################\n";
     print "Begin of FAS score calculation.\n";
     print "--> Running ". $fas_prog ."\n";
@@ -1426,9 +1441,9 @@ sub checkOptions {
         printDebug("Setting datadir to $currDir in sub checkOptions");
     } 
 
-    ### checking the number of core orthologs
+    ### checking the number of core orthologs. Omit this check if the option -reuse_core has been selected
     $optbreaker = 0;
-    while(!$minCoreOrthologs) {
+    while(!$minCoreOrthologs and !$coreex) {
         if ($optbreaker >= 3){
             print "No proper number given ... exiting.\n";
             exit;
@@ -1578,35 +1593,40 @@ sub checkOptions {
     $node->name('supplied', $refSpec);
 
     #### checking for the min and max distance for the core set compilation
-    if (lc($maxDist) eq "root"){
-        $maxDist = 'no rank';
-    }
+    #### omit this check, if the option reuse_core has been selected (added 2019-02-04) 
     $optbreaker = 0;
-    while (!$maxDist or (checkRank($maxDist, $node) == 0)) {
-        if ($optbreaker >= 3){
-            print "No proper maxDist given ... exiting.\n";
-            exit;
-        }
-        print "You have not defined a valid maximum distance rank!\n";
-        printTaxonomy($node);
-        my $in = getInput('Please choose a rank by giving the number in square brackets', 1);
-        $optbreaker++;
-        $maxDist = parseInput($node, $in);
-        print "You selected ". $maxDist . " as maximum rank\n\n";
-    }
+    if (!$coreex) {
+	    if (lc($maxDist) eq "root"){ 
+        	$maxDist = 'no rank';
+    	    }
+	    while (!$maxDist or (checkRank($maxDist, $node) == 0)) {
+		    if ($optbreaker >= 3){
+       		    	print "No proper maxDist given ... exiting.\n";
+       	     		exit;
+	    	    }
+	    	    print "You have not defined a valid maximum distance rank!\n";
+                    printTaxonomy($node);
+                    my $in = getInput('Please choose a rank by giving the number in square brackets', 1);
+                    $optbreaker++;
+        	    $maxDist = parseInput($node, $in);
+                    print "You selected ". $maxDist . " as maximum rank\n\n";
+	    }
+    } 
     $optbreaker = 0;
-    while (!$minDist or (checkRank($minDist, $node) == 0)) {
-        if ($optbreaker >= 3){
-            print "No proper minDist given ... exiting.\n";
-            exit;
-        }
-        print "You have not defined a minimum distant rank!\n";
-        printTaxonomy($node);
-        my $in = getInput('Please choose a rank by giving the number in square brackets', 1);
-        $optbreaker++;
-        $minDist = parseInput($node, $in);
-        print "You selected " . $minDist . " as minimum rank\n\n";
-    }
+    if (!$coreex){
+	    while (!$minDist or (checkRank($minDist, $node) == 0)) {
+        	if ($optbreaker >= 3){
+            	print "No proper minDist given ... exiting.\n";
+           	 exit;
+        	}
+        	print "You have not defined a minimum distant rank!\n";
+        	printTaxonomy($node);
+        	my $in = getInput('Please choose a rank by giving the number in square brackets', 1);
+        	$optbreaker++;
+        	$minDist = parseInput($node, $in);
+        	print "You selected " . $minDist . " as minimum rank\n\n";
+    	}
+   } 
 
     #### checking in fas options
     if($fasoff){
