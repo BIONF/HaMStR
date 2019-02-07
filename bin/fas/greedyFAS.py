@@ -2254,7 +2254,11 @@ def xmlreader(path, mode, tool, assess, proteome, protein_lengths, clan_dict, op
     """
     start = 0
     if os.path.exists(path):
-        xmltree = ElTre.parse(path)
+        try:
+            xmltree = ElTre.parse(path)
+        except ElTre.ParseError:
+            print('Error: ' + path + ' is not a legit xml file')
+            quit()
         root = xmltree.getroot()
         for protein in root:
             p_id = protein.attrib["id"]
