@@ -29,7 +29,7 @@ def main(directory, out):
             with open(directory + infile, 'r') as reader:
                 line = reader.readline()
                 while line:
-                    domains_0.write(line)
+                    domains_1.write(line)
                     line = reader.readline()
     phyloprofile.close()
     domains_0.close()
