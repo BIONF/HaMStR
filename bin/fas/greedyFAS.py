@@ -11,7 +11,7 @@ from functools import partial
 from copy import deepcopy
 
 
-version = "1.6.1"
+version = "1.7"
 greedyfas_path = inspect.getfile(inspect.currentframe())
 expath = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
 
