@@ -139,10 +139,15 @@ python greedyFAS.py -q PATH/ortholog -s PATH/seed -j JOBNAME -w (0.6, 0.1, 0.3)
 This would set the weight of the MS to 0.6, the CS to 0.1 and the PS to 0.3. The CS will only be calculated if its weight is higher than 0. (Not recommended to change this)
 
 ## In/Output Options
-You can set the extendedout option (-e) to 0 to deactivate the _architecture output: 
+You can use the extendedout option (-e) to deactivate the _architecture output: 
 
 ```
-python greedyFAS.py -q PATH/ortholog -s PATH/seed -j JOBNAME -e 0
+python greedyFAS.py -q PATH/ortholog -s PATH/seed -j JOBNAME -e
+```
+
+The --query_id and --seed_id allow you to choose proteins (either option takes a variable number of arguments) from the query and seed input by their id and only make the calculation for them 
+```
+python greedyFAS.py -q PATH/ortholog -s PATH/seed -j JOBNAME -e --query_id q_protein_1 q_protein_2 --seed_protein s_protein_967
 ```
 
 You can use the raw_output option (-a) to make FAS output its score to STDOUT by setting it to 1 or 2. 1 also suppresses the normal xml output: 
@@ -151,10 +156,10 @@ You can use the raw_output option (-a) to make FAS output its score to STDOUT by
 python greedyFAS.py -q PATH/ortholog -s PATH/seed -j JOBNAME -a 1 
 ```
 
-Using the feature_info (-y) which gives you a file with information on the abundance of all seed and query features in the reference
+Using the feature_info (-y) will give you a file with information on the abundance of all seed and query features in the reference
 
 ```
-python greedyFAS.py -q PATH/ortholog -s PATH/seed -j JOBNAME -y 1 
+python greedyFAS.py -q PATH/ortholog -s PATH/seed -j JOBNAME -y
 ```
 
 Finally you can use the featuretypes option (-d) to change what feature file FAS will use and which will be linearized:
@@ -234,28 +239,28 @@ This would set the threshold to 50%.
 
 ## Additional Options
 
-The prior checks using the priority thresholds can be deactivated using the priority_check option (not recommended):
+The prior checks using the priority thresholds can be deactivated using the no_priority_check option (not recommended):
 
 ```
-python greedyFAS.py -q PATH/ortholog -s PATH/seed -j JOBNAME --priority_check 0
+python greedyFAS.py -q PATH/ortholog -s PATH/seed -j JOBNAME --no_priority_check
 ```
 
 This opens up two more options: First the timelimit option. This option allows you to set(in seconds)/deactivate(set to 0) the timelimit the calculation for each pair is allowed to take before priority mode takes over (default 7200s). Secondly, the cores option which allows you to run the calculation on multiple cores:
 
 ```
-python greedyFAS.py -q PATH/ortholog -s PATH/seed -j JOBNAME --priority_check 0 --cores 4 --timelimit 600
+python greedyFAS.py -q PATH/ortholog -s PATH/seed -j JOBNAME -no_priority_check --cores 4 --timelimit 600
 ```
 
-You can switch between classic and new MS calculation using the classicMS option:
+You can switch to the classic MS calculation using the classicMS option:
 
 ```
-python greedyFAS.py -q PATH/ortholog -s PATH/seed -j JOBNAME --classicMS 0
+python greedyFAS.py -q PATH/ortholog -s PATH/seed -j JOBNAME --classicMS
 ```
 
-Finally, the bidirectional option (-b) tells FAS to run the scoring in both directions if you set it to 1, you can also set this to 2 to use to cores for this(should not be used together with the cores option).
+Finally, the bidirectional option (-b) tells FAS to run the scoring in both directions.
 
 ```
-python greedyFAS.py -q PATH/ortholog -s PATH/seed -j JOBNAME --bidirectional 1
+python greedyFAS.py -q PATH/ortholog -s PATH/seed -j JOBNAME --bidirectional
 ``` 
 
 This will generate two normal output-files. One for each scoring direction. Additionally, it creates a csv file that gives a short overview over all scores.

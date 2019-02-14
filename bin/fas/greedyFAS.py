@@ -4,93 +4,167 @@ import logging
 import inspect
 import os
 import math
-from optparse import OptionParser
+import multiprocessing
+import argparse
 import time
 from functools import partial
-# from collections import defaultdict
 from copy import deepcopy
-import multiprocessing
-# import sys
+
 
 version = "1.6.1"
 greedyfas_path = inspect.getfile(inspect.currentframe())
 expath = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
 
-parser = OptionParser(description="You are running greedyFAS.py version " + str(version) + ".")
-parser.add_option("-q", "--query", dest="query", default=expath + "/annotations_out/query",
-                  help="Path to the folder containing the xml-files of the query protein set, default is fas/in/query")
-parser.add_option("-s", "--seed", dest="seed", default=expath + "/annotations_out/template",
-                  help="Path to the folder containing the xml-files of the template protein set, "
-                       "default is fas/in/template")
-parser.add_option("--query_id", dest="query_id", default="NULL",
-                  help="Choose a single protein from the query input for calculation, by default this is NULL (all "
-                       "proteins are used for calculation)")
-parser.add_option("--seed_id", dest="seed_id", default="NULL",
-                  help="Choose a single protein from the seed input for calculation, by default this is NULL (all "
-                       "proteins are used for calculation)")
-parser.add_option("-w", "--score_weights", dest="score_weights", nargs=3, default=(0.7, 0.0, 0.3),
-                  help="Defines how the three scores MS, CS and PS are weighted (MS, CS, PS), "
-                       "the default is 0.7, 0.0, 0.3")
-parser.add_option("-j", "--jobname", dest="jobname", default="out",
-                  help="Defines the name for the outputfile, can also be used to define the output path, if no path is"
-                       "given the output will be created in the FAS directory under out/")
-parser.add_option("-r", "--ref_proteome", dest="ref_proteome", default=0,
-                  help="Path to a reference proteome which can be used for the weighting of features, "
-                       "by default there is no reference proteome used")
-parser.add_option("-a", "--raw_output", dest="raw_output", default=0,
-                  help="If set to 1, the FAS score will be printed to STDOUT. If 0, scores will be printed into output "
-                       "file (XML format). If 2, both output variants are conducted.")
-parser.add_option("--priority_check", dest="priority_check", default=1,
-                  help="Set to 0 to deactivate priority checks prior to the calculation, skipping all priority checks "
-                       "and going through all proteins exhaustively until time-limit is reached where it will switch "
-                       "to priority mode, NOT RECOMMENDED as this may result in a very long runtime")
-parser.add_option("-t", "--priority_threshold", dest="priority_threshold", default=50,
-                  help="Change to define the feature number threshold for activating priority mode in the path "
-                       "evaluation.")
-parser.add_option("-m", "--max_cardinality", dest="max_cardinality", default=5000,
-                  help="Change to define the threshold for the maximal cardinality of feature paths in a graph. "
-                       "If max. cardinality is exceeded the priority mode will be used to for the path evaluation.")
-parser.add_option("-l", "--log", dest="loglevel", default="ERROR",
-                  help="Change the verbosity of the standard output to the screen. "
-                       "Levels: DEBUG, INFO, WARNING, ERROR, CRITICAL")
-parser.add_option("-f", "--efilter", dest="efilter", default="0.001",
-                  help="E-value filter for hmm based search methods (feature based/complete sequence).")
-parser.add_option("-i", "--inst_efilter", dest="inst_efilter", default="0.01",
-                  help="E-value filter for hmm based search methods (instance based/complete sequence).")
-parser.add_option("-g", "--weightcorrection", dest="weightcorrection", default="loge",
-                  help="Function applied to the frequency of feature types during weighting, "
-                       "options are linear(no function), loge(natural logarithm[Default]), log10(base-10 logarithm), "
-                       "root4(4th root) and root8(8th root).")
-parser.add_option("-x", "--weight_constraints", dest="weight_constraints", default=0,
-                  help="Apply weight constraints via constraints file, by default there are no constraints.")
-parser.add_option("-d", "--featuretypes", dest="featuretypes", default=expath + "/config/featuretypes",
-                  help="inputfile that contains the tools/databases used to predict features")
-parser.add_option("-e", "--extendedout", dest="extendedout", default=1,
-                  help="0: only the scores and paths will be in the output, 1: "
-                       "a file with the architecture for each protein will be created additionally")
-parser.add_option("-y", "--feature_info", dest="feature_info", default=0,
-                  help="if 1: a file with information on the abundance of all seed and query features in the reference")
-parser.add_option("-b", "--bidirectional", dest="bidirectional", default=0,
-                  help="if 1: calculate both scoring directions (separate files) on one core, if 2: calculate both "
-                       "scoring directions (separate files) parallel on two cores")
-parser.add_option("-c", "--max_overlap", dest="max_overlap", default=0,
-                  help="maximum size overlap allowed, default is 0")
-parser.add_option("--max_overlap_percentage", dest="max_overlap_percentage", default=0.4,
-                  help="defines how much percent of a feature the overlap is allowed to cover, default is 0.4 (40%)")
-parser.add_option("--classicMS", dest="classicMS", default=1,
-                  help="(de)activate classic MS score")
-parser.add_option("--timelimit", dest="timelimit", default=7200,
-                  help="Sets a maximum time-limit in seconds a calculation between a pair of proteins is allowed to "
-                       "take, default is 2 hours after which it will stop, set to 0 to deactivate; As FAS divides this "
-                       "time among multiple processes, this limit does not necessarily represent the actual runtime,"
-                       "especially if multiple cores are used")
-parser.add_option("--cores", dest="cores", default=1,
-                  help="Number of cores available for calculation, do not use together with --bidirectional 2, only "
-                       "useful when not using priority_mode")
 
-(options, args) = parser.parse_args()
+parser = argparse.ArgumentParser(description="You are running greedyFAS.py version " + str(version) + ".")
+parser.add_argument("-q", "--query", default=expath + "/annotations_out/query", type=str,
+                    help="Path to the folder containing the xml-files of the query protein set, default is "
+                         "fas/in/query")
+parser.add_argument("-s", "--seed", default=expath + "/annotations_out/seed", type=str,
+                    help="Path to the folder containing the xml-files of the template protein set, "
+                         "default is fas/in/seed")
+parser.add_argument("--query_id", default=None, nargs='*', type=str,
+                    help="Choose a single protein from the query input for calculation, by default this is off (all "
+                         "proteins are used for calculation)")
+parser.add_argument("--seed_id", default=None, nargs='*', type=str,
+                    help="Choose a single protein from the seed input for calculation, by default this is off (all "
+                         "proteins are used for calculation)")
+parser.add_argument("-w", "--score_weights", nargs=3, default=[0.7, 0.0, 0.3], type=float,
+                    help="Defines how the three scores MS, CS and PS are weighted, takes three float arguments, sum"
+                         " should be 1.0, the default is 0.7, 0.0, 0.3")
+parser.add_argument("-j", "--jobname", default="out", type=str,
+                    help="Defines the name for the outputfile, can also be used to define the output path, if no path "
+                         "is given the output will be created in the FAS directory under out/")
+parser.add_argument("-r", "--ref_proteome", default=None, type=str,
+                    help="Path to a reference proteome which can be used for the weighting of features, "
+                         "by default there is no reference proteome used, the weighting will be uniform")
+parser.add_argument("-a", "--raw_output", default=0, type=int,
+                    help="If set to 1, the FAS score will be printed to STDOUT. If 0, scores will be printed into "
+                         "output file (XML format). If 2, both output variants are conducted.")
+parser.add_argument("--no_priority_check", action="store_false",
+                    help="deactivate priority checks prior to the calculation, skipping all priority checks "
+                         "and going through all proteins exhaustively until time-limit is reached where it will switch "
+                         "to priority mode, NOT RECOMMENDED as this may result in a very long runtime")
+parser.add_argument("-t", "--priority_threshold", type=int, default=50,
+                    help="Change to define the feature number threshold for activating priority mode in the path "
+                         "evaluation.")
+parser.add_argument("-m", "--max_cardinality", default=5000, type=int,
+                    help="Change to define the threshold for the maximal cardinality of feature paths in a graph. "
+                         "If max. cardinality is exceeded the priority mode will be used to for the path evaluation.")
+parser.add_argument("-l", "--loglevel", default="ERROR", type=str,
+                    help="Change the verbosity of the standard output to the screen. "
+                         "Levels: DEBUG, INFO, WARNING, ERROR, CRITICAL")
+parser.add_argument("-f", "--efilter", default="0.001", type=float,
+                    help="E-value filter for hmm based search methods (feature based/complete sequence).")
+parser.add_argument("-i", "--inst_efilter", default="0.01", type=float,
+                    help="E-value filter for hmm based search methods (instance based/complete sequence).")
+parser.add_argument("-g", "--weightcorrection", default="loge", type=str,
+                    help="Function applied to the frequency of feature types during weighting, "
+                         "options are linear(no function), loge(natural logarithm[Default]), log10(base-10 logarithm), "
+                         "root4(4th root) and root8(8th root).")
+parser.add_argument("-x", "--weight_constraints", default=None, type=str,
+                    help="Apply weight constraints via constraints file, by default there are no constraints.")
+parser.add_argument("-d", "--featuretypes", default=expath + "/config/featuretypes", type=str,
+                    help="inputfile that contains the tools/databases used to predict features")
+parser.add_argument("-e", "--no_arch", action="store_false",
+                    help="deactivate creation of _architecture file")
+parser.add_argument("--feature_info", action="store_true",
+                    help="create a file with information on the abundance of all seed and query features in the "
+                         "reference")
+parser.add_argument("--bidirectional", action="store_true",
+                    help="calculate both scoring directions (separate files), creates csv file with combined scores")
+parser.add_argument("-c", "--max_overlap", dest="max_overlap", default=0, type=int,
+                    help="maximum size overlap allowed, default is 0 amino acids")
+parser.add_argument("--max_overlap_percentage", dest="max_overlap_percentage", default=0.4, type=float,
+                    help="defines how much percent of a feature the overlap is allowed to cover, default is 0.4 (40%)")
+parser.add_argument("--classicMS", action="store_true",
+                    help="activate classic MS score")
+parser.add_argument("--timelimit", dest="timelimit", default=7200, type=int,
+                    help="Sets a maximum time-limit in seconds for the calculation between a pair of proteins,"
+                         "default is 2 hours after which it will stop, set to 0 to deactivate; As FAS divides this "
+                         "time among multiple processes, this limit does not necessarily represent the actual runtime,"
+                         "especially if multiple cores are used")
+parser.add_argument("--cores", dest="cores", default=1, type=int,
+                    help="Number of cores available for calculation, only useful when not using priority_mode")
 
-### important vars ###             ###  var looks ###
+
+# parser = OptionParser(description="You are running greedyFAS.py version " + str(version) + ".")
+# parser.add_option("-q", "--query", dest="query", default=expath + "/annotations_out/query",
+#                  help="Path to the folder containing the xml-files of the query protein set, default is fas/in/query")
+# parser.add_option("-s", "--seed", dest="seed", default=expath + "/annotations_out/template",
+#                  help="Path to the folder containing the xml-files of the template protein set, "
+#                       "default is fas/in/template")
+# parser.add_option("--query_id", dest="query_id", default="NULL",
+#                  help="Choose a single protein from the query input for calculation, by default this is NULL (all "
+#                       "proteins are used for calculation)")
+# parser.add_option("--seed_id", dest="seed_id", default="NULL",
+#                  help="Choose a single protein from the seed input for calculation, by default this is NULL (all "
+#                       "proteins are used for calculation)")
+# parser.add_option("-w", "--score_weights", dest="score_weights", nargs=3, default=(0.7, 0.0, 0.3),
+#                  help="Defines how the three scores MS, CS and PS are weighted (MS, CS, PS), "
+#                       "the default is 0.7, 0.0, 0.3")
+# parser.add_option("-j", "--jobname", dest="jobname", default="out",
+#                  help="Defines the name for the outputfile, can also be used to define the output path, if no path is"
+#                       "given the output will be created in the FAS directory under out/")
+# parser.add_option("-r", "--ref_proteome", dest="ref_proteome", default=0,
+#                  help="Path to a reference proteome which can be used for the weighting of features, "
+#                       "by default there is no reference proteome used")
+# parser.add_option("-a", "--raw_output", dest="raw_output", default=0,
+#                  help="If set to 1, the FAS score will be printed to STDOUT. If 0, scores will be printed into output"
+#                       " file (XML format). If 2, both output variants are conducted.")
+# parser.add_option("--priority_check", dest="priority_check", default=1,
+#                  help="Set to 0 to deactivate priority checks prior to the calculation, skipping all priority checks "
+#                       "and going through all proteins exhaustively until time-limit is reached where it will switch "
+#                       "to priority mode, NOT RECOMMENDED as this may result in a very long runtime")
+# parser.add_option("-t", "--priority_threshold", dest="priority_threshold", default=50,
+#                  help="Change to define the feature number threshold for activating priority mode in the path "
+#                       "evaluation.")
+# parser.add_option("-m", "--max_cardinality", dest="max_cardinality", default=5000,
+#                  help="Change to define the threshold for the maximal cardinality of feature paths in a graph. "
+#                       "If max. cardinality is exceeded the priority mode will be used to for the path evaluation.")
+# parser.add_option("-l", "--log", dest="loglevel", default="ERROR",
+#                  help="Change the verbosity of the standard output to the screen. "
+#                       "Levels: DEBUG, INFO, WARNING, ERROR, CRITICAL")
+# parser.add_option("-f", "--efilter", dest="efilter", default="0.001",
+#                  help="E-value filter for hmm based search methods (feature based/complete sequence).")
+# parser.add_option("-i", "--inst_efilter", dest="inst_efilter", default="0.01",
+#                  help="E-value filter for hmm based search methods (instance based/complete sequence).")
+# parser.add_option("-g", "--weightcorrection", dest="weightcorrection", default="loge",
+#                  help="Function applied to the frequency of feature types during weighting, "
+#                       "options are linear(no function), loge(natural logarithm[Default]), log10(base-10 logarithm), "
+#                       "root4(4th root) and root8(8th root).")
+# parser.add_option("-x", "--weight_constraints", dest="weight_constraints", default=0,
+#                  help="Apply weight constraints via constraints file, by default there are no constraints.")
+# parser.add_option("-d", "--featuretypes", dest="featuretypes", default=expath + "/config/featuretypes",
+#                  help="inputfile that contains the tools/databases used to predict features")
+# parser.add_option("-e", "--extendedout", dest="extendedout", default=1,
+#                  help="0: only the scores and paths will be in the output, 1: "
+#                       "a file with the architecture for each protein will be created additionally")
+# parser.add_option("-y", "--feature_info", dest="feature_info", default=0,
+#                 help="if 1: a file with information on the abundance of all seed and query features in the reference")
+# parser.add_option("-b", "--bidirectional", dest="bidirectional", default=0,
+#                  help="if 1: calculate both scoring directions (separate files) on one core, if 2: calculate both "
+#                       "scoring directions (separate files) parallel on two cores")
+# parser.add_option("-c", "--max_overlap", dest="max_overlap", default=0,
+#                  help="maximum size overlap allowed, default is 0")
+# parser.add_option("--max_overlap_percentage", dest="max_overlap_percentage", default=0.4,
+#                  help="defines how much percent of a feature the overlap is allowed to cover, default is 0.4 (40%)")
+# parser.add_option("--classicMS", dest="classicMS", default=1,
+#                  help="(de)activate classic MS score")
+# parser.add_option("--timelimit", dest="timelimit", default=7200,
+#                  help="Sets a maximum time-limit in seconds a calculation between a pair of proteins is allowed to "
+#                       "take, default is 2 hours after which it will stop, set to 0 to deactivate; As FAS divides this"
+#                       "time among multiple processes, this limit does not necessarily represent the actual runtime,"
+#                       "especially if multiple cores are used")
+# parser.add_option("--cores", dest="cores", default=1,
+#                  help="Number of cores available for calculation, do not use together with --bidirectional 2, only "
+#                       "useful when not using priority_mode")
+
+# (options, args) = parser.parse_args()
+
+options = parser.parse_args()
+
+# important vars #             ###  var looks ###
 # naming
 # seed_proteome = {}           #{("protein_id", {("domain_name", [("START", "STOP")])})}
 # query_proteome = {}          #{("protein_id", {("domain_name", [("START", "STOP")])})}
@@ -111,84 +185,34 @@ taciturn = 1
 
 
 # READ OPTIONS #
-option_dict = {"p_path": options.seed, "s_path": options.query, "ref_proteome": options.ref_proteome, "weight_const": 0,
-               "version": version, "seed_id": options.seed_id, "query_id": options.query_id}
+print(options.seed)
+option_dict = {"p_path": options.seed, "s_path": options.query, "ref_proteome": options.ref_proteome,
+               "weight_const": False, "version": version, "seed_id": options.seed_id, "query_id": options.query_id,
+               "priority_mode": options.no_priority_check, "priority_threshold": options.priority_threshold,
+               "max_cardinality": options.max_cardinality, "efilter": options.efilter, "cores": options.cores,
+               "inst_efilter": options.inst_efilter, "e_output": options.no_arch,
+               "feature_info": options.feature_info, "bidirectional": options.bidirectional,
+               "max_overlap": options.max_overlap, "classicMS": options.classicMS, "timelimit": options.timelimit}
 loglevel = options.loglevel.upper()
 try:
     option_dict["score_weights"] = []
     test = 0.0
     for weight in options.score_weights:
-        option_dict["score_weights"].append(float(weight))
+        option_dict["score_weights"].append(weight)
         test += float(weight)
     if test != 1.0:
-        print("The sum of all values in -w [--score_weights] should be 1.0")
-        quit()
+        raise Exception("The sum of all values in -w [--score_weights] should be 1.0")
     option_dict["score_weights"] = tuple(option_dict["score_weights"])
 except ValueError:
-    print(str(options.score_weights) + " is not a valid input for -w [--score_weights]")
-    quit()
-try:
-    option_dict["cores"] = int(options.cores)
-    if option_dict["cores"] < 1:
-        print(str(options.cores) + " is not a valid input for [--cores], must be 1 or more")
-        quit()
-except ValueError:
-    print(str(options.cores) + " is not a valid input for [--cores], must be 1 or more")
-    quit()
-try:
-    option_dict["classicMS"] = int(options.classicMS)
-    if not (option_dict["classicMS"] == 1 or option_dict["classicMS"] == 0):
-        print(str(options.classicMS) + " is not a valid input for [--classicMS], must be 0 or 1")
-        quit()
-except ValueError:
-    print(str(options.classicMS) + " is not a valid input for [--classicMS], must be 0 or 1")
-    quit()
-try:
-    option_dict["timelimit"] = int(options.timelimit)
-    if not (option_dict["timelimit"] >= 0):
-        print(str(options.timelimit) + " is not a valid input for [--timelimit], must be integer higher than 0 or 0 to "
-                                       "deactivate")
-        quit()
-except ValueError:
-    print(str(options.timelimit) + " is not a valid input for [--timelimit], must be integer higher than 0 or 0 to "
-                                   "deactivate")
-    quit()
-try:
-    option_dict["priority_mode"] = int(options.priority_check)
-    if not (option_dict["priority_mode"] == 1 or option_dict["priority_mode"] == 0):
-        print(str(options.priority_check) + " is not a valid input for [--priority_check], must be 0 or 1")
-        quit()
-except ValueError:
-    print(str(options.priority_check) + " is not a valid input for [--priority_check], must be 0 or 1")
-    quit()
-try:
-    option_dict["priority_threshold"] = int(options.priority_threshold)
-except ValueError:
-    print(str(options.priority_threshold) + " is not a valid input for -c [--priority_threshold]")
-    quit()
-try:
-    option_dict["max_cardinality"] = int(options.max_cardinality)
-except ValueError:
-    print(str(options.max_cardinality) + " is not a valid input for -m [--max_cardinality]")
-    quit()
-try:
-    option_dict["max_overlap"] = int(options.max_overlap)
-except ValueError:
-    print(str(options.max_overlap) + " is not a valid input for -c [--max_overlap]")
-    quit()
-try:
-    option_dict["efilter"] = float(options.efilter)
-except ValueError:
-    print(str(options.efilter) + " is not a valid input for -f [--efilter]")
-    quit()
-try:
-    option_dict["inst_efilter"] = float(options.inst_efilter)
-except ValueError:
-    print(str(options.inst_efilter) + " is not a valid input for -i [--inst_efilter]")
-    quit()
-if option_dict["ref_proteome"] == 0:
+    raise Exception(str(options.score_weights) + " is not a valid input for -w [--score_weights]")
+if option_dict["cores"] < 1:
+    raise Exception(str(options.cores) + " is not a valid input for [--cores], must be 1 or more")
+if not (option_dict["timelimit"] >= 0):
+    raise Exception(str(options.timelimit) + " is not a valid input for [--timelimit], must be integer higher than"
+                                             " 0, or 0 to deactivate")
+if not option_dict["ref_proteome"]:
     option_dict["MS_uni"] = 1
-    option_dict["weight_correction"] = 0
+    option_dict["weight_correction"] = None
 else:
     option_dict["MS_uni"] = 0
     if options.weightcorrection == "log10":
@@ -200,77 +224,24 @@ else:
     elif options.weightcorrection == "root8":
         option_dict["weight_correction"] = "root8"
     elif options.weightcorrection == "linear":
-        option_dict["weight_correction"] = 0
+        option_dict["weight_correction"] = None
     else:
-        print(str(options.weightcorrection) + "is not a valid input for -g [--weightcorrection]")
-        quit()
-try:
-    if int(options.raw_output) == 0:
-        option_dict["output"] = 0
-    elif int(options.raw_output) == 1:
-        option_dict["output"] = 1
-    elif int(options.raw_output) == 2:
-        option_dict["output"] = 2
-    else:
-        print(str(options.raw_output) + "is not a valid input for -a [--raw_output]")
-        quit()
-except ValueError:
-    print(str(options.raw_output) + "is not a valid input for -a [--raw_output]")
-    quit()
-try:
-    if int(options.extendedout) == 0:
-        option_dict["e_output"] = 0
-    elif int(options.extendedout) == 1:
-        option_dict["e_output"] = 1
-    else:
-        print(str(options.extendedout) + " is not a valid input for -e [--extendedout]")
-        quit()
-except ValueError:
-    print(str(options.extendedout) + " is not a valid input for -e [--extendedout]")
-    quit()
-try:
-    if int(options.feature_info) == 0:
-        option_dict["feature_info"] = 0
-    elif int(options.feature_info) == 1:
-        option_dict["feature_info"] = 1
-    else:
-        print(str(options.feature_info) + " is not a valid input for -y [--feature_info]")
-        quit()
-except ValueError:
-    print(str(options.feature_info) + " is not a valid input for -y [--feature_info]")
-    quit()
+        raise Exception(str(options.weightcorrection) + "is not a valid input for -g [--weightcorrection]")
+if 0 <= options.raw_output <= 2:
+    option_dict["output"] = options.raw_output
+else:
+    raise Exception(str(options.raw_output) + "is not a valid input for -a [--raw_output]")
+if options.ref_proteome and options.weight_constraints:
+    option_dict["weight_const"] = True
+elif options.weight_constraints:
+    raise Exception("[--weight_constraints] only works with a reference proteome")
+if 0.0 <= float(options.max_overlap_percentage) <= 1.0:
+    option_dict["max_overlap_percentage"] = float(options.max_overlap_percentage)
+else:
+    raise Exception("[--max_overlap_percentage] should be between 0.0 and 1.0")
 
-if options.ref_proteome != 0 and options.weight_constraints != 0:
-    option_dict["weight_const"] = 1
-elif options.weight_constraints != 0:
-    print("[--weight_constraints] only works with a reference proteome")
-    quit()
-try:
-    if int(options.bidirectional) == 2:
 
-        option_dict["bidirectional"] = 2
-    elif int(options.bidirectional) == 1:
-        option_dict["bidirectional"] = 1
-    elif int(options.bidirectional) == 0:
-        option_dict["bidirectional"] = 0
-    else:
-        print(str(options.bidirectional) + " is not a valid input for -b [--bidirectional]")
-        quit()
-except ValueError:
-    print(str(options.bidirectional) + " is not a valid input for -b [--bidirectional]")
-    quit()
-try:
-    if 0.0 <= float(options.max_overlap_percentage) <= 1.0:
-        option_dict["max_overlap_percentage"] = float(options.max_overlap_percentage)
-    else:
-        print("[--max_overlap_percentage] should be between 0.0 and 1.0")
-        quit()
-except ValueError:
-    print(str(options.max_overlap_percentagea) + " is not a valid input for [--max_overlap_percentage]")
-    quit()
-
-### SETUP LOGGING OPTIONS ###
-
+# SETUP LOGGING OPTIONS
 # possible logging configurations
 # logging into stdout with time stamp:
 logging.basicConfig(level=loglevel, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -289,7 +260,7 @@ logging.info(
 logging.info('ref_proteome is set to: ' + str(option_dict["ref_proteome"]))
 
 
-########## Flow Control ########## <fc>
+# Flow Control <fc>
 # flow control functions
 
 def fc_start(option):
@@ -306,7 +277,7 @@ def fc_start(option):
     domain_count = {}
     prot_count = 0
 
-    ## MS_uni set to 0 when no weighting is conducted
+    # MS_uni set to 0 when no weighting is conducted
     if option["MS_uni"] == 0:
         for ftype in option["input_linearized"]:
             seed_proteome, protein_lengths, clan_dict = xmlreader(option["ref_proteome"] + "/" + ftype + ".xml", 2,
@@ -334,31 +305,10 @@ def fc_start(option):
         relevant_features, domain_count = w_count(prot_count, domain_count, seed_proteome, query_proteome)
     else:
         relevant_features = {}
-    if option["weight_correction"] != 0:
+    if option["weight_correction"]:
         domain_count = w_weight_correction(option["weight_correction"],
                                            domain_count)  # use correction function on counts
-
-    if option["bidirectional"] == 2:
-        p1 = multiprocessing.Process(target=fc_main, args=(relevant_features, prot_count, domain_count, seed_proteome,
-                                                           query_proteome, protein_lengths, clan_dict, option))
-        p1.start()
-        tmp = {}
-        for protein in protein_lengths:
-            if protein[0:4] == "seed":
-                tmp["query_" + protein[5:]] = protein_lengths[protein]
-            else:
-                tmp["seed_" + protein[6:]] = protein_lengths[protein]
-        option["e_output"] = 0
-        org_outpath = option["outpath"]
-        option["outpath"] += "_reverse"
-        option["feature_info"] = 0
-        p2 = multiprocessing.Process(target=fc_main, args=(relevant_features, prot_count, domain_count, query_proteome,
-                                                           seed_proteome, tmp, clan_dict, option))
-        p2.start()
-        p1.join()
-        p2.join()
-        bidirectionout(org_outpath)
-    elif option["bidirectional"] == 1:
+    if option["bidirectional"]:
         fc_main(relevant_features, prot_count, domain_count, seed_proteome, query_proteome, protein_lengths, clan_dict,
                 option)
         tmp = {}
@@ -367,13 +317,13 @@ def fc_start(option):
                 tmp["query_" + protein[5:]] = protein_lengths[protein]
             else:
                 tmp["seed_" + protein[6:]] = protein_lengths[protein]
-        option["e_output"] = 0
+        option["e_output"] = False
         org_outpath = option["outpath"]
         option["outpath"] += "_reverse"
-        option["feature_info"] = 0
+        option["feature_info"] = False
         fc_main(relevant_features, prot_count, domain_count, query_proteome, seed_proteome, tmp, clan_dict, option)
         bidirectionout(org_outpath)
-    elif option["bidirectional"] == 0:
+    else:
         fc_main(relevant_features, prot_count, domain_count, seed_proteome, query_proteome, protein_lengths, clan_dict,
                 option)
 
@@ -407,7 +357,7 @@ def fc_main(relevant_features, prot_count, domain_count, seed_proteome, query_pr
     adjusted_weights = {}
     weight_tmp = {}
     if option["output"] == 0 or option["output"] == 2:
-        if option["e_output"] == 1:
+        if option["e_output"]:
             a_out = open(option["outpath"] + "_architecture.xml", "w+")
             a_out.write("<?xml version=\"1.0\"?>\n")
             a_out.write("<architectures FAS_version=\"" + str(option["version"]) + "\">\n")
@@ -418,9 +368,9 @@ def fc_main(relevant_features, prot_count, domain_count, seed_proteome, query_pr
                         str(option["efilter"]) + "/" + str(option["inst_efilter"]), "lin": "", "norm": "", "ms":
                         "classic"}
 
-        if option["classicMS"] == 0:
+        if not option["classicMS"]:
             settings_out["ms"] = "new"
-        if option["timelimit"] == 0 or option["priority_mode"] == 1:
+        if option["timelimit"] == 0 or option["priority_mode"]:
             settings_out["time"] = "off"
         else:
             settings_out["time"] = str(option["timelimit"]) + "s"
@@ -436,9 +386,9 @@ def fc_main(relevant_features, prot_count, domain_count, seed_proteome, query_pr
             settings_out["norm"] = "none"
         if option_dict["weight_const"] == 1:
             settings_out["constraints"] = option["constname"]
-        if option["priority_mode"] == 1:
+        if option["priority_mode"]:
             settings_out["priority"] = str(option["priority_threshold"]) + "/" + str(option["max_cardinality"])
-        if option["MS_uni"] == 0 and option["weight_correction"] != 0:
+        if option["MS_uni"] == 0 and option["weight_correction"]:
             settings_out["weighting"] = option["ref_proteome"].rstrip("/").split("/")[-1] + "/" + \
                                         option["weight_correction"]
         elif option["MS_uni"] == 0:
@@ -462,10 +412,10 @@ def fc_main(relevant_features, prot_count, domain_count, seed_proteome, query_pr
                                                                      option["max_overlap"],
                                                                      option["max_overlap_percentage"]))
         # PRIORITY CHECK 1: checking for number of instances - assess complexity of the feature graph
-        if int(len(query_features)) > int(option["priority_threshold"]) and option["priority_mode"] == 1:
+        if int(len(query_features)) > int(option["priority_threshold"]) and option["priority_mode"]:
             go_priority = True
             all_query_paths = "PRIORITY"
-        elif option["priority_mode"] == 1:
+        elif option["priority_mode"]:
             # creating all paths
             all_query_paths = pb_graphtraversal(tmp_query_graph, [], [], option)
             # PRIORITY CHECK 2: checking for number of paths in the feature graph
@@ -527,7 +477,7 @@ def fc_main(relevant_features, prot_count, domain_count, seed_proteome, query_pr
 
             # handle all paths
             # case M2.2: graph(query)
-            elif option["priority_mode"] == 0:
+            elif not option["priority_mode"]:
                 mode[protein] = 0
                 stack, jobpaths = pb_create_jobs(tmp_query_graph, option)
                 timelimit = 0.0
@@ -623,7 +573,7 @@ def fc_main(relevant_features, prot_count, domain_count, seed_proteome, query_pr
                     logging.info("domain_type: " + str(domain_type))
                     logging.debug("all_query_paths: " + str(all_query_paths))
                     # max fixture of (search_path, score, query_path)
-            if option["priority_mode"] == 1 or go_priority_2:
+            if option["priority_mode"] or go_priority_2:
                 for query_path in all_query_paths:
                     logging.warning("CASE M2.2: graph.")
                     pathcount += 1
@@ -641,7 +591,7 @@ def fc_main(relevant_features, prot_count, domain_count, seed_proteome, query_pr
                         # case M2.2.2 graph(query)-graph(search)
                         # regular traversal of graph based on search_protein
                         logging.warning("CASE M2.2.2: graph vs graph.")
-                        if option["priority_mode"] == 1:
+                        if option["priority_mode"]:
                             tmp_path_score = pb_entire_main_nongreedy(search_protein, protein, query_path,
                                                                       search_features, weights, query_features,
                                                                       seed_proteome, a_s_f, a_q_f, clan_dict,
@@ -691,8 +641,8 @@ def fc_main(relevant_features, prot_count, domain_count, seed_proteome, query_pr
                 out.write("\t\t<template id=\"" + protein + "\" score=\"" + str(score[3]) + "\" MS=\"" + str(
                     score[0]) + "\" PS=\"" + str(score[1]) + "\" CS=\"" + str(score[2]) + "\" LS=\"" + str(
                     score[6]) + "\" length=\"" + str(int(protein_lengths["seed_" + str(protein)])) + "\" mode=\"" +
-                          mode_out + "\" calculationTime=\"" + runtime + "\" >\n")
-                if option["e_output"] == 1 and turn == 0:
+                    mode_out + "\" calculationTime=\"" + runtime + "\" >\n")
+                if option["e_output"] and turn == 0:
                     a_out.write("\t<template id=\"" + protein + "\" length=\"" + str(
                         int(protein_lengths["seed_" + str(protein)])) + "\">\n")
                     a_out.write("\t\t<architecture>\n")
@@ -759,13 +709,13 @@ def fc_main(relevant_features, prot_count, domain_count, seed_proteome, query_pr
                         path_tmp_query[feature[0]] = [(feature[2], feature[3])]
                 logging.debug("path_tmp: " + str(path_tmp))
 
-                ## unweighted case
+                # unweighted case
                 if option["MS_uni"] == 0:
                     if scale > 0:
                         scale = 1.0 / float(scale)
                     else:
                         scale = 1.0
-                ## print path
+                # print path
                 out.write("\t\t\t<template_path>\n")
                 for feature in path_tmp:
                     if option["MS_uni"] == 0:
@@ -791,8 +741,8 @@ def fc_main(relevant_features, prot_count, domain_count, seed_proteome, query_pr
                     for adj_feature in adjusted_weights:
                         weights[adj_feature] = weight_tmp[adj_feature]
             if option["output"] == 1 or option["output"] == 2:
-                print (score[3])
-                ## hidden ##
+                print(score[3])
+                # hidden
                 if taciturn == 1 and option["output"] != 2:
                     out.write(protein + "\t" + str(score[3]) + "\n")
         if option["output"] == 0 or option["output"] == 2:
@@ -801,7 +751,7 @@ def fc_main(relevant_features, prot_count, domain_count, seed_proteome, query_pr
     if option["output"] == 0 or option["output"] == 2:
         out.write("</out>")
         out.close()
-        if option["e_output"] == 1:
+        if option["e_output"]:
             for query in query_proteome:
                 a_out.write(
                     "\t<query id=\"" + query + "\" length=\"" + str(int(protein_lengths["query_" + query])) + "\">\n")
@@ -818,7 +768,7 @@ def fc_main(relevant_features, prot_count, domain_count, seed_proteome, query_pr
                 a_out.write("\t</query>\n")
             a_out.write("</architectures>")
             a_out.close()
-        if option["feature_info"] == 1:
+        if option["feature_info"]:
             f_out = open(option["outpath"] + "_features", "w+")
             f_out.write("#proteins: " + str(prot_count) + "\n")
             tmp = []
@@ -830,7 +780,7 @@ def fc_main(relevant_features, prot_count, domain_count, seed_proteome, query_pr
             f_out.close()
 
 
-########## Start Up Functions ########## <su>
+# Start Up Functions <su>
 
 def su_query_protein(protein_id, query_proteome, protein_lengths, clan_dict):
     """Initializes variables for the current query protein
@@ -1557,7 +1507,7 @@ def sf_calc_score(path, protein, weights, search_features, query_features, seed_
     """
     adjusted_weights = {}
     tmp_weight = {}
-    if option["weight_const"] == 1:
+    if option["weight_const"]:
         adjusted_weights = w_weight_const_rescale(path, weights, search_features, False, option)
         tmp_weight = {}
         for i in adjusted_weights:
@@ -1570,7 +1520,7 @@ def sf_calc_score(path, protein, weights, search_features, query_features, seed_
         sf_ps_score(path, tmp[2], protein, query_features, seed_proteome, protein_lengths), 10)
     final_score = (score_ms * option["score_weights"][0]) + (score_cs * option["score_weights"][1]) + (
         score_ps * option["score_weights"][2])
-    if option["weight_const"] == 1:
+    if option["weight_const"]:
         for i in adjusted_weights:
             weights[i] = tmp_weight[i]
     return score_ms, score_ps, score_cs, final_score
@@ -1592,7 +1542,7 @@ def sf_entire_calc_score(path, query_path, weights, search_features, a_s_f, quer
     """
     adjusted_weights = {}
     tmp_weight = {}
-    if option["weight_const"] == 1:
+    if option["weight_const"]:
         adjusted_weights = w_weight_const_rescale(path, weights, search_features, False, option)
         tmp_weight = {}
         for i in adjusted_weights:
@@ -1609,7 +1559,7 @@ def sf_entire_calc_score(path, query_path, weights, search_features, a_s_f, quer
     score_ls = round(ps_tmp[1], 10)
     final_score = (score_ms * option["score_weights"][0]) + (score_cs * option["score_weights"][1]) + (
         score_ps * option["score_weights"][2])
-    if option["weight_const"] == 1:
+    if option["weight_const"]:
         for i in adjusted_weights:
             weights[i] = tmp_weight[i]
     return score_ms, score_ps, score_cs, final_score, path_weight, common_feature, score_ls
@@ -1930,7 +1880,7 @@ def sf_entire_ps_score(path, scale, query_path, search_features, a_s_f, query_fe
     return final_score, final_ls_score
 
 
-########## Weighting ########## <w>
+# Weighting <w>
 # weighting functions
 
 
@@ -2196,8 +2146,7 @@ def featuretypes(path, option):
         elif tmp == "#normal":
             mode = "nor"
         elif mode == "NULL":
-            print(path + " is not a valid input file")
-            quit()
+            raise Exception(path + " is not a valid input file")
         elif mode == "lin":
             option["input_linearized"].append(tmp)
         elif mode == "nor":
@@ -2225,8 +2174,7 @@ def constraints_in(path):
                 constraints[split[0]] = float(split[1])
             i += 1
     else:
-        print ("\n" + path + " might be in the wrong format. Please see the sample file in config directory.")
-        quit()
+        raise Exception(path + " might be in the wrong format. Please see the sample file in config directory.")
     if lines[i][0] == "#":
         i += 1
         while i < len(lines):
@@ -2254,27 +2202,27 @@ def xmlreader(path, mode, tool, assess, proteome, protein_lengths, clan_dict, op
     """
     start = 0
     if os.path.exists(path):
+        xmltree = None
         try:
             xmltree = ElTre.parse(path)
         except ElTre.ParseError:
-            print('Error: ' + path + ' is not a legit xml file')
-            quit()
+            raise Exception(path + ' is not a legit xml file')
         root = xmltree.getroot()
         for protein in root:
             p_id = protein.attrib["id"]
             plength = protein.attrib["length"]
             # set up of protein IDs, differentiate between proteins from different files
             if mode == 1:
-                if option["query_id"] == "NULL" or p_id == option["query_id"]:
+                if(not option["query_id"]) or p_id in option["query_id"]:
                     protein_lengths["query_" + str(p_id)] = float(plength)
             elif mode == 0:
-                if option["seed_id"] == "NULL" or p_id == option["seed_id"]:
+                if (not option["seed_id"]) or p_id in option["seed_id"]:
                     protein_lengths["seed_" + str(p_id)] = float(plength)
             elif mode == 2:
                 protein_lengths[p_id] = float(plength)
             # set up of datastructure to store annotations
-            if mode == 2 or (mode == 1 and (option["query_id"] == "NULL" or p_id == option["query_id"])) or (
-               mode == 0 and (option["seed_id"] == "NULL" or p_id == option["seed_id"])):
+            if mode == 2 or (mode == 1 and ((not option["query_id"]) or p_id in option["query_id"])) or (
+               mode == 0 and ((not option["seed_id"]) or p_id in option["seed_id"])):
                 if not (p_id in proteome):
                     proteome[p_id] = {}
 
@@ -2351,8 +2299,7 @@ def xmlreader(path, mode, tool, assess, proteome, protein_lengths, clan_dict, op
                             if ftype not in clan_dict:
                                 clan_dict[ftype] = fclan
     else:
-        print("Error: " + path + " does not exist")
-        quit()
+        raise Exception(path + " does not exist")
     logging.debug("proteome: " + str(proteome))
     return proteome, protein_lengths, clan_dict
 
@@ -2440,7 +2387,7 @@ if options.jobname.find("/") != -1:
 else:
     option_dict["outpath"] = expath + "/out/" + su_set_path(options.jobname, expath)
 
-if option_dict["weight_const"] == 1:
+if option_dict["weight_const"]:
     option_dict["constraints"] = constraints_in(options.weight_constraints)
     option_dict["constname"] = options.weight_constraints.rstrip("/").split("/")[-1]
 
