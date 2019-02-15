@@ -248,7 +248,7 @@ python greedyFAS.py -q PATH/ortholog -s PATH/seed -j JOBNAME --no_priority_check
 This opens up two more options: First the timelimit option. This option allows you to set(in seconds)/deactivate(set to 0) the timelimit the calculation for each pair is allowed to take before priority mode takes over (default 7200s). Secondly, the cores option which allows you to run the calculation on multiple cores:
 
 ```
-python greedyFAS.py -q PATH/ortholog -s PATH/seed -j JOBNAME -no_priority_check --cores 4 --timelimit 600
+python greedyFAS.py -q PATH/ortholog -s PATH/seed -j JOBNAME --no_priority_check --cores 4 --timelimit 600
 ```
 
 You can switch to the classic MS calculation using the classicMS option:
