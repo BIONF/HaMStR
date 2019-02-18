@@ -1311,7 +1311,7 @@ if (!$coreOnly) {
 	    my $i       = "--inst_efilter=".$inst_eval_filter;  #dest="inst_efilter", default="0.01", help="E-value filter for hmm bas
 	    my $a	= "--raw_output=2";
 	    my $h	= "--help";
-        my $m   = "--classicMS"
+        my $m   = "--classicMS";
 
 	## adding the option to extract a particular sequence from the annotation directory
 	## becomes relevant when using the pre-computed core sets, where feature annotation for
