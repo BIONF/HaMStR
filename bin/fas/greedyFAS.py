@@ -109,7 +109,6 @@ taciturn = 1
 
 
 # READ OPTIONS #
-print(options.seed)
 option_dict = {"p_path": options.seed, "s_path": options.query, "ref_proteome": options.ref_proteome,
                "weight_const": False, "version": version, "seed_id": options.seed_id, "query_id": options.query_id,
                "priority_mode": options.no_priority_check, "priority_threshold": options.priority_threshold,
@@ -442,13 +441,9 @@ def fc_main(relevant_features, prot_count, domain_count, seed_proteome, query_pr
                                                            query_features, a_q_f, clan_dict, option)
 
                             # check for max scoring fixture of path and query_path
-                            if score_w[5]:
-                                if score_w[3] >= max_fixture[1][3]:
-                                    max_fixture = (path, score_w, query_path_ad, protein)
-                                    logging.warning("max_fixture: " + str(max_fixture))
-                            else:
-                                if (not max_fixture[1][5]) and (score_w[4] >= max_fixture[1][4]):
-                                    max_fixture = (path, score_w, query_path_ad, protein)
+                            if ((not max_fixture[1][5]) and (score_w[4] >= max_fixture[1][4]) and
+                                score_w[3] <= max_fixture[1][3]) or score_w[3] >= max_fixture[1][3]:
+                                max_fixture = (path, score_w, query_path_ad, protein)
                     else:
                         # case M2.2.2 graph(query)-graph(search)
                         # regular traversal of graph based on search_protein
@@ -532,13 +527,9 @@ def fc_main(relevant_features, prot_count, domain_count, seed_proteome, query_pr
                         logging.debug("tmp_path_score " + str(tmp_path_score))  # search path, score, mode
 
                     # check for max scoring fixture of path and query_path
-                    if score_w[5]:
-                        if score_w[3] >= max_fixture[1][3]:
-                            max_fixture = (path, score_w, query_path_ad, protein)
-                            logging.warning("max_fixture: " + str(max_fixture))
-                    else:
-                        if (not max_fixture[1][5]) and (score_w[4] >= max_fixture[1][4]):
-                            max_fixture = (path, score_w, query_path_ad, protein)
+                    if ((not max_fixture[1][5]) and (score_w[4] >= max_fixture[1][4]) and
+                                score_w[3] < max_fixture[1][3]) or score_w[3] >= max_fixture[1][3]:
+                        max_fixture = (path, score_w, query_path_ad, protein)
 
                 logging.info("Found: " + str(pathcount) + " path(s) for query.")
                 logging.debug("Path fixture: " + str(max_fixture))
@@ -923,13 +914,9 @@ def pb_graph_traversal_sub(search_protein, protein, search_features, weights, qu
             logging.debug("tmp_path_score " + str(tmp_path_score))  # search path, score, mode
 
         # check for max scoring fixture of path and query_path
-        if score_w[5]:
-            if score_w[3] >= max_fixture[1][3]:
-                max_fixture = (path, score_w, query_path_ad, protein)
-                logging.warning("max_fixture: " + str(max_fixture))
-        else:
-            if (not max_fixture[1][5]) and (score_w[4] >= max_fixture[1][4]):
-                max_fixture = (path, score_w, query_path_ad, protein)
+        if ((not max_fixture[1][5]) and (score_w[4] >= max_fixture[1][4]) and score_w[3] <= max_fixture[1][3]) or \
+                        score_w[3] >= max_fixture[1][3]:
+            max_fixture = (path, score_w, query_path_ad, protein)
         timecheck = time.time()
 
     return max_fixture, timecheck - tmp_calcstart
@@ -967,13 +954,9 @@ def pb_calc_sub(search_protein, protein, search_features, weights, query_feature
         score_w = tmp_path_score[0][1]
         query_path_ad = tmp_path_score[0][2]
         logging.debug("tmp_path_score " + str(tmp_path_score))  # search path, score, mode
-        if score_w[5]:
-            if score_w[3] >= max_fixture[1][3]:
-                max_fixture = (path, score_w, query_path_ad, protein)
-                logging.warning("max_fixture: " + str(max_fixture))
-        else:
-            if (not max_fixture[1][5]) and (score_w[4] >= max_fixture[1][4]):
-                max_fixture = (path, score_w, query_path_ad, protein)
+        if ((not max_fixture[1][5]) and (score_w[4] >= max_fixture[1][4]) and score_w[3] <= max_fixture[1][3]) or \
+                            score_w[3] >= max_fixture[1][3]:
+            max_fixture = (path, score_w, query_path_ad, protein)
     tmpcheck = time.time()
     return max_fixture, tmpcheck - tmpstart
 
@@ -1182,14 +1165,10 @@ def pb_entire_graphtraversal(search_graph, query_path, search_features, weights,
                     logging.info("search path " + str(path_ad) + " in pb_entire_graphtraversal")
                     logging.debug("Score info: " + str(score_w) + " for query_path " + str(
                         query_path_ad) + " in pb_entire_graphtraversal")
-                    if score_w[5]:
-                        if score_w[3] >= best_path[1][3]:
-                            best_path = (path_ad, score_w, query_path_ad)
-                            logging.debug("new best_path by score: " + str(best_path))
-                    else:
-                        if (not best_path[1][5]) and score_w[4] >= best_path[1][4]:
-                            best_path = (path_ad, score_w, query_path_ad)
-                            logging.debug("new best_path by weight: " + str(best_path))
+                    if ((not best_path[1][5]) and score_w[4] >= best_path[1][4] and
+                                score_w[3] <= best_path[1][3]) or score_w[3] >= best_path[1][3]:
+                        best_path = (path_ad, score_w, query_path_ad)
+                        logging.debug("new best_path by weight: " + str(best_path))
                     first = 0
                 else:
                     v_stack.append(next_vertex)
@@ -1211,14 +1190,10 @@ def pb_entire_graphtraversal(search_graph, query_path, search_features, weights,
                     logging.info("search path " + str(path_ad) + " in pb_entire_graphtraversal")
                     logging.debug("Score info: " + str(score_w) + " for query_path " + str(
                         query_path_ad) + " in pb_entire_graphtraversal")
-                    if score_w[5]:
-                        if score_w[3] >= best_path[1][3]:
-                            best_path = (path_ad, score_w, query_path_ad)
-                            logging.debug("new best_path by score: " + str(best_path))
-                    else:
-                        if (not best_path[1][5]) and score_w[4] >= best_path[1][4]:
-                            best_path = (path_ad, score_w, query_path_ad)
-                            logging.debug("new best_path by weight: " + str(best_path))
+                    if ((not best_path[1][5]) and score_w[4] >= best_path[1][4] and
+                                    score_w[3] <= best_path[1][3]) or score_w[3] >= best_path[1][3]:
+                        best_path = (path_ad, score_w, query_path_ad)
+                        logging.debug("new best_path by weight: " + str(best_path))
                     first = 0
                 else:
                     v_stack.append(next_vertex)
@@ -1325,12 +1300,9 @@ def pb_entire_graphtraversal_priority(search_graph, priority, query_path, mode, 
 
                     score_w = sf_entire_calc_score(path_ad, query_path_ad, weights, search_features, a_s_f,
                                                    query_features, a_q_f, clan_dict, option)
-                    if score_w[5]:
-                        if score_w[3] >= best_path[1][3]:
-                            best_path = (path_ad, score_w, query_path_ad)
-                    else:
-                        if (not best_path[1][5]) and (score_w[4] >= best_path[1][4]):
-                            best_path = (path_ad, score_w, query_path_ad)
+                    if ((not best_path[1][5]) and (score_w[4] >= best_path[1][4]) and
+                                score_w[3] <= best_path[1][3]) or score_w[3] >= best_path[1][3]:
+                        best_path = (path_ad, score_w, query_path_ad)
                     p_found = 2
             elif mode == 1:
                 if query_features[next_vertex][0] == priority:
@@ -1363,12 +1335,9 @@ def pb_entire_graphtraversal_priority(search_graph, priority, query_path, mode, 
                         query_path_ad = query_path + list(a_q_f.keys())
                         score_w = sf_entire_calc_score(path_ad + [next_vertex], query_path_ad, weights,
                                                        search_features, a_s_f, query_features, a_q_f, clan_dict, option)
-                        if score_w[5]:
-                            if score_w[3] >= best_partial_path[1][3]:
-                                best_partial_path = (next_vertex, score_w)
-                        else:
-                            if (not best_partial_path[1][5]) and (score_w[4] >= best_partial_path[1][4]):
-                                best_partial_path = (next_vertex, score_w)
+                        if ((not best_partial_path[1][5]) and (score_w[4] >= best_partial_path[1][4]) and
+                                    score_w[3] <= best_partial_path[1][3]) or score_w[3] >= best_partial_path[1][3]:
+                            best_partial_path = (next_vertex, score_w)
 
                     v_stack.append(best_partial_path[0])
                     p_stack.append(path + [best_partial_path[0]])
@@ -1392,12 +1361,9 @@ def pb_entire_graphtraversal_priority(search_graph, priority, query_path, mode, 
                     query_path_ad = query_path + list(a_s_f.keys())
                     score_w = sf_entire_calc_score(path_ad + [next_vertex], query_path_ad, weights, search_features,
                                                    a_s_f, query_features, a_q_f, clan_dict, option)
-                    if score_w[5]:
-                        if score_w[3] >= best_partial_path[1][3]:
-                            best_partial_path = (next_vertex, score_w)
-                    else:
-                        if (not best_partial_path[1][5]) and (score_w[4] >= best_partial_path[1][4]):
-                            best_partial_path = (next_vertex, score_w)
+                    if ((not best_partial_path[1][5]) and (score_w[4] >= best_partial_path[1][4]) and
+                                score_w[3] <= best_partial_path[1][3]) or score_w[3] >= best_partial_path[1][3]:
+                        best_partial_path = (next_vertex, score_w)
 
                 v_stack.append(best_partial_path[0])
                 p_stack.append(path + [best_partial_path[0]])
@@ -2126,7 +2092,6 @@ def xmlreader(path, mode, tool, assess, proteome, protein_lengths, clan_dict, op
     """
     start = 0
     if os.path.exists(path):
-        xmltree = None
         try:
             xmltree = ElTre.parse(path)
         except ElTre.ParseError:
