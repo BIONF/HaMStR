@@ -86,6 +86,9 @@ parser.add_argument("--timelimit", dest="timelimit", default=7200, type=int,
                          "especially if multiple cores are used")
 parser.add_argument("--cores", dest="cores", default=1, type=int,
                     help="Number of cores available for calculation, only useful when not using priority_mode")
+parser.add_argument("--ref_2", dest="ref_2", default=None, type=str,
+                    help="Give a second reference for bidirectional mode, does not do anything if bidirectional mode "
+                         "is not active or if no main reference was given")
 options = parser.parse_args()
 
 # important vars #             ###  var looks ###
@@ -115,7 +118,8 @@ option_dict = {"p_path": options.seed, "s_path": options.query, "ref_proteome": 
                "max_cardinality": options.max_cardinality, "efilter": options.efilter, "cores": options.cores,
                "inst_efilter": options.inst_efilter, "e_output": options.no_arch,
                "feature_info": options.feature_info, "bidirectional": options.bidirectional,
-               "max_overlap": options.max_overlap, "classicMS": options.classicMS, "timelimit": options.timelimit}
+               "max_overlap": options.max_overlap, "classicMS": options.classicMS, "timelimit": options.timelimit,
+               "ref_2": options.ref_2}
 loglevel = options.loglevel.upper()
 try:
     option_dict["score_weights"] = []
@@ -199,21 +203,21 @@ def fc_start(option):
     protein_lengths = {}
     domain_count = {}
     prot_count = 0
+    ref_proteome = {}
 
     # MS_uni set to 0 when no weighting is conducted
     if option["MS_uni"] == 0:
         for ftype in option["input_linearized"]:
-            seed_proteome, protein_lengths, clan_dict = xmlreader(option["ref_proteome"] + "/" + ftype + ".xml", 2,
-                                                                  ftype, True, seed_proteome, protein_lengths,
+            ref_proteome, tmp, clan_dict = xmlreader(option["ref_proteome"] + "/" + ftype + ".xml", 2,
+                                                                  ftype, True, ref_proteome, protein_lengths,
                                                                   clan_dict, option)
         for ftype in option["input_normal"]:
-            seed_proteome, protein_lengths, clan_dict = xmlreader(option["ref_proteome"] + "/" + ftype + ".xml", 2,
-                                                                  ftype, True, seed_proteome, protein_lengths,
+            ref_proteome, tmp, clan_dict = xmlreader(option["ref_proteome"] + "/" + ftype + ".xml", 2,
+                                                                  ftype, True, ref_proteome, protein_lengths,
                                                                   clan_dict, option)
 
-        prot_count, domain_count = w_count_ref(seed_proteome)
-        seed_proteome = {}
-        protein_lengths = {}
+        prot_count, domain_count = w_count_ref(ref_proteome)
+        ref_proteome = {}
     for ftype in option["input_linearized"]:
         seed_proteome, protein_lengths, clan_dict = xmlreader(option["p_path"] + "/" + ftype + ".xml", 0, ftype, True,
                                                               seed_proteome, protein_lengths, clan_dict, option)
@@ -243,7 +247,19 @@ def fc_start(option):
         option["e_output"] = False
         org_outpath = option["outpath"]
         option["outpath"] += "_reverse"
-        option["feature_info"] = False
+        if option["MS_uni"] == 0 and option["ref_2"]:
+            for ftype in option["input_linearized"]:
+                ref_proteome, tmp2, clan_dict = xmlreader(option["ref_2"] + "/" + ftype + ".xml", 2,
+                                                                      ftype, True, ref_proteome, protein_lengths,
+                                                                      clan_dict, option)
+            for ftype in option["input_normal"]:
+                ref_proteome, tmp2, clan_dict = xmlreader(option["ref_2"] + "/" + ftype + ".xml", 2,
+                                                                      ftype, True, ref_proteome, protein_lengths,
+                                                                      clan_dict, option)
+
+            prot_count, domain_count = w_count_ref(ref_proteome)
+        else:
+            option["feature_info"] = False
         fc_main(relevant_features, prot_count, domain_count, query_proteome, seed_proteome, tmp, clan_dict, option)
         bidirectionout(org_outpath)
     else:
