@@ -94,7 +94,7 @@ Above we used FAS at its very basic with no more options given then the bare nec
 In the first example we used a uniform weighting, so that all features would be weighted equally. To use a different weighting we need give a reference protein set (-r): 
 
 ```
-python greedyFAS.py -q PATH/ortholog -s PATH/seed -j JOBNAME -e PATH/reference 
+python greedyFAS.py -q PATH/ortholog -s PATH/seed -j JOBNAME -r PATH/reference 
 ```
 
 The reference set is there give FAS information on the abundance of the features so that it can create a weighting based on that. It should have the same format as the two input sets (seed&ortholog). If you are not sure what set to use you should go with the proteome of the species the ortholog protein came from. 
@@ -160,6 +160,20 @@ Using the feature_info (-y) will give you a file with information on the abundan
 
 ```
 python greedyFAS.py -q PATH/ortholog -s PATH/seed -j JOBNAME -y
+```
+
+FAS can write the output as the Phyloprofile input format by using --phyloprofile. This option needs a mapping file that maps all query proteins to their species ncbi id. 
+
+```
+python greedyFAS.py -q PATH/ortholog -s PATH/seed -j JOBNAME --phyloprofile PATH/mapping_file
+```
+
+The mapping file is a table seperated by tabs:
+
+```
+protein_id_1    ncbi_id
+protein_id_2    ncbi_id
+protein_id_3    ncbi_id
 ```
 
 Finally you can use the featuretypes option (-d) to change what feature file FAS will use and which will be linearized:
@@ -257,13 +271,13 @@ You can switch to the classic MS calculation using the classicMS option:
 python greedyFAS.py -q PATH/ortholog -s PATH/seed -j JOBNAME --classicMS
 ```
 
-Finally, the bidirectional option (-b) tells FAS to run the scoring in both directions.
+Finally, the bidirectional option tells FAS to run the scoring in both directions. You can give a second reference for the reverse run using --ref_2 otherwise FAS will use the first reference for both calculations.
 
 ```
-python greedyFAS.py -q PATH/ortholog -s PATH/seed -j JOBNAME --bidirectional
+python greedyFAS.py -q PATH/ortholog -s PATH/seed -j JOBNAME --bidirectional (-r PATH/reference_1 --ref_2 PATH/reference_2)
 ``` 
 
-This will generate two normal output-files. One for each scoring direction. Additionally, it creates a csv file that gives a short overview over all scores.
+This will generate two normal output-files. One for each scoring direction. Additionally, it creates a csv file that gives a short overview over all scores or, if activated, the phyloprofile output.
 
 
 
