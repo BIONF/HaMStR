@@ -162,7 +162,7 @@ Using the feature_info (-y) will give you a file with information on the abundan
 python greedyFAS.py -q PATH/ortholog -s PATH/seed -j JOBNAME -y
 ```
 
-FAS can write the output as the Phyloprofile input format by using --phyloprofile. This option needs a mapping file that maps all query proteins to their species ncbi id. 
+FAS can write the output as the Phyloprofile input format by using --phyloprofile. This option needs a mapping file that maps all query proteins to their species ncbi id. If the architecture output is deactivated, FAS will not create the .domains outputs.
 
 ```
 python greedyFAS.py -q PATH/ortholog -s PATH/seed -j JOBNAME --phyloprofile PATH/mapping_file
