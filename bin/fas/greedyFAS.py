@@ -271,14 +271,14 @@ def fc_start(option):
             option["feature_info"] = False
         fc_main(relevant_features, prot_count, domain_count, query_proteome, seed_proteome, tmp, clan_dict, option)
         if option["phyloprofile"]:
-            phyloprofile_out(org_outpath, True, option["phyloprofile"], extmp)
+            phyloprofile_out(org_outpath, True, option["phyloprofile"], extmp, option["MS_uni"])
         else:
             bidirectionout(org_outpath)
     else:
         fc_main(relevant_features, prot_count, domain_count, seed_proteome, query_proteome, protein_lengths, clan_dict,
                 option)
         if option["phyloprofile"]:
-            phyloprofile_out(option["outpath"], False, option["phyloprofile"], option["e_output"])
+            phyloprofile_out(option["outpath"], False, option["phyloprofile"], option["e_output"], option["MS_uni"])
 
 
 def fc_main(relevant_features, prot_count, domain_count, seed_proteome, query_proteome, protein_lengths, clan_dict,
@@ -2299,7 +2299,7 @@ def bidirectionout(outpath):
     out.close()
 
 
-def phyloprofile_out(outpath, bidirectional, mapping_file, extendedout):
+def phyloprofile_out(outpath, bidirectional, mapping_file, extendedout, noref):
     with open(mapping_file) as infile:
         map = {}
         for line in infile.readlines():
@@ -2337,7 +2337,10 @@ def phyloprofile_out(outpath, bidirectional, mapping_file, extendedout):
                     if path.tag == "template_path":
                         forward_s_path = {}
                         for feature in path:
-                            weights[feature.attrib["type"]] = feature.attrib["corrected_weight"]
+                            if noref:
+                                weights[feature.attrib["type"]] = str(1.0 / len(path))
+                            else:
+                                weights[feature.attrib["type"]] = feature.attrib["corrected_weight"]
                             forward_s_path[feature.attrib["type"]] = []
                             for instance in feature:
                                 forward_s_path[feature.attrib["type"]].append((instance.attrib["start"],
