@@ -403,7 +403,7 @@ def fc_main(relevant_features, prot_count, domain_count, seed_proteome, query_pr
             # query <--VS-- seed
             # case M2.1: empty(query)
 
-            if int(len(all_query_paths)) == 0:
+            if int(len(all_query_paths)) == 0 or int(len(query_features) == 0):
                 logging.warning("CASE M2.1: No paths (pfam or smart annotations) in query.")
                 # case M2.1.1: empty(query)-empty(search)
                 # should be the best fix independent from weight
@@ -430,7 +430,7 @@ def fc_main(relevant_features, prot_count, domain_count, seed_proteome, query_pr
 
             # handle all paths
             # case M2.2: graph(query)
-            elif not option["priority_mode"]:
+            elif not option["priority_mode"] and not int(len(query_features)) == 0:
                 mode[protein] = 0
                 stack, jobpaths = pb_create_jobs(tmp_query_graph, option)
                 timelimit = 0.0
@@ -453,7 +453,7 @@ def fc_main(relevant_features, prot_count, domain_count, seed_proteome, query_pr
                         if pool_result[1] > timelimit and option["timelimit"] > 0:
                             timeover += 1
                             go_priority_2 = True
-                        if pool_result[0][1][5] >= max_fixture[1][3]:
+                        if pool_result[0][1][3] >= max_fixture[1][3]:
                             max_fixture = deepcopy(pool_result[0])
                 timecheck = time.time()
                 if len(jobpaths) > 0:
@@ -504,7 +504,7 @@ def fc_main(relevant_features, prot_count, domain_count, seed_proteome, query_pr
                             if pool_result[1] > timelimit:
                                 timeover += 1
                                 go_priority_2 = True
-                            if pool_result[0][1][5] >= max_fixture[1][3]:
+                            if pool_result[0][1][3] >= max_fixture[1][3]:
                                 max_fixture = deepcopy(pool_result[0])
             if go_priority or go_priority_2:
                 mode[protein] = 1
