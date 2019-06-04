@@ -749,7 +749,7 @@ def su_query_protein(protein_id, query_proteome, protein_lengths, clan_dict):
         for instance in query_proteome[protein_id][feature][2:]:
             position = ((float(instance[1]) + float(instance[2])) / 2.0) / float(
                 protein_lengths["query_" + str(protein_id)])
-            position = round(position, 8)
+            position = round(position, 4)
             query_protein[feature].append(position)
     return query_protein, query_clans, clan_dict
 
@@ -783,7 +783,7 @@ def su_lin_query_protein(protein_id, query_proteome, protein_lengths, clan_dict)
             for instance in query_proteome[protein_id][feature][2:]:
                 position = ((float(instance[1]) + float(instance[2])) / 2.0) / float(
                     protein_lengths["query_" + str(protein_id)])
-                position = round(position, 8)
+                position = round(position, 4)
                 key = "F_" + str(i)
                 query_features[key] = (feature, position, instance[1], instance[2])
                 tmp.append((key, instance[1]))
@@ -792,7 +792,7 @@ def su_lin_query_protein(protein_id, query_proteome, protein_lengths, clan_dict)
             for instance in query_proteome[protein_id][feature][2:]:
                 position = ((float(instance[1]) + float(instance[2])) / 2.0) / float(
                     protein_lengths["query_" + str(protein_id)])
-                position = round(position, 8)
+                position = round(position, 4)
                 key = "O_" + str(i)
                 a_q_f[key] = (feature, position, instance[1], instance[2])
                 i += 1
@@ -824,7 +824,7 @@ def su_search_protein(protein_id, seed_proteome, protein_lengths):
             for instance in seed_proteome[protein_id][feature][2:]:
                 position = ((float(instance[1]) + float(instance[2])) / 2.0) / float(
                     protein_lengths["seed_" + str(protein_id)])
-                position = round(position, 8)
+                position = round(position, 4)
                 key = "F_" + str(i)
                 search_features[key] = (feature, position, instance[1], instance[2])
                 tmp.append((key, instance[1]))
@@ -833,7 +833,7 @@ def su_search_protein(protein_id, seed_proteome, protein_lengths):
             for instance in seed_proteome[protein_id][feature][2:]:
                 position = ((float(instance[1]) + float(instance[2])) / 2.0) / float(
                     protein_lengths["seed_" + str(protein_id)])
-                position = round(position, 8)
+                position = round(position, 4)
                 key = "O_" + str(i)
                 a_s_f[key] = (feature, position, instance[1], instance[2])
                 i += 1
@@ -1434,11 +1434,11 @@ def sf_calc_score(path, protein, weights, search_features, query_features, seed_
         for i in adjusted_weights:
             tmp_weight[i] = weights[i]
             weights[i] = adjusted_weights[i]
-    score_cs = round(sf_cs_score(path, clan_dict, query_clans, query_features), 10)
+    score_cs = round(sf_cs_score(path, clan_dict, query_clans, query_features), 4)
     tmp = sf_ms_score(path, protein, seed_proteome, query_features, option)
-    score_ms = round(tmp[0], 10)
+    score_ms = round(tmp[0], 4)
     score_ps = round(
-        sf_ps_score(path, tmp[2], protein, query_features, seed_proteome, protein_lengths), 10)
+        sf_ps_score(path, tmp[2], protein, query_features, seed_proteome, protein_lengths), 4)
     final_score = (score_ms * option["score_weights"][0]) + (score_cs * option["score_weights"][1]) + (
         score_ps * option["score_weights"][2])
     if option["weight_const"]:
@@ -1469,15 +1469,15 @@ def sf_entire_calc_score(path, query_path, weights, search_features, a_s_f, quer
         for i in adjusted_weights:
             tmp_weight[i] = weights[i]
             weights[i] = adjusted_weights[i]
-    score_cs = round(sf_entire_cs_score(path, query_path, query_features, clan_dict, search_features), 10)
+    score_cs = round(sf_entire_cs_score(path, query_path, query_features, clan_dict, search_features), 4)
     tmp = sf_entire_ms_score(path, query_path, search_features, a_s_f, query_features, a_q_f, weights, option)
-    score_ms = round(tmp[0], 10)
+    score_ms = round(tmp[0], 4)
     path_weight = tmp[3]
     common_feature = tmp[4]
     ps_tmp = sf_entire_ps_score(path, tmp[2], query_path, search_features, a_s_f, query_features, a_q_f, weights,
                                 option)
-    score_ps = round(ps_tmp[0], 10)
-    score_ls = round(ps_tmp[1], 10)
+    score_ps = round(ps_tmp[0], 4)
+    score_ls = round(ps_tmp[1], 4)
     final_score = (score_ms * option["score_weights"][0]) + (score_cs * option["score_weights"][1]) + (
         score_ps * option["score_weights"][2])
     if option["weight_const"]:
@@ -1897,10 +1897,10 @@ def w_weighting(protein, domain_count, proteome):
         else:
             sum_of_features += float(domain_count[feature])
     for feature in features:
-        weights[feature] = round(float(sum_of_features) / float(domain_count[feature]), 8)
-        scaling_factor += round(float(sum_of_features) / float(domain_count[feature]), 8)
+        weights[feature] = round(float(sum_of_features) / float(domain_count[feature]), 4)
+        scaling_factor += round(float(sum_of_features) / float(domain_count[feature]), 4)
     for feature in features:
-        weights[feature] = round(float(weights[feature]) / float(scaling_factor), 8)
+        weights[feature] = round(float(weights[feature]) / float(scaling_factor), 4)
     return weights, domain_count
 
 
@@ -1944,11 +1944,11 @@ def w_weighting_constraints(protein, domain_count, proteome, option):
                 else:
                     sum_of_features += float(domain_count[feature])
             for feature in tools[tool]:
-                weights[feature] = round(float(sum_of_features) / float(domain_count[feature]), 8)
-                scaling_factor += round(float(sum_of_features) / float(domain_count[feature]), 8)
+                weights[feature] = round(float(sum_of_features) / float(domain_count[feature]), 4)
+                scaling_factor += round(float(sum_of_features) / float(domain_count[feature]), 4)
             for feature in tools[tool]:
                 weights[feature] = round(float(weights[feature]) / float(scaling_factor) * option["constraints"][tool],
-                                         8)
+                                         4)
     for feature in single_constraints:
         features.remove(feature)
     for feature in features:
@@ -1963,10 +1963,10 @@ def w_weighting_constraints(protein, domain_count, proteome, option):
             sum_of_features += float(domain_count[feature])
     scaling_factor = 0.0
     for feature in features:
-        weights[feature] = round(float(sum_of_features) / float(domain_count[feature]), 8)
-        scaling_factor += round(float(sum_of_features) / float(domain_count[feature]), 8)
+        weights[feature] = round(float(sum_of_features) / float(domain_count[feature]), 4)
+        scaling_factor += round(float(sum_of_features) / float(domain_count[feature]), 4)
     for feature in features:
-        weights[feature] = round(float(weights[feature]) / float(scaling_factor) * (1.0 - filled), 8)
+        weights[feature] = round(float(weights[feature]) / float(scaling_factor) * (1.0 - filled), 4)
     return weights, domain_count
 
 
