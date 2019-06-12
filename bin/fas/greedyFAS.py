@@ -1195,7 +1195,6 @@ def pb_entire_graphtraversal(search_graph, query_path, search_features, weights,
                     logging.info("search path " + str(path_ad) + " in pb_entire_graphtraversal")
                     logging.debug("Score info: " + str(score_w) + " for query_path " + str(
                         query_path_ad) + " in pb_entire_graphtraversal")
-                    print(score_w)
                     if (score_w[4] >= best_path[1][4] and score_w[3] == best_path[1][3]) or \
                        score_w[3] >= best_path[1][3]:
                         best_path = (path_ad, score_w, query_path_ad)
