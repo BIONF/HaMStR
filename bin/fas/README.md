@@ -279,6 +279,19 @@ python greedyFAS.py -q PATH/ortholog -s PATH/seed -j JOBNAME --bidirectional (-r
 
 This will generate two normal output-files. One for each scoring direction. Additionally, it creates a csv file that gives a short overview over all scores or, if activated, the phyloprofile output.
 
+## Additional Scripts
+parserInterPro.py
+This script can parse the .csv output of InterProScan create .xml input files for FAS. By default, all member databases of InterPro get their own xml file:
+
+```
+python parserInterPro.py -i INPUT.csv -o OUTPUTFOLDER
+```
+
+or as a single file:
+
+```
+python parserInterPro.py -i INPUT.csv -o OUTPUTFOLDER -s
+```
 
 
 # Contact
