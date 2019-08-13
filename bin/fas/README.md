@@ -281,7 +281,7 @@ This will generate two normal output-files. One for each scoring direction. Addi
 
 ## Additional Scripts
 parserInterPro.py
-This script can parse the .csv output of InterProScan create .xml input files for FAS. By default, all member databases of InterPro get their own xml file:
+This script can parse the .csv output of InterProScan and create .xml input files for FAS. By default, all member databases of InterPro get their own xml file:
 
 ```
 python parserInterPro.py -i INPUT.csv -o OUTPUTFOLDER
