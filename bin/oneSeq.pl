@@ -86,7 +86,7 @@ my $startTime = time;
 ##                                      - Not included feature/feature-updated-fas-util
 
 ############ General settings
-my $version = 'oneSeq v.1.3.1';
+my $version = 'oneSeq v.1.4';
 ##### configure
 my $configure = 1;
 if ($configure == 0){
