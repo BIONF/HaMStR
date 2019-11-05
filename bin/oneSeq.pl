@@ -1311,6 +1311,7 @@ if (!$coreOnly) {
 	    my $i       = "--inst_efilter=".$inst_eval_filter;  #dest="inst_efilter", default="0.01", help="E-value filter for hmm bas
 	    my $a	= "--raw_output=2";
 	    my $h	= "--help";
+        my $m   = "--classicMS";
 
 	## adding the option to extract a particular sequence from the annotation directory
 	## becomes relevant when using the pre-computed core sets, where feature annotation for
@@ -1329,7 +1330,7 @@ if (!$coreOnly) {
 	    my ($in, $score, $err);
 	    $score = "NAN";
 	    eval {
-	    @cmd = ($py,$fas,$s,$p,$r,$j,$a,$f,$i,$si);
+	    @cmd = ($py,$fas,$s,$p,$r,$j,$a,$f,$i,$si,$m);
 	    printVariableDebug(@cmd);
 	    print "\n##############################\n";
 	    print "Begin of FAS score calculation.\n";
@@ -1439,8 +1440,54 @@ if (!$coreOnly) {
 		    }
 		}
 	    }
-	    ### check the input file
-	    my $optbreaker = 0;
+### mod ingo
+	    ### check the presence of the pre-computed core set
+	    if ($coreex) {
+		if (! -e "$coreOrthologsPath/$seqName/$seqName.fa") {
+			print "You selected the option -reuse_core, but the core ortholog group $coreOrthologsPath/$seqName/hmm_dir/$seqName.hmm does not exist\n";
+			exit;
+		}
+	    }
+### begin move up
+            ### checking reference species
+            my $optbreaker = 0;
+            while ((!$refSpec or !$taxa{$refSpec})  && !$blast) {
+                if ($optbreaker >= 3){
+                    print "No proper refspec given ... exiting.\n";
+                    exit;
+                }
+                my $output = '';
+                for (my $i = 0; $i < @taxonlist; $i++) {
+                        $output = $output . "[$i]" . "\t" . $taxonlist[$i] . "\n";
+                }
+                for (keys %taxa){
+                        print "value of $_ is \'$taxa{$_}\'";
+                }
+                printDebug("taxa contains $taxa{$refSpec}");
+                my $refSpecIdx = getInput("\n" . $output . "\n" . "You did not provide a valid reference species ($refSpec). Please choose the number for the reference species your input sequence is derived from", 1);
+                $optbreaker++;
+                $refSpec = $taxonlist[$refSpecIdx];
+                checkBlastDb($refSpec, $refSpec);
+            }
+### end move up
+### adding new routine to generate the input sequence if -reuse_core has been set
+	    if ($coreex) {
+		my @refseq=`$grepprog -A 1 ">$seqName|$refSpec" $coreOrthologsPath/$seqName/$seqName.fa`;
+		chomp @refseq;
+		print "$refseq[0]\n";
+		(my $tmp1, my $tmp2, $seqId) = split '\|', $refseq[0];
+		if (length($seqId) == 0){
+			die "error in retrieving sequence while using -reuse_core\n";
+		}
+		print "overruling the provided seed sequence since you used the option -reuse_core. Setting seed id to $seqId\n";
+		open OUT, (">$currDir/$seqName.fa") or die "could not open $currDir/$seqFile for writing in retrieve refseq\n";
+		print OUT join "\n", @refseq;
+		close OUT;
+		$seqFile = "$seqName.fa";
+	    }
+### end mod 
+	    ### check input file			
+	     $optbreaker = 0;
 	    while ((length $seqFile == 0) or ((! -e "$currDir/$seqFile") and (! -e "$dataDir/$seqFile"))) {
 		if ($optbreaker >= 3){
 		    print "No proper file given ... exiting.\n";
@@ -1493,26 +1540,6 @@ if (!$coreOnly) {
 		$minCoreOrthologs = getInput("Please specify the desired number of core orthologs!", 1);
 		$minCoreOrthologs = checkInt($minCoreOrthologs);
 		$optbreaker++;
-	    }
-	    ### checking reference species
-	    $optbreaker = 0;
-	    while ((!$refSpec or !$taxa{$refSpec})  && !$blast) {
-		if ($optbreaker >= 3){
-		    print "No proper refspec given ... exiting.\n";
-		    exit;
-		}
-		my $output = '';
-		for (my $i = 0; $i < @taxonlist; $i++) {
-			$output = $output . "[$i]" . "\t" . $taxonlist[$i] . "\n"; 
-		}
-		for (keys %taxa){
-			print "value of $_ is \'$taxa{$_}\'";
-		}
-		printDebug("taxa contains $taxa{$refSpec}");
-		my $refSpecIdx = getInput("\n" . $output . "\n" . "You did not provide a valid reference species ($refSpec). Please choose the number for the reference species your input sequence was derived from", 1);
-		$optbreaker++;
-		$refSpec = $taxonlist[$refSpecIdx];
-		checkBlastDb($refSpec, $refSpec); 
 	    }
 	    ## check for blast filter
 	    if ($blast_prog ne 'blastall'){

@@ -34,10 +34,10 @@ To get started using FAS you need the protein sequence of the two (or more) prot
 perl annotation.pl -fasta=INPUTPATH/example.fa -path=OUTPUTPATH/ -name=example
 ```
 
-This should give you an output folder of the chosen name containing seven xml files, one for each feature type used in the default set from FACT. Once you have annotated the features of both, the seed and ortholog proteins, you are ready to use the actual FAS algorithm with the two output folders of annotation script:
+This should give you an output folder of the chosen name containing seven xml files, one for each feature type used in the default set from FACT. Once you have annotated the features of both, the seed and ortholog proteins, you are ready to use the actual FAS algorithm with the two output folders of annotation script. The -j variable allows you to set an outputname and output path. If no path is given the outpu will be created in the FAS directory under out/:
 
 ```
-python greedyFAS.py -q PATH/ortholog -s PATH/seed -j JOBNAME 
+python greedyFAS.py -q PATH/ortholog -s PATH/seed -j PATH/JOBNAME 
 ```
 
 This will give two xml files. The first file (JOBNAME) contains the scores and chosen paths for each protein pairing between the seed and ortholog set: 
@@ -94,7 +94,7 @@ Above we used FAS at its very basic with no more options given then the bare nec
 In the first example we used a uniform weighting, so that all features would be weighted equally. To use a different weighting we need give a reference protein set (-r): 
 
 ```
-python greedyFAS.py -q PATH/ortholog -s PATH/seed -j JOBNAME -e PATH/reference 
+python greedyFAS.py -q PATH/ortholog -s PATH/seed -j JOBNAME -r PATH/reference 
 ```
 
 The reference set is there give FAS information on the abundance of the features so that it can create a weighting based on that. It should have the same format as the two input sets (seed&ortholog). If you are not sure what set to use you should go with the proteome of the species the ortholog protein came from. 
@@ -139,10 +139,15 @@ python greedyFAS.py -q PATH/ortholog -s PATH/seed -j JOBNAME -w (0.6, 0.1, 0.3)
 This would set the weight of the MS to 0.6, the CS to 0.1 and the PS to 0.3. The CS will only be calculated if its weight is higher than 0. (Not recommended to change this)
 
 ## In/Output Options
-You can set the extendedout option (-e) to 0 to deactivate the _architecture output: 
+You can use the extendedout option (-e) to deactivate the _architecture output: 
 
 ```
-python greedyFAS.py -q PATH/ortholog -s PATH/seed -j JOBNAME -e 0
+python greedyFAS.py -q PATH/ortholog -s PATH/seed -j JOBNAME -e
+```
+
+The --query_id and --seed_id allow you to choose proteins (either option takes a variable number of arguments) from the query and seed input by their id and only make the calculation for them 
+```
+python greedyFAS.py -q PATH/ortholog -s PATH/seed -j JOBNAME -e --query_id q_protein_1 q_protein_2 --seed_protein s_protein_967
 ```
 
 You can use the raw_output option (-a) to make FAS output its score to STDOUT by setting it to 1 or 2. 1 also suppresses the normal xml output: 
@@ -151,10 +156,24 @@ You can use the raw_output option (-a) to make FAS output its score to STDOUT by
 python greedyFAS.py -q PATH/ortholog -s PATH/seed -j JOBNAME -a 1 
 ```
 
-Using the feature_info (-y) which gives you a file with information on the abundance of all seed and query features in the reference
+Using the feature_info (-y) will give you a file with information on the abundance of all seed and query features in the reference
 
 ```
-python greedyFAS.py -q PATH/ortholog -s PATH/seed -j JOBNAME -y 1 
+python greedyFAS.py -q PATH/ortholog -s PATH/seed -j JOBNAME -y
+```
+
+FAS can write the output as the Phyloprofile input format by using --phyloprofile. This option needs a mapping file that maps all query proteins to their species ncbi id. If the architecture output is deactivated, FAS will not create the .domains outputs.
+
+```
+python greedyFAS.py -q PATH/ortholog -s PATH/seed -j JOBNAME --phyloprofile PATH/mapping_file
+```
+
+The mapping file is a table seperated by tabs:
+
+```
+protein_id_1    ncbi_id
+protein_id_2    ncbi_id
+protein_id_3    ncbi_id
 ```
 
 Finally you can use the featuretypes option (-d) to change what feature file FAS will use and which will be linearized:
@@ -234,32 +253,45 @@ This would set the threshold to 50%.
 
 ## Additional Options
 
-The prior checks using the priority thresholds can be deactivated using the priority_check option (not recommended):
+The prior checks using the priority thresholds can be deactivated using the no_priority_check option (not recommended):
 
 ```
-python greedyFAS.py -q PATH/ortholog -s PATH/seed -j JOBNAME --priority_check 0
+python greedyFAS.py -q PATH/ortholog -s PATH/seed -j JOBNAME --no_priority_check
 ```
 
 This opens up two more options: First the timelimit option. This option allows you to set(in seconds)/deactivate(set to 0) the timelimit the calculation for each pair is allowed to take before priority mode takes over (default 7200s). Secondly, the cores option which allows you to run the calculation on multiple cores:
 
 ```
-python greedyFAS.py -q PATH/ortholog -s PATH/seed -j JOBNAME --priority_check 0 --cores 4 --timelimit 600
+python greedyFAS.py -q PATH/ortholog -s PATH/seed -j JOBNAME --no_priority_check --cores 4 --timelimit 600
 ```
 
-You can switch between classic and new MS calculation using the classicMS option:
+You can switch to the classic MS calculation using the classicMS option:
 
 ```
-python greedyFAS.py -q PATH/ortholog -s PATH/seed -j JOBNAME --classicMS 0
+python greedyFAS.py -q PATH/ortholog -s PATH/seed -j JOBNAME --classicMS
 ```
 
-Finally, the bidirectional option (-b) tells FAS to run the scoring in both directions if you set it to 1, you can also set this to 2 to use to cores for this(should not be used together with the cores option).
+Finally, the bidirectional option tells FAS to run the scoring in both directions. You can give a second reference for the reverse run using --ref_2 otherwise FAS will use the first reference for both calculations.
 
 ```
-python greedyFAS.py -q PATH/ortholog -s PATH/seed -j JOBNAME --bidirectional 1
+python greedyFAS.py -q PATH/ortholog -s PATH/seed -j JOBNAME --bidirectional (-r PATH/reference_1 --ref_2 PATH/reference_2)
 ``` 
 
-This will generate two normal output-files. One for each scoring direction. Additionally, it creates a csv file that gives a short overview over all scores.
+This will generate two normal output-files. One for each scoring direction. Additionally, it creates a csv file that gives a short overview over all scores or, if activated, the phyloprofile output.
 
+## Additional Scripts
+parserInterPro.py
+This script can parse the .csv output of InterProScan and create .xml input files for FAS. By default, all member databases of InterPro get their own xml file:
+
+```
+python parserInterPro.py -i INPUT.csv -o OUTPUTFOLDER
+```
+
+or as a single file:
+
+```
+python parserInterPro.py -i INPUT.csv -o OUTPUTFOLDER -s
+```
 
 
 # Contact
