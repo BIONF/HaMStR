@@ -85,10 +85,13 @@ my $startTime = time;
 ## Modified 24. Nov. 2018: Release      - release oneSeq v1.3.1
 ##                                      - Not included feature/feature-updated-fas-util
 
+## Modified 19. July 2019: - Changes	- added option to run muscle instead of mafft
+
+## Modified 22. July 2019: - invoked priority mode for the fas score computation if t = 30
 ############ General settings
 my $version = 'oneSeq v.1.4';
 ##### configure
-my $configure = 1;
+my $configure = 0;
 if ($configure == 0){
 	die "\n\n$version\n\nPLEASE RUN THE CONFIGURE OR CONFIGURE_MAC SCRIPT BEFORE USING oneSeq.pl\n\n";
 }
@@ -188,6 +191,7 @@ my $countercheck = 0;
 my $fasoff      = 0;
 my $fasstrict   = 0; 
 my $fas_T       = 0.75;
+my $priThreshold = '-t 30';
 my %profile     = ();
 my %fas_score_keeper = ();
 my $eval_filter = 0.001;
@@ -253,6 +257,7 @@ my $ignoreDistance = 0; 	## flag to normalise the score by the distance in the t
 my $distDeviation = 0.05; 	## Span in which a score is consideren similar
 my $breakAfter = 5; 		## Number of Significantly bad candidates after which the current run cancels
 my %hashTree;
+my $aln = 'muscle';
 ################# Command line options
 GetOptions ("h"                 => \$help,
             "showTaxa"          => \$showTaxa,
@@ -307,7 +312,8 @@ GetOptions ("h"                 => \$help,
             "version"           => \$getversion,
 			"reuse_core"        => \$coreex,
 			"ignoreDistance"	=> \$ignoreDistance,
-			"distDeviation=s"	=> \$distDeviation);
+			"distDeviation=s"	=> \$distDeviation,
+		"aligner=s"	=> \$aln);
 
 ############# connect to the database
 if ($dbmode) {
@@ -531,7 +537,7 @@ if (!$coreOnly) {
 
 	    foreach (get_leaves($tree)) {
 		my $pid = $pm->start and next;
-		runHamstr(@{$_->name('supplied')}[0], $seqName, $finalOutput, $refSpec, $hitlimit, $representative, $strict, $coremode, $final_eval_blast, $final_eval_hmmer);
+		runHamstr(@{$_->name('supplied')}[0], $seqName, $finalOutput, $refSpec, $hitlimit, $representative, $strict, $coremode, $final_eval_blast, $final_eval_hmmer, $aln);
 		$pm->finish;
 	    }
 	    $pm->wait_all_children;
@@ -671,10 +677,10 @@ if (!$coreOnly) {
 		    my $score_0;
 		    unless($weight_seed){
 			#weight will be determined on the basis of orthologs origin (taxon where the orthologs is dereived from)
-			$score_0 = runFAS($cand_annot, $seed_annot.$seqName."_seed", $gene_set."_".$gene_id, $seqName, $e_dir, $weightPath."/".$gene_set,$mode);
+			$score_0 = runFAS($cand_annot, $seed_annot.$seqName."_seed", $gene_set."_".$gene_id, $seqName, $e_dir, $weightPath."/".$gene_set,$mode, $priThreshold);
 		    }else{
 			#weight will be determined on the basis of seed species (taxon where the seed is dereived from)
-			$score_0 = runFAS($cand_annot, $seed_annot.$seqName."_seed", $gene_set."_".$gene_id, $seqName, $e_dir, $weightPath."/".$refSpec,$mode);
+			$score_0 = runFAS($cand_annot, $seed_annot.$seqName."_seed", $gene_set."_".$gene_id, $seqName, $e_dir, $weightPath."/".$refSpec,$mode, $priThreshold);
 		    }
 		    
 		    $core_fas_0_box{$headerkey} = $score_0;
@@ -728,10 +734,10 @@ if (!$coreOnly) {
 		    my $score_1;
 		    unless($weight_seed){
 			#weight will be determined on the basis of orthologs origin (taxon where the orthologs is dereived from)
-			$score_1 = runFAS($seed_annot.$seqName."_seed", $cand_annot, $gene_set."_".$gene_id, $seqName, $e_dir, $weightPath."/".$gene_set,$mode);
+			$score_1 = runFAS($seed_annot.$seqName."_seed", $cand_annot, $gene_set."_".$gene_id, $seqName, $e_dir, $weightPath."/".$gene_set,$mode, $priThreshold);
 		    }else{
 			#weight will be determined on the basis of seed species (taxon where the seed is dereived from)
-			$score_1 = runFAS($seed_annot.$seqName."_seed", $cand_annot, $gene_set."_".$gene_id, $seqName, $e_dir, $weightPath."/".$refSpec,$mode);
+			$score_1 = runFAS($seed_annot.$seqName."_seed", $cand_annot, $gene_set."_".$gene_id, $seqName, $e_dir, $weightPath."/".$refSpec,$mode, $priThreshold);
 		    }
 		    $final_fas_1_box{$headerkey} = $score_1;
 		    # double check the FAS results (extra calculation needed, change of direction)
@@ -741,10 +747,10 @@ if (!$coreOnly) {
 			my $score_0;
 			unless($weight_seed){
 			    #weight will be determined on the basis of orthologs origin (taxon where the orthologs is dereived from)
-			    $score_0 = runFAS($cand_annot, $seed_annot.$seqName."_seed", $gene_set."_".$gene_id, $seqName, $e_dir, $weightPath."/".$gene_set,$mode);
+			    $score_0 = runFAS($cand_annot, $seed_annot.$seqName."_seed", $gene_set."_".$gene_id, $seqName, $e_dir, $weightPath."/".$gene_set,$mode, $priThreshold);
 			}else{
 			    #weight will be determined on the basis of seed species (taxon where the seed is dereived from)
-			    $score_0 = runFAS($cand_annot, $seed_annot.$seqName."_seed", $gene_set."_".$gene_id, $seqName, $e_dir, $weightPath."/".$refSpec,$mode);
+			    $score_0 = runFAS($cand_annot, $seed_annot.$seqName."_seed", $gene_set."_".$gene_id, $seqName, $e_dir, $weightPath."/".$refSpec,$mode, $priThreshold);
 			}
 			$final_fas_0_box{$headerkey} = $score_0;
 		    }
@@ -1064,7 +1070,7 @@ if (!$coreOnly) {
 	    my ($in, $stdout, $err);
 	    eval {
 	    @cmd = ($pl,$viz,$i,$o);
-	    #printVariableDebug(@cmd);
+	    if ($debug){printVariableDebug(@cmd);}
 	    print "\n##############################\n";
 	    print "Writing of Visualisation file for profile.\n";
 
@@ -1095,7 +1101,7 @@ if (!$coreOnly) {
 	    my ($in, $stdout, $err);
 	    eval {
 	    @cmd = ($pl,$viz,$i,$p,$g,$o);
-	    #printVariableDebug(@cmd);
+	    if ($debug){ printVariableDebug(@cmd);}
 	    print "\n##############################\n";
 	    print "Writing of Visualisation file for feature architecture.\n";
 
@@ -1297,7 +1303,7 @@ if (!$coreOnly) {
 	# $weight: gene set of ortholog, used for weighting
 	# $mode: invocation mode (single --vs--> set or set --vs--> single)
 	sub runFAS{
-	    my ($single, $ortholog, $name, $group, $outdir, $weight, $mode) = ($_[0], $_[1], $_[2], $_[3], $_[4], $_[5], $_[6]);
+	    my ($single, $ortholog, $name, $group, $outdir, $weight, $mode, $priThreshold) = ($_[0], $_[1], $_[2], $_[3], $_[4], $_[5], $_[6], $_[7]);
 	    chdir($fasPath);
 
 	    my @cmd;
@@ -1330,8 +1336,8 @@ if (!$coreOnly) {
 	    my ($in, $score, $err);
 	    $score = "NAN";
 	    eval {
-	    @cmd = ($py,$fas,$s,$p,$r,$j,$a,$f,$i,$si,$m);
-	    printVariableDebug(@cmd);
+	    @cmd = ($py,$fas,$s,$p,$r,$j,$a,$f,$i,$si,$m,$priThreshold);
+	    if ($debug){printVariableDebug(@cmd);}
 	    print "\n##############################\n";
 	    print "Begin of FAS score calculation.\n";
 	    print "--> Running ". $fas_prog ."\n";
@@ -1764,8 +1770,19 @@ if (!$coreOnly) {
 		return $rankExists;
 	}
 
+############
+## modified by Ingo - Added Option to run Muscle
 	sub createAlnMsf {
-		my $linsiCommand = "mafft --maxiterate 1000 --localpair " . $outputFa . " > " . $outputAln;
+		my $linsiCommand = '';
+		if (!defined $aln or $aln eq 'mafft-linsi') {
+			my $linsiCommand = "mafft-linsi --anysymbol " . $outputFa . " > " . $outputAln;
+		}
+		elsif ($aln eq 'muscle') {
+			$linsiCommand = "muscle -quiet -in " . $outputFa . " -out " .$outputAln;
+		}
+		else {
+			die "issues with the msa. You need to select either mafft or muscle\n";
+		}
 		system($linsiCommand) == 0 or die "Could not run mafft-linsi\n";
 	}
 
@@ -1877,7 +1894,7 @@ if (!$coreOnly) {
 			my $keyName = @{$key->name('supplied')}[0];
 			my $nodeId = $wholeTree->find_node(-ncbi_taxid => $taxa{$keyName})->id;
 			print "Hamstr species: " . $key->scientific_name . " - " . @{$key->name('supplied')}[0] . "\n";
-			runHamstr(@{$key->name('supplied')}[0], $seqName, $outputFa, $refSpec, $core_hitlimit, $core_rep, $corestrict, $coremode, $eval_blast, $eval_hmmer);
+			runHamstr(@{$key->name('supplied')}[0], $seqName, $outputFa, $refSpec, $core_hitlimit, $core_rep, $corestrict, $coremode, $eval_blast, $eval_hmmer, $aln);
 			## check weather a candidate was found in the searched taxon
 			if(-e $candidatesFile) {
 				
@@ -2124,8 +2141,11 @@ sub getTree {
 	my $tree;
         foreach my $key (keys%taxa) {
 		my $node = $db->get_taxon(-taxonid => $taxa{$key});
-
+		printDebug("\$key in sub getTree is $key and taxid is $taxa{$key}\n");
 		$node->name('supplied', $key);
+		if (!defined $node){
+			print "ISSUE in sub getTree\n";
+		}
 		if($tree) {
 			$tree->merge_lineage($node);
 		} 
@@ -2146,7 +2166,7 @@ sub getTree {
 ##################### perform the hamstr search for orthologs
 # using the core-orthologs found in the previous steps
 sub runHamstr {
-	my ($taxon, $seqName, $outputFa, $refSpec, $hitlimit, $rep, $sub_strict, $subcoremode, $ev_blst, $ev_hmm) = (@_);
+	my ($taxon, $seqName, $outputFa, $refSpec, $hitlimit, $rep, $sub_strict, $subcoremode, $ev_blst, $ev_hmm, $aln) = (@_);
 	my $taxaDir = $taxaPath . $taxon;
 	printDebug("Running hamstr: $taxon\t$seqName\t$outputFa\t$refSpec\t$taxaDir"); 
 	if (! -e $taxaDir) {
@@ -2173,7 +2193,7 @@ sub runHamstr {
 		    my $taxon_id = substr($taxon, 6, length($taxon));
 		    my @hamstr = ($hamstrPath, "-sequence_file=".$seqfile, "-fasta_file=".$outputFa, "-hmmpath=".$coreOrthologsPath , "-outpath=".$outputPath,
 			     "-blastpath=".$blastPath , "-protein", "-hmmset=".$seqName, "-taxon=".$taxon, "-force", 
-			     "-eval_blast=".$ev_blst, "-eval_hmmer=".$ev_hmm, "-central");
+			     "-eval_blast=".$ev_blst, "-eval_hmmer=".$ev_hmm, "-central", "-aligner=".$aln);
 
 		    my $resultFile;
 			if (defined $autoLimit) {
@@ -2815,9 +2835,11 @@ ${bold}ADDITIONAL OPTIONS$norm
 -batch=<>
 	Currently has NO functionality.
 -group=<>
-	I think it allows to limit the search to a certain systematic group. NOTE: Needs to be checked.
+	Allows to limit the search to a certain systematic group
 -cleanup
         Temporary output will be deleted.
+-aligner
+	Choose between mafft-linsi or muscle for the multiple sequence alignment. DEFAULT: muscle
 
 ${bold}SPECIFYING FAS SUPPORT OPTIONS$norm
 
