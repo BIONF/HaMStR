@@ -2,8 +2,8 @@
 use strict;
 use Getopt::Long;
 use lib '../lib';
-use lib '../lib/Bio';
-use lib '../lib/XML';
+use lib '..lib/Bio';
+use lib '..lib/XML';
 use Parallel::ForkManager;
 use Bio::SearchIO;
 use Bio::Search::Hit::BlastHit;
@@ -184,25 +184,29 @@ use Statistics::R;
     ## Minor Bug fix (solved): HaMStR is not longer asking infinite times for the replacement of already existing output files.
     ## Minor Bug fix (solved): Backward compatibility extended. Naming of reference fasta files: (*.fa and *_prot.fa)
 
+    ## 20.07.2019
+    ## fixed the issue of long proteins with best total hmm bit score but very poor domain scores. Allow now the option to sort
+    ## hmmsearch output according to the best domain bit score. The current routine assumes that neither query nor
+    ## hit has whitespaces in their names
 ######################## start main ###########################################
-my $version = "HaMStR v.13.2.9";
+my $version = "HaMStR v.13.2.10";
 ######################## checking whether the configure script has been run ###
-my $configure = 0;
+my $configure = 1;
 if ($configure == 0){
 	die "\n\n$version\n\nPLEASE RUN THE CONFIGURE OR CONFIGURE_MAC SCRIPT BEFORE USING HAMSTR\n\n";
 }
 ########## EDIT THE FOLLOWING LINES TO CUSTOMIZE YOUR SCRIPT ##################
 my $prog = 'hmmsearch'; #program for the hmm search
 my $eval = 1; # default evalue cutoff for the hmm search
-my $path =  '/path/to/your/hamstr';
+my $path =  '/share/project/ingo/src/HaMStR';
 my $sedprog = 'sed';
 my $grepprog = 'grep';
 my $alignmentprog = 'clustalw';
-my $alignmentprog_co = 'mafft-linsi --anysymbol';
+my $alignmentprog_co = 'muscle';
 ########## EDIT THE FOLLOWING TWO LINES TO CHOOSE YOUR BLAST PROGRAM ##########
 #my $blast_prog = 'blastall';
 my $blast_prog = 'blastp';
-my $filter = 'T'; # low complexity filter switch. Default 'on'. Set of 'F' to turn off permanently. 
+my $filter = 'F'; # low complexity filter switch. Default 'on'. Set of 'F' to turn off permanently. 
 my $eval_blast = 10; # default evalue cutoff for the blast search
 ########## EDIT THE FOLLOWING LINES TO MODIFY DEFAULT PATHS ###################
 
@@ -299,7 +303,7 @@ my $keepintron = 'k';
 my $blastapp  = '';
 my $blastdbend = '.pin';
 ######### ublast options #########
-my $runublast = 0;
+my $runublast = 1;
 my $ublast = 0;
 my $accel = 0.8;
 #####determine the hostname#######
@@ -440,9 +444,12 @@ ${bold}ADDITIONAL OPTIONS$norm
 -strict
 		Set this flag if the reciprocity criterion is only fulfilled when the re-blast against
 		all primer taxa was successfull
+-aligner	
+		Choose between muscle or mafft-linsi for the alignment of multiple sequences. DEFAULT: muscle
 		\n\n";
 GetOptions ("append" => \$append,
 			"autoLimit"	=> \$autoLimit,
+			"aligner=s"	=> \$alignmentprog_co,
 			"blastpath=s" => \$blastpath,
 			"checkCoorthologsRef" => \$checkCoRef,
 			"concat" => \$concat,
@@ -546,7 +553,8 @@ for (my $i = 0; $i < @hmms; $i++) {
   	## 3) run the hmm search
   	if (!(-e "$hmmsearch_dir/$hmmout")) {
     	printOUT("\n\nnow running $prog using $hmm\n");
-    	!`$prog -E $eval $hmm_dir/$hmm $dboutpath/$dbfile >$hmmsearch_dir/$hmmout` or die "Problem running hmmsearch\n";
+	print "$prog --noali --tblout $hmmsearch_dir/$hmmout -E $eval $hmm_dir/$hmm $dboutpath/$dbfile\n";
+    	`$prog --noali --tblout $hmmsearch_dir/$hmmout -E $eval $hmm_dir/$hmm $dboutpath/$dbfile` or die "Problem running hmmsearch as $prog --noali --tblout $hmmsearch_dir/$hmmout -E $eval $hmm_dir/$hmm $dboutpath/$dbfile. No output $hmmsearch_dir/$hmmout\n";
   	}
   	else {
     	printOUT("an hmmresult $hmmout already exists. Using this one!\n");
@@ -557,7 +565,7 @@ for (my $i = 0; $i < @hmms; $i++) {
   	## 4a) loop through the individual results
   	## now the modified version for hmmer3 comes
   	my $hitlimit_local = $hitlimit;
-  	my ($query_name, $results, $hitlimit_local, $criticalValue) = parseHmmer3pm($hmmout, $hmmsearch_dir);
+  	my ($query_name, $results, $hitlimit_local, $criticalValue) = parseHmmer4pm($hmmout, $hmmsearch_dir);
   	if (! $results) {
     	printOUT("no hit found for $query_name\n");
     	$pm->finish;
@@ -1953,6 +1961,58 @@ sub parseHmmer3pm {
 	}
 }
 ##############################
+sub parseHmmer4pm {
+        my ($file, $path) = @_;
+	my $hmmhits;
+        my $hits;
+        my $query;
+	my @rest;
+        my %tmphash;
+	my $hitcount = 0;
+        if (!defined $path){
+                $path = '.';
+        }
+        $file = $path . '/' . $file;
+	my @hmmout = `$grepprog -v '#' $file |sort -rnk 9 |sed -e 's/ /@/g'`;
+	for (my $i = 0; $i < @hmmout; $i++) {
+		($hmmhits->[$i]->{target_name}, $hmmhits->[$i]->{target_accession}, $hmmhits->[$i]->{query_name}, $hmmhits->[$i]->{query_accession},  $hmmhits->[$i]->{total_evalue},  $hmmhits->[$i]->{total_score},  $hmmhits->[$i]->{total_bias},  $hmmhits->[$i]->{domain_evalue}, $hmmhits->[$i]->{domain_score},  $hmmhits->[$i]->{domain_bias}, @rest) = split(/@+/, $hmmout[$i]);
+
+                if (!defined $query){
+                $query = $hmmhits->[$i]->{query_name};
+                        printOUT("query is $query\n");
+                }
+                my $tmp = $hmmhits->[$i]->{target_name};
+                my $tmpscore = $hmmhits->[$i]->{domain_score};
+                $tmp =~ s/_RF.*//;
+                if (!defined $tmphash{$tmp}){
+                        $hits->[$hitcount]->{id} = $tmp;
+                        $hits->[$hitcount]->{hmmscore} = $tmpscore;
+                        $hitcount++;
+                        $tmphash{$tmp}=1;
+                        if (defined $bhh){
+                                last;
+                        }
+                }
+        
+	}
+	if (defined $hits->[0]) {
+      		####### limit the list of hmm hits
+        	my $criticalValue; # takes the value used for candidate discrimination
+       		my $hitLimitLoc = $hitlimit;
+        	if (defined $scoreThreshold) {
+        		printDebug("entering the scoreThreshold routine");
+                	($hitLimitLoc, $criticalValue) = getHitLimit($hits, $hitcount);
+                	printDebug("hitlimitloc is now $hitLimitLoc");
+        	}
+
+    	   	return ($query, $hits, $hitLimitLoc, $criticalValue);
+	}
+	else {
+	        return ($query);
+        }
+ 
+}
+##############################
 sub parseSeqfile {
   my $seqref;
   my $id;
@@ -2076,7 +2136,15 @@ sub identifyCoorthologsProt{
 	print OUT join "\n", @out;
 	close OUT;
     ## aligning sequences
-	`$alignmentprog_co --quiet $tmpdir/$localid.orth.fa > "$tmpdir/$localid.orth.aln"`;
+	if ($alignmentprog_co eq 'mafft-linsi'){
+		`$alignmentprog_co --anysymbol --quiet $tmpdir/$localid.orth.fa > "$tmpdir/$localid.orth.aln"`;
+	}
+	elsif ($alignmentprog_co eq 'muscle') {
+		`$alignmentprog_co -quiet -in $tmpdir/$localid.orth.fa -out "$tmpdir/$localid.orth.aln"`;
+	}
+	else {
+		die "$alignmentprog_co is neither mafft-linsi nor muscle\n";
+	}
 	if (! -e "$tmpdir/$localid.orth.aln") {
 		die "something wrong running $alignmentprog_co\n";
 	}
@@ -2131,7 +2199,15 @@ sub checkCoorthologRef {
 	print OUT ">query\n$query\n>best\n$best\n>ref\n$ref\n";
 	close OUT;
 	## aligning sequences
-	`$alignmentprog_co --quiet $tmpdir/$localid.co.fa > "$tmpdir/$localid.co.aln"`;
+if ($alignmentprog_co eq 'mafft-linsi'){
+                `$alignmentprog_co --anysymbol --quiet $tmpdir/$localid.co.fa > "$tmpdir/$localid.co.aln"`;
+        }
+        elsif ($alignmentprog_co eq 'muscle') {
+                `$alignmentprog_co -in $tmpdir/$localid.co.fa -out "$tmpdir/$localid.co.aln"`;
+	}
+        else {
+                die "$alignmentprog_co is neither mafft-linsi nor muscle\n";
+        }
 	if (! -e "$tmpdir/$localid.co.aln") {
 		die "something wrong running $alignmentprog_co in routine checkCoorthologRef\n";
 	}
