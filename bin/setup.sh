@@ -1,10 +1,59 @@
 #!/bin/bash
+
+# check dependencies
+echo "-------------------------------------"
+echo "Checking dependencies..."
+
+dependencies=(
+  blastp
+  genewise
+  hmmsearch
+  hmmbuild
+  clustalw
+  linsi
+)
+
+flag=0
+for i in "${dependencies[@]}"; do
+  msg="$(which $i)"
+  if [ -z "$msg" ]; then
+    echo "$i not found. Please install it to use HaMStR!"
+    flag=1
+  fi
+done
+
+if [ "$flag" == 1 ]; then exit 1; fi
+echo "done!"
+
+### prepare folder
+echo "-------------------------------------"
+echo "Preparing folders..."
+DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
+cd $DIR/..
+
+# create required folders
+folders=(
+  blast_dir
+  core_orthologs
+  genome_dir
+  weight_dir
+  taxonomy
+  output
+  tmp
+)
+
+for i in "${folders[@]}"; do
+  if [ ! -d $i ]; then mkdir $i; fi
+done
+
+echo "done!"
+
+### download data
 echo "-------------------------------------"
 echo "moving data into the right place"
 echo "manipulate files in:"
 CURRENT=$(pwd)
 echo $CURRENT
-echo "-------------------------------------"
 
 if [[ $CURRENT == */HaMStR ]] || [[ $CURRENT == */hamstr ]]; then
     echo "Processing $CURRENT ..."
@@ -64,9 +113,10 @@ if [[ $CURRENT == */HaMStR ]] || [[ $CURRENT == */hamstr ]]; then
             echo "Something went wrong with the download. Checksum does not match."
         fi
     fi
-    
+
 else
     echo "Please change into your HaMStR directory and run install_data.sh again."
     echo "Exiting."
     exit
 fi
+echo "done!"
