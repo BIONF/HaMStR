@@ -11,6 +11,8 @@ dependencies=(
   hmmbuild
   clustalw
   linsi
+  perl
+  python
 )
 
 flag=0
@@ -40,6 +42,13 @@ folders=(
   taxonomy
   output
   tmp
+  "bin/fas/CAST"
+  "bin/fas/COILS2"
+  "bin/fas/Pfam"
+  "bin/fas/SEG"
+  "bin/fas/SignalP"
+  "bin/fas/SMART"
+  "bin/fas/TMHMM"
 )
 
 for i in "${folders[@]}"; do
@@ -48,6 +57,7 @@ done
 
 echo "done!"
 
+exit 1
 ### download data
 echo "-------------------------------------"
 echo "moving data into the right place"
