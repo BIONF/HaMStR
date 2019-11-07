@@ -41,5 +41,12 @@
 	Files:
 	annotation.pl
 	greedyFAS.py
+1.2.2 bin/visuals
+	parseArchitecture.pl	(parse FAS output files to create domain files for phyloprofile)
+	parseOneSeq.pl	(parse HaMStR-OneSeq output to create matrix file for phyloprofile)
+1.2.3 bin/aligner
+	fasta-36.3.8e (FASTA suite of programs: https://fasta.bioch.virginia.edu/fasta_www2/fasta_list2.shtml)
+	README
 
-# TODO: write readme
+1.3 Installation and Usage
+	Please see README.md
