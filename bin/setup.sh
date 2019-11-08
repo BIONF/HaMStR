@@ -47,6 +47,7 @@ folders=(
   "bin/fas/CAST"
   "bin/fas/COILS2"
   "bin/fas/Pfam"
+  "bin/fas/Pfam/Pfam-hmms"
   "bin/fas/SEG"
   "bin/fas/SignalP"
   "bin/fas/SMART"
@@ -99,6 +100,14 @@ if [ -z "$msg" ]; then
   echo $seqPath
   # echo "export PATH=${fastaPath}:\$PATH" >> ~/.bashrc
 fi
+cd $CURRENT
+
+echo "pfam-A.hmm"
+cd "bin/fas/Pfam/Pfam-hmms"
+wget ftp://ftp.ebi.ac.uk/pub/databases/Pfam/current_release//Pfam-A.hmm.gz
+gunzip Pfam-A.hmm.gz
+hmmpress Pfam-A.hmm
+ls
 cd $CURRENT
 
 # source ~/.bashrc
