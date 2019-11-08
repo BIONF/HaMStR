@@ -81,12 +81,24 @@ if [ -z "$msg" ]; then
   # elif [ $sys=="Darwin" ]; then
   #   make -f ../make/Makefile.os_x86_64 all
   # fi
-  # fastaBin=$(cd -- ../bin && pwd)
-  # echo "export PATH=${fastaBin}:\$PATH" >> ~/.bashrc
+  # fastaPath=$(cd -- ../bin && pwd)
+  # echo "export PATH=${fastaPath}:\$PATH" >> ~/.bashrc
 fi
 cd $CURRENT
 
-
+msg="$(which seg)"
+if [ -z "$msg" ]; then
+  echo "SEG"
+  cd "bin/fas/SEG"
+  wget -r --no-parent ftp://ftp.ncbi.nih.gov/pub/seg/seg
+  mv ftp.ncbi.nih.gov/pub/seq/seq/*  $(pwd) #"ftp.ncbi.nih.gov/pub/seg/seg/* $(pwd)"
+  #rm -rf ftp.ncbi.nih.gov
+  #rm -rf archive
+  #make
+  seqPath=$(pwd)
+  echo $seqPath
+fi
+cd $CURRENT
 
 # source ~/.bashrc
 exit 1
