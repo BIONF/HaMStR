@@ -90,15 +90,14 @@ cd $CURRENT
 msg="$(which seg)"
 if [ -z "$msg" ]; then
   echo "SEG"
-  cd "bin/fas/SEG"
-  wget -r -l 2 -np ftp://ftp.ncbi.nih.gov/pub/seg/seg
-  mv ftp.ncbi.nih.gov/pub/seg/seg/* $(pwd)
-  rm -rf ftp.ncbi.nih.gov
-  rm -rf archive
-  make
-  seqPath=$(pwd)
-  echo $seqPath
-  # echo "export PATH=${fastaPath}:\$PATH" >> ~/.bashrc
+  # cd "bin/fas/SEG"
+  # wget -r -l 2 -np ftp://ftp.ncbi.nih.gov/pub/seg/seg
+  # mv ftp.ncbi.nih.gov/pub/seg/seg/* $(pwd)
+  # rm -rf ftp.ncbi.nih.gov
+  # rm -rf archive
+  # make
+  # seqPath=$(pwd)
+  # echo "export PATH=${seqPath}:\$PATH" >> ~/.bashrc
 fi
 cd $CURRENT
 
