@@ -48,6 +48,7 @@ folders=(
   "bin/fas/COILS2"
   "bin/fas/Pfam"
   "bin/fas/Pfam/Pfam-hmms"
+  "bin/fas/Pfam/output_files"
   "bin/fas/SEG"
   "bin/fas/SignalP"
   "bin/fas/SMART"
@@ -103,10 +104,12 @@ cd $CURRENT
 
 echo "pfam-A.hmm"
 cd "bin/fas/Pfam/Pfam-hmms"
-wget ftp://ftp.ebi.ac.uk/pub/databases/Pfam/current_release//Pfam-A.hmm.gz
-gunzip Pfam-A.hmm.gz
-hmmpress Pfam-A.hmm
-ls
+# wget ftp://ftp.ebi.ac.uk/pub/databases/Pfam/current_release//Pfam-A.hmm.gz
+# wget ftp://ftp.ebi.ac.uk/pub/databases/Pfam/current_release/Pfam-A.hmm.dat.gz
+# gunzip Pfam-A.hmm.gz
+# gunzip Pfam-A.hmm.dat.gz
+# hmmpress Pfam-A.hmm
+# mv bin/pfam_scan.pl bin/fas/Pfam/
 cd $CURRENT
 
 # source ~/.bashrc
