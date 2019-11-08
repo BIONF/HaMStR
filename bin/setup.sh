@@ -91,7 +91,7 @@ if [ -z "$msg" ]; then
   echo "SEG"
   cd "bin/fas/SEG"
   wget -r -l 2 -np ftp://ftp.ncbi.nih.gov/pub/seg/seg
-  mv "ftp.ncbi.nih.gov/pub/seg/seg/*  $(pwd)"
+  mv ftp.ncbi.nih.gov/pub/seg/seg/* $(pwd)
   rm -rf ftp.ncbi.nih.gov
   rm -rf archive
   make
