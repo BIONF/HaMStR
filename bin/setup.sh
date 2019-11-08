@@ -17,6 +17,7 @@ dependencies=(
 
 flag=0
 for i in "${dependencies[@]}"; do
+  echo "$i"
   msg="$(which $i)"
   if [ -z "$msg" ]; then
     echo "$i not found. Please install it to use HaMStR!"
@@ -32,6 +33,7 @@ echo "-------------------------------------"
 echo "Preparing folders..."
 DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
 cd $DIR/..
+CURRENT=$(pwd)
 
 # create required folders
 folders=(
@@ -49,20 +51,50 @@ folders=(
   "bin/fas/SignalP"
   "bin/fas/SMART"
   "bin/fas/TMHMM"
+  "bin/aligner"
 )
 
 for i in "${folders[@]}"; do
+  echo "$i"
   if [ ! -d $i ]; then mkdir $i; fi
 done
 
 echo "done!"
 
+### download tools
+sys="$(uname)" # Linux for Linux or Darwin for MacOS
+echo $sys
+echo "-------------------------------------"
+echo "downloading and installing required tools:"
+
+msg="$(which fasta36)"
+if [ -z "$msg" ]; then
+  echo "fasta-36"
+  # fasta36v="fasta-36.3.8h"
+  # wget "http://faculty.virginia.edu/wrpearson/fasta/fasta36/${fasta36version}.tar.gz"
+  # tar xfv $fasta36v.tar.gz
+  # rm "${fasta36version}.tar.gz"
+  # mv $fasta36v bin/aligner
+  # cd "bin/aligner/$fasta36v/src"
+  # if [ $sys=="Linux" ]; then
+  #   make -f ../make/Makefile.linux64_sse2 all
+  # elif [ $sys=="Darwin" ]; then
+  #   make -f ../make/Makefile.os_x86_64 all
+  # fi
+  # fastaBin=$(cd -- ../bin && pwd)
+  # echo "export PATH=${fastaBin}:\$PATH" >> ~/.bashrc
+fi
+cd $CURRENT
+
+
+
+# source ~/.bashrc
 exit 1
 ### download data
 echo "-------------------------------------"
 echo "moving data into the right place"
 echo "manipulate files in:"
-CURRENT=$(pwd)
+cd $CURRENT
 echo $CURRENT
 
 if [[ $CURRENT == */HaMStR ]] || [[ $CURRENT == */hamstr ]]; then
