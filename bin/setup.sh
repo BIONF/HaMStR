@@ -16,14 +16,14 @@ dependencies=(
 )
 
 flag=0
-for i in "${dependencies[@]}"; do
-  echo "$i"
-  msg="$(which $i)"
-  if [ -z "$msg" ]; then
-    echo "$i not found. Please install it to use HaMStR!"
-    flag=1
-  fi
-done
+# for i in "${dependencies[@]}"; do
+#   echo "$i"
+#   msg="$(which $i)"
+#   if [ -z "$msg" ]; then
+#     echo "$i not found. Please install it to use HaMStR!"
+#     flag=1
+#   fi
+# done
 
 if [ "$flag" == 1 ]; then exit 1; fi
 echo "done!"
@@ -90,13 +90,14 @@ msg="$(which seg)"
 if [ -z "$msg" ]; then
   echo "SEG"
   cd "bin/fas/SEG"
-  wget -r --no-parent ftp://ftp.ncbi.nih.gov/pub/seg/seg
-  mv ftp.ncbi.nih.gov/pub/seq/seq/*  $(pwd) #"ftp.ncbi.nih.gov/pub/seg/seg/* $(pwd)"
-  #rm -rf ftp.ncbi.nih.gov
-  #rm -rf archive
-  #make
+  wget -r -l 2 -np ftp://ftp.ncbi.nih.gov/pub/seg/seg
+  mv "ftp.ncbi.nih.gov/pub/seg/seg/*  $(pwd)"
+  rm -rf ftp.ncbi.nih.gov
+  rm -rf archive
+  make
   seqPath=$(pwd)
   echo $seqPath
+  # echo "export PATH=${fastaPath}:\$PATH" >> ~/.bashrc
 fi
 cd $CURRENT
 
