@@ -13,6 +13,7 @@ dependencies=(
   hmmsearch # hmmer (for both hmmsearch and hmmbuild)
   clustalw
   mafft # for linsi
+  muscle
 )
 
 flag=0
@@ -25,7 +26,7 @@ for i in "${dependencies[@]}"; do
     elif [ "$tool" = "hmmsearch" ]; then
       conda install -y -c bioconda hmmer
     elif [ "$tool" = "genewise" ]; then
-      # echo "install genewise"
+      echo "install genewise"
       # wget http://www.ebi.ac.uk/~birney/wise2/wise2.4.1.tar.gz
       # tar xfv wise2.4.1.tar.gz
       # cd wise2.4.1/src
@@ -41,35 +42,14 @@ for i in "${dependencies[@]}"; do
       conda install -y -c bioconda $i
     fi
   fi
-  #
-  # if [ -z "$(which $i)" ]; then
-  #   echo "$tool"
-  #   if [ tool=="genewise" ]; then
-  #     echo "JA"
-  #     echo "genewise"
-  #     # wget http://www.ebi.ac.uk/~birney/wise2/wise2.4.1.tar.gz
-  #     # tar xfv wise2.4.1.tar.gz
-  #     # cd wise2.4.1/src
-  #     # # Here we need to modify makefile to replace "CC = cc" with "CC = gcc" in Line 25 and save the change
-  #     # find ./ -name makefile | xargs sed -i 's/glib-config/pkg-config --libs glib-2.0/'
-  #     # cd ./HMMer2/
-  #     # sed 's/getline/getline_new/' sqio.c  > a &&  mv a sqio.c
-  #     # cd ../models/
-  #     # # Change phasemodel.c to replace "if( !isnumber(line[0]) ) {" with "if( !isdigit(line[0]) ) {" in Line 23
-  #     # cd ..
-  #     # make all
-  #   else
-  #     conda install -y -c bioconda $tool
-  #   fi
-  # fi
 done
 
-for i in "${dependencies[@]}"; do
-  if [ -z "$(which $i)" ]; then
-  echo "$i not found. Please install it to HaMStR!"
-  flag=1
-  fi
-done
+# for i in "${dependencies[@]}"; do
+#   if [ -z "$(which $i)" ]; then
+#   echo "$i not found. Please install it to HaMStR!"
+#   flag=1
+#   fi
+# done
 
 if [ "$flag" == 1 ]; then exit 1; fi
 echo "done!"
@@ -190,16 +170,20 @@ perlModules=(
   Bio::Tools::Run::StandAloneBlast
 )
 
-# for i in "${perlModules[@]}"; do cpanm ${i}; done
+#for i in "${perlModules[@]}"; do cpanm ${i}; done
+arr=(a b)
 for i in "${perlModules[@]}"; do
   msg=$(perldoc -l $i)
-  if [[ $msg =~ *no\sdocumentation* ]]; then
-  echo "$i could not be installed!"
+  # if [ "$(perldoc -l $i)" =~ *no\sdocumentation* ]; then
+  if echo "$msg" | grep -q "documentation"; then
+    # arr+=($i)
+    echo "$i could not be installed!"
   fi
 done
-
+echo ${arr[@]}
 # source ~/.bashrc
 exit 1
+
 ### download data
 # echo "-------------------------------------"
 # echo "moving data into the right place"
