@@ -20,7 +20,7 @@ flag=0
 #   echo "$i"
 #   msg="$(which $i)"
 #   if [ -z "$msg" ]; then
-#     echo "$i not found. Please install it to use HaMStR!"
+#     echo "$i not found. Please install it to HaMStR!"
 #     flag=1
 #   fi
 # done
@@ -60,14 +60,13 @@ for i in "${folders[@]}"; do
   echo "$i"
   if [ ! -d $i ]; then mkdir $i; fi
 done
-
 echo "done!"
 
 ### download tools
 sys="$(uname)" # Linux for Linux or Darwin for MacOS
 echo $sys
 echo "-------------------------------------"
-echo "downloading and installing required tools:"
+echo "downloading and installing required tools/libraries:"
 
 msg="$(which fasta36)"
 if [ -z "$msg" ]; then
@@ -102,87 +101,128 @@ if [ -z "$msg" ]; then
 fi
 cd $CURRENT
 
-echo "pfam-A.hmm"
 cd "bin/fas/Pfam/Pfam-hmms"
-# wget ftp://ftp.ebi.ac.uk/pub/databases/Pfam/current_release//Pfam-A.hmm.gz
-# wget ftp://ftp.ebi.ac.uk/pub/databases/Pfam/current_release/Pfam-A.hmm.dat.gz
-# gunzip Pfam-A.hmm.gz
-# gunzip Pfam-A.hmm.dat.gz
-# hmmpress Pfam-A.hmm
-# mv bin/pfam_scan.pl bin/fas/Pfam/
+FILE=Pfam-A.hmm
+if ! [ -f "$FILE" ]; then
+    echo "pfam-A.hmm"
+    # wget ftp://ftp.ebi.ac.uk/pub/databases/Pfam/current_release//Pfam-A.hmm.gz
+    # wget ftp://ftp.ebi.ac.uk/pub/databases/Pfam/current_release/Pfam-A.hmm.dat.gz
+    # gunzip Pfam-A.hmm.gz
+    # gunzip Pfam-A.hmm.dat.gz
+    # hmmpress Pfam-A.hmm
+    # mv bin/pfam_scan.pl bin/fas/Pfam/
+fi
 cd $CURRENT
+
+perlModules=(
+  DBI
+  DB_File
+  File::Copy
+  File::Path
+  File::Basename
+  List::Util
+  Parallel::ForkManager
+  POSIX
+  XML::SAX
+  XML::NamespaceSupport
+  XML::Parser
+  Getopt::Long
+  IO::Handle
+  IPC::Run
+  Statistics::R
+  Term::Cap
+  Time::HiRes
+  Bio::AlignIO
+  Bio::Align::ProteinStatistics
+  Bio::DB::Taxonomy
+  Bio::SearchIO
+  Bio::Search::Hit::BlastHit
+  Bio::Seq
+  Bio::SeqIO
+  Bio::SeqUtils
+  Bio::Tree::Tree
+  Bio::Tools::Run::StandAloneBlast
+)
+
+# for i in "${perlModules[@]}"; do cpanm ${i}; done
+for i in "${perlModules[@]}"; do
+  msg=$(perldoc -l $i)
+  if [[ $msg =~ *no\sdocumentation* ]]; then
+    echo "$i could not be installed!"
+  fi
+done
 
 # source ~/.bashrc
 exit 1
 ### download data
-echo "-------------------------------------"
-echo "moving data into the right place"
-echo "manipulate files in:"
-cd $CURRENT
-echo $CURRENT
-
-if [[ $CURRENT == */HaMStR ]] || [[ $CURRENT == */hamstr ]]; then
-    echo "Processing $CURRENT ..."
-    echo "Downloading data from https://applbio.biologie.uni-frankfurt.de/download/hamstr_qfo/data_HaMStR.tar"
-    wget --no-check-certificate https://applbio.biologie.uni-frankfurt.de/download/hamstr_qfo/data_HaMStR.tar
-    if [ ! -f $CURRENT/data_HaMStR.tar ]; then
-        echo "File not found!"
-    else
-        CHECKSUM=$(cksum data_HaMStR.tar)
-        echo "Checksum: $CHECKSUM"
-        if [ "$CHECKSUM" == "557087663 1952579568 data_HaMStR.tar" ]; then
-            echo "Extracting archive data_HaMStR.tar"
-            tar xfv $CURRENT/data_HaMStR.tar
-            echo "Archive data_HaMStR.tar extracted into $CURRENT"
-            if [ ! -d $CURRENT/data_HaMStR ]; then
-                echo "Directory $CURRENT/data_HaMStR not found!"
-            else
-                printf "\nMoving gene sets ...\n--------------------\n"
-                #sleep 3
-                rsync -rva data_HaMStR/genome_dir/* $CURRENT/genome_dir
-                printf "\nMoving blast databases ...\n--------------------------\n"
-                #sleep 3
-                rsync -rva data_HaMStR/blast_dir/* $CURRENT/blast_dir
-                printf "\nMoving annotations ...\n----------------------\n"
-                #sleep 3
-                rsync -rva data_HaMStR/weight_dir/* $CURRENT/weight_dir
-                printf "\nMoving Taxonomy ...\n-------------------\n"
-                #sleep 3
-                rsync -rva data_HaMStR/taxonomy/* $CURRENT/taxonomy
-                printf "\nMoving Pfam ...\n---------------\n"
-                #sleep 3
-                rsync -rva data_HaMStR/Pfam/* $CURRENT/bin/fas/Pfam
-                printf "\nMoving SMART ...\n----------------\n"
-                #sleep 3
-                rsync -rva data_HaMStR/SMART/* $CURRENT/bin/fas/SMART
-                printf "\nMoving CAST ...\n---------------\n"
-                #sleep 3
-                rsync -rva data_HaMStR/CAST/* $CURRENT/bin/fas/CAST
-                printf "\nMoving COILS ...\n----------------\n"
-                #sleep 3
-                rsync -rva data_HaMStR/COILS2/* $CURRENT/bin/fas/COILS2
-                printf "\nMoving SEG ...\n--------------\n"
-                #sleep 3
-                rsync -rva data_HaMStR/SEG/* $CURRENT/bin/fas/SEG
-                printf "\nMoving SignalP ...\n------------------\n"
-                #sleep 3
-                rsync -rva data_HaMStR/SignalP/* $CURRENT/bin/fas/SignalP
-                printf "\nMoving TMHMM ...\n----------------\n"
-                #sleep 3
-                rsync -rva data_HaMStR/TMHMM/* $CURRENT/bin/fas/TMHMM
-                rsync -rva data_HaMStR/README* $CURRENT/
-                printf "\nRemoving duplicated data. Please wait.\n------------------------------------\n"
-                rm -rf $CURRENT/data_HaMStR
-                printf "\nFinished. Data should be in place to run HaMStR.\n"
-            fi
-        else
-            echo "Something went wrong with the download. Checksum does not match."
-        fi
-    fi
-
-else
-    echo "Please change into your HaMStR directory and run install_data.sh again."
-    echo "Exiting."
-    exit
-fi
-echo "done!"
+# echo "-------------------------------------"
+# echo "moving data into the right place"
+# echo "manipulate files in:"
+# cd $CURRENT
+# echo $CURRENT
+#
+# if [[ $CURRENT == */HaMStR ]] || [[ $CURRENT == */hamstr ]]; then
+#     echo "Processing $CURRENT ..."
+#     echo "Downloading data from https://applbio.biologie.uni-frankfurt.de/download/hamstr_qfo/data_HaMStR.tar"
+#     wget --no-check-certificate https://applbio.biologie.uni-frankfurt.de/download/hamstr_qfo/data_HaMStR.tar
+#     if [ ! -f $CURRENT/data_HaMStR.tar ]; then
+#         echo "File not found!"
+#     else
+#         CHECKSUM=$(cksum data_HaMStR.tar)
+#         echo "Checksum: $CHECKSUM"
+#         if [ "$CHECKSUM" == "557087663 1952579568 data_HaMStR.tar" ]; then
+#             echo "Extracting archive data_HaMStR.tar"
+#             tar xfv $CURRENT/data_HaMStR.tar
+#             echo "Archive data_HaMStR.tar extracted into $CURRENT"
+#             if [ ! -d $CURRENT/data_HaMStR ]; then
+#                 echo "Directory $CURRENT/data_HaMStR not found!"
+#             else
+#                 printf "\nMoving gene sets ...\n--------------------\n"
+#                 #sleep 3
+#                 rsync -rva data_HaMStR/genome_dir/* $CURRENT/genome_dir
+#                 printf "\nMoving blast databases ...\n--------------------------\n"
+#                 #sleep 3
+#                 rsync -rva data_HaMStR/blast_dir/* $CURRENT/blast_dir
+#                 printf "\nMoving annotations ...\n----------------------\n"
+#                 #sleep 3
+#                 rsync -rva data_HaMStR/weight_dir/* $CURRENT/weight_dir
+#                 printf "\nMoving Taxonomy ...\n-------------------\n"
+#                 #sleep 3
+#                 rsync -rva data_HaMStR/taxonomy/* $CURRENT/taxonomy
+#                 printf "\nMoving Pfam ...\n---------------\n"
+#                 #sleep 3
+#                 rsync -rva data_HaMStR/Pfam/* $CURRENT/bin/fas/Pfam
+#                 printf "\nMoving SMART ...\n----------------\n"
+#                 #sleep 3
+#                 rsync -rva data_HaMStR/SMART/* $CURRENT/bin/fas/SMART
+#                 printf "\nMoving CAST ...\n---------------\n"
+#                 #sleep 3
+#                 rsync -rva data_HaMStR/CAST/* $CURRENT/bin/fas/CAST
+#                 printf "\nMoving COILS ...\n----------------\n"
+#                 #sleep 3
+#                 rsync -rva data_HaMStR/COILS2/* $CURRENT/bin/fas/COILS2
+#                 printf "\nMoving SEG ...\n--------------\n"
+#                 #sleep 3
+#                 rsync -rva data_HaMStR/SEG/* $CURRENT/bin/fas/SEG
+#                 printf "\nMoving SignalP ...\n------------------\n"
+#                 #sleep 3
+#                 rsync -rva data_HaMStR/SignalP/* $CURRENT/bin/fas/SignalP
+#                 printf "\nMoving TMHMM ...\n----------------\n"
+#                 #sleep 3
+#                 rsync -rva data_HaMStR/TMHMM/* $CURRENT/bin/fas/TMHMM
+#                 rsync -rva data_HaMStR/README* $CURRENT/
+#                 printf "\nRemoving duplicated data. Please wait.\n------------------------------------\n"
+#                 rm -rf $CURRENT/data_HaMStR
+#                 printf "\nFinished. Data should be in place to run HaMStR.\n"
+#             fi
+#         else
+#             echo "Something went wrong with the download. Checksum does not match."
+#         fi
+#     fi
+#
+# else
+#     echo "Please change into your HaMStR directory and run install_data.sh again."
+#     echo "Exiting."
+#     exit
+# fi
+# echo "done!"
