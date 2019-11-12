@@ -2,26 +2,23 @@
 
 # check dependencies
 echo "-------------------------------------"
-echo "Checking dependencies..."
+echo "Installing dependencies..."
 
 if [ -z "$(which R)" ]; then
     echo "R"
     conda install -y r
 fi
 
-if ! [[ -z $(conda list | grep "perl-bioperl") ]]; then
-    echo "perl-bioperl"
-    conda install -y -c bioconda perl-bioperl
-fi
-
-if [[ -z $(conda list | grep "perl-bioperl-core") ]]; then
-    echo "perl-bioperl-core"
-    conda install -y -c bioconda perl-bioperl-core
-fi
-
-if [[ -z $(conda list | grep "pkg-config") ]]; then
+if [[ -z $(conda list | grep "pkg-config ") ]]; then
     echo "pkg-config"
     conda install -y pkg-config
+fi
+
+if [[ -z $(conda list | grep "perl-bioperl ") ]]; then
+    echo "perl-bioperl"
+    conda install -y -c bioconda perl-bioperl
+    conda install -y -c bioconda perl-bioperl-core
+    conda install -y -c bioconda perl-bioperl-run
 fi
 
 dependencies=(
@@ -100,6 +97,7 @@ for i in "${perlModules[@]}"; do
     cpanm ${i} --force
   fi
 done
+
 echo "done!"
 
 ### prepare folder
@@ -140,7 +138,7 @@ echo "done!"
 sys="$(uname)" # Linux for Linux or Darwin for MacOS
 echo $sys
 echo "-------------------------------------"
-echo "downloading and installing required tools/libraries:"
+echo "Downloading and installing annotation tools/databases:"
 
 if [ -z "$(which fasta36)" ]; then
   echo "fasta-36"
@@ -181,13 +179,13 @@ if ! [ -f Pfam-A.hmm ]; then
   gunzip Pfam-A.hmm.gz
   gunzip Pfam-A.hmm.dat.gz
   hmmpress Pfam-A.hmm
-  mv $CURRENT/bin/pfam_scan.pl bin/fas/Pfam/
 fi
+mv $CURRENT/bin/pfam_scan.pl $CURRENT/bin/fas/Pfam/
 cd $CURRENT
 
 ### download data
 echo "-------------------------------------"
-echo "moving data into the right place"
+echo "Getting pre-calculated data"
 
 if [[ $CURRENT == */HaMStR ]] || [[ $CURRENT == */hamstr ]]; then
   echo "Processing $CURRENT ..."
@@ -237,7 +235,6 @@ if [[ $CURRENT == */HaMStR ]] || [[ $CURRENT == */hamstr ]]; then
       echo "Something went wrong with the download. Checksum does not match."
     fi
   fi
-
 else
   echo "Please change into your HaMStR directory and run install_data.sh again."
   echo "Exiting."
@@ -269,7 +266,7 @@ condaPkgs=(
 
 )
 for i in "${condaPkgs[@]}"; do
-    if ! [[ -z $(conda list | grep "perl-bioperl") ]]; then
+    if [[ -z $(conda list | grep "$i ") ]]; then
         echo "$i could not be installed"
         flag=1
     fi
@@ -278,8 +275,8 @@ echo "done!"
 
 echo "Perl modules"
 for i in "${perlModules[@]}"; do
-  msg=$((perldoc -l $i) 2>&1)
-  if [[ "$(echo $msg)" == *"No documentation"* ]]; then
+  msg=$((perl -e "use $i") 2>&1)
+  if ! [[ -z ${msg} ]]; then
     echo "$i could not be installed"
     flag=1
   fi
