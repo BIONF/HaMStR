@@ -47,7 +47,7 @@ $sedprog -i -e "s/\(my \$sedprog = '\).*/\1$sedprog';/" hamstr.pl;
 $sedprog -i -e "s/\(my \$grepprog = '\).*/\1$grepprog';/" hamstr.pl;
 $sedprog -i -e "s/\(my \$sedprog = '\).*/\1$sedprog';/" oneSeq.pl;
 $sedprog -i -e "s/\(my \$grepprog = '\).*/\1$grepprog';/" oneSeq.pl;
-############################################# 
+#############################################
 ## localize the perl installation
 echo "Updating paths"
 path2perl=`which perl`
@@ -56,7 +56,6 @@ $sedprog -i -e "s|\#\!.*|\#\!$path2perl|g" hamstr.pl;
 $sedprog -i -e "s|\#\!.*|\#\!$path2perl|g" nentferner.pl;
 $sedprog -i -e "s|\#\!.*|\#\!$path2perl|g" translate.pl;
 $sedprog -i -e "s|\#\!.*|\#\!$path2perl|g" oneSeq.pl;
-#$sedprog -i -e "s|\#\!.*|\#\!$path2perl|g" multifasta2oneSeq.pl;
 
 ## get the path to the perl modules
 path2dir=`pwd |$sedprog -e 's/\(.*\)\/.*/\1/'`;
@@ -96,30 +95,30 @@ else
 	fi
 fi
 ## Check for ublast
-if [ $noublast ]
-	then
-	echo "  omitting check for usearch. Option --noublast has been chosen";
-	echo "  updating hamstr.pl script"
-	$sedprog -i -e 's/my $runublast = [0,1];/my $runublast = 0;/' hamstr.pl;
-else
-	echo "	checking ublast"
-	usearchpath=`which usearch 2>&1 |grep -v '\bno\b'`
-	if [ $usearchpath ]
-        	then
-        	echo "          succeeded" #do nothing as this is default for hamstr
-		$sedprog -i -e 's/my $runublast = [0,1];/my $runublast = 1;/' hamstr.pl;
-	else
-	echo "	FATAL: usearch was not found and configure was run without the --noublast option"
-	error=1;
-	fi
-fi
+# if [ $noublast ]
+# 	then
+# 	echo "  omitting check for usearch. Option --noublast has been chosen";
+# 	echo "  updating hamstr.pl script"
+# 	$sedprog -i -e 's/my $runublast = [0,1];/my $runublast = 0;/' hamstr.pl;
+# else
+# 	echo "	checking ublast"
+# 	usearchpath=`which usearch 2>&1 |grep -v '\bno\b'`
+# 	if [ $usearchpath ]
+#         	then
+#         	echo "          succeeded" #do nothing as this is default for hamstr
+# 		$sedprog -i -e 's/my $runublast = [0,1];/my $runublast = 1;/' hamstr.pl;
+# 	else
+# 	echo "	FATAL: usearch was not found and configure was run without the --noublast option"
+# 	error=1;
+# 	fi
+# fi
 ## Check for genewise
 if [ $protonly ]
         then
         echo "  ommitting check for genewise. Option --protein_only has been chosen";
         echo "  updating hamstr.pl script"
         $sedprog -i -e 's/$check_genewise = [0,1];/$check_genewise = 0;/' hamstr.pl;
-        
+
 else
 echo "  checking genewise"
 	$sedprog -i -e 's/$check_genewise = [0,1];/$check_genewise = 1;/' hamstr.pl;
@@ -136,7 +135,7 @@ if [ $genewisepath ]
                 echo "  FATAL: Please set the environmental variable WISECONFIGDIR according to the installation instructions of genewise. If you want to run HaMStR on protein data only, run configure --protein_only";
                 error=1;
         fi
-        
+
 else
         echo "  FATAL: genewise has not been installed properly. If you want to run HaMStR on protein data only, run configure --protein_only";
         error=1;
@@ -175,7 +174,7 @@ else
         then
 		echo "		succeeded: $clustalpath";
 		echo "		updating hamstrscript";
-		$sedprog -i -e 's/clustalw2/clustalw/g' hamstr.pl; 
+		$sedprog -i -e 's/clustalw2/clustalw/g' hamstr.pl;
 	else
         	echo "  FATAL: Please install clustalw2"
         error=1;
@@ -184,7 +183,7 @@ fi
 ## Checking for Mafft
 echo "  checking for mafft-linsi";
 mafftpath=`which mafft-linsi 2>&1 |grep -v '\bno\b'`
-if [ $mafftpath ] 
+if [ $mafftpath ]
         then
         echo "          succeeded: $mafftpath"
 else
@@ -197,7 +196,7 @@ then
 	echo "Configuration of HaMStR failed. Please see the error messages above."
 else
         echo "Generating symbolic link hamstr -> hamstr.pl"
-        ln -s -f ./hamstr.pl ./hamstr       
+        ln -s -f ./hamstr.pl ./hamstr
         echo "All tests succeeded, HaMStR should be ready to run";
         $sedprog -i -e 's/my $configure = .*/my $configure = 1;/' hamstr.pl;
         $sedprog -i -e 's/my $configure = .*/my $configure = 1;/' oneSeq.pl;
