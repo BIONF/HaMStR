@@ -3,19 +3,31 @@
 # check dependencies
 echo "-------------------------------------"
 echo "Checking dependencies..."
-echo "R"
-if [ -z "$(which R)" ]; then conda install -y r; fi
-echo "perl-bioperl"
-conda install -y -c bioconda perl-bioperl
-echo "perl-bioperl-core"
-conda install -y -c bioconda perl-bioperl-core
-echo "pkg-config"
-conda install -y pkg-config
+
+if [ -z "$(which R)" ]; then
+    echo "R"
+    conda install -y r
+fi
+
+if ! [[ -z $(conda list | grep "perl-bioperl") ]]; then
+    echo "perl-bioperl"
+    conda install -y -c bioconda perl-bioperl
+fi
+
+if [[ -z $(conda list | grep "perl-bioperl-core") ]]; then
+    echo "perl-bioperl-core"
+    conda install -y -c bioconda perl-bioperl-core
+fi
+
+if [[ -z $(conda list | grep "pkg-config") ]]; then
+    echo "pkg-config"
+    conda install -y pkg-config
+fi
 
 dependencies=(
   blastp # blast
   blastall # blast-legacy
-  genewise
+  genewise # wise2
   hmmsearch # hmmer (for both hmmsearch and hmmbuild)
   clustalw
   mafft # for linsi
@@ -82,18 +94,12 @@ perlModules=(
   Bio::Tools::Run::StandAloneBlast
 )
 
-for i in "${perlModules[@]}"; do cpanm ${i}; done
-arr=(a b)
 for i in "${perlModules[@]}"; do
-  msg=$(perldoc -l $i)
-  # if [ "$(perldoc -l $i)" =~ *no\sdocumentation* ]; then
-  if echo "$msg" | grep -q "documentation"; then
-    # arr+=($i)
-    echo "$i could not be installed!"
+  msg=$((perldoc -l $i) 2>&1)
+  if [[ "$(echo $msg)" == *"No documentation"* ]]; then
+    cpanm ${i} --force
   fi
 done
-echo ${arr[@]}
-
 echo "done!"
 
 ### prepare folder
@@ -175,7 +181,7 @@ if ! [ -f Pfam-A.hmm ]; then
   gunzip Pfam-A.hmm.gz
   gunzip Pfam-A.hmm.dat.gz
   hmmpress Pfam-A.hmm
-  mv bin/pfam_scan.pl bin/fas/Pfam/
+  mv $CURRENT/bin/pfam_scan.pl bin/fas/Pfam/
 fi
 cd $CURRENT
 
@@ -201,37 +207,26 @@ if [[ $CURRENT == */HaMStR ]] || [[ $CURRENT == */hamstr ]]; then
         echo "Directory $CURRENT/data_HaMStR not found!"
       else
         printf "\nMoving gene sets ...\n--------------------\n"
-        #sleep 3
         rsync -rva data_HaMStR/genome_dir/* $CURRENT/genome_dir
         printf "\nMoving blast databases ...\n--------------------------\n"
-        #sleep 3
         rsync -rva data_HaMStR/blast_dir/* $CURRENT/blast_dir
         printf "\nMoving annotations ...\n----------------------\n"
-        #sleep 3
         rsync -rva data_HaMStR/weight_dir/* $CURRENT/weight_dir
         printf "\nMoving Taxonomy ...\n-------------------\n"
-        #sleep 3
         rsync -rva data_HaMStR/taxonomy/* $CURRENT/taxonomy
         # printf "\nMoving Pfam ...\n---------------\n"
-        # #sleep 3
         # rsync -rva data_HaMStR/Pfam/* $CURRENT/bin/fas/Pfam
         printf "\nMoving SMART ...\n----------------\n"
-        #sleep 3
         rsync -rva data_HaMStR/SMART/* $CURRENT/bin/fas/SMART
         printf "\nMoving CAST ...\n---------------\n"
-        #sleep 3
         rsync -rva data_HaMStR/CAST/* $CURRENT/bin/fas/CAST
         printf "\nMoving COILS ...\n----------------\n"
-        #sleep 3
         rsync -rva data_HaMStR/COILS2/* $CURRENT/bin/fas/COILS2
         # printf "\nMoving SEG ...\n--------------\n"echo "export ONESEQDIR=${CURRENT}" >> ~/.bashrc
-        # #sleep 3
         # rsync -rva data_HaMStR/SEG/* $CURRENT/bin/fas/SEG
         printf "\nMoving SignalP ...\n------------------\n"
-        #sleep 3
         rsync -rva data_HaMStR/SignalP/* $CURRENT/bin/fas/SignalP
         printf "\nMoving TMHMM ...\n----------------\n"
-        #sleep 3
         rsync -rva data_HaMStR/TMHMM/* $CURRENT/bin/fas/TMHMM
         rsync -rva data_HaMStR/README* $CURRENT/
         printf "\nRemoving duplicated data. Please wait.\n------------------------------------\n"
@@ -254,7 +249,64 @@ if [ -z "$(grep ONESEQDIR=$CURRENT ~/.bashrc)" ]; then
 fi
 source ~/.bashrc
 echo "done!"
-echo "Please restart the terminal and run ./configure (for Linux) or ./configure_mac /(for macOS) within HaMStR/bin folder to continue."
+
+### final check
+echo "-------------------------------------"
+echo "Final check..."
+flag=0
+
+echo "Conda packages"
+condaPkgs=(
+  perl-bioperl
+  perl-bioperl-core
+  blast
+  blast-legacy
+  hmmer
+  wise2
+  clustalw
+  mafft
+  muscle
+
+)
+for i in "${condaPkgs[@]}"; do
+    if ! [[ -z $(conda list | grep "perl-bioperl") ]]; then
+        echo "$i could not be installed"
+        flag=1
+    fi
+done
+echo "done!"
+
+echo "Perl modules"
+for i in "${perlModules[@]}"; do
+  msg=$((perldoc -l $i) 2>&1)
+  if [[ "$(echo $msg)" == *"No documentation"* ]]; then
+    echo "$i could not be installed"
+    flag=1
+  fi
+done
+echo "done!"
+
+echo "Environment paths"
+envPaths=(
+  "PATH=$CURRENT/bin/aligner/fasta-36"
+  "PATH=$CURRENT/bin/fas/SEG"
+  "ONESEQDIR=$CURRENT"
+  WISECONFIGDIR
+)
+for i in "${envPaths[@]}"; do
+    if [ -z "$(grep $i ~/.bashrc)" ]; then
+        echo "$i was not added into ~/.bashrc"
+        flag=1
+    fi
+done
+echo "done!"
+
+if [ "$flag" == 1 ]; then
+    echo "Some tools were not installed correctly. Please check again!"
+else
+    echo "Please restart the terminal and run ./configure within HaMStR/bin folder to continue."
+fi
+exit 1
 
 ### configuration
 # echo "-------------------------------------"
