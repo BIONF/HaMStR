@@ -89,7 +89,7 @@ my $startTime = time;
 
 ## Modified 22. July 2019: - invoked priority mode for the fas score computation if t = 30
 ############ General settings
-my $version = 'oneSeq v.1.3.1';
+my $version = 'oneSeq v.1.4';
 ##### configure
 my $configure = 1;
 if ($configure == 0){

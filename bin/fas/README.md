@@ -34,10 +34,10 @@ To get started using FAS you need the protein sequence of the two (or more) prot
 perl annotation.pl -fasta=INPUTPATH/example.fa -path=OUTPUTPATH/ -name=example
 ```
 
-This should give you an output folder of the chosen name containing seven xml files, one for each feature type used in the default set from FACT. Once you have annotated the features of both, the seed and ortholog proteins, you are ready to use the actual FAS algorithm with the two output folders of annotation script:
+This should give you an output folder of the chosen name containing seven xml files, one for each feature type used in the default set from FACT. Once you have annotated the features of both, the seed and ortholog proteins, you are ready to use the actual FAS algorithm with the two output folders of annotation script. The -j variable allows you to set an outputname and output path. If no path is given the outpu will be created in the FAS directory under out/:
 
 ```
-python greedyFAS.py -q PATH/ortholog -s PATH/seed -j JOBNAME 
+python greedyFAS.py -q PATH/ortholog -s PATH/seed -j PATH/JOBNAME 
 ```
 
 This will give two xml files. The first file (JOBNAME) contains the scores and chosen paths for each protein pairing between the seed and ortholog set: 
@@ -279,6 +279,19 @@ python greedyFAS.py -q PATH/ortholog -s PATH/seed -j JOBNAME --bidirectional (-r
 
 This will generate two normal output-files. One for each scoring direction. Additionally, it creates a csv file that gives a short overview over all scores or, if activated, the phyloprofile output.
 
+## Additional Scripts
+parserInterPro.py
+This script can parse the .csv output of InterProScan and create .xml input files for FAS. By default, all member databases of InterPro get their own xml file:
+
+```
+python parserInterPro.py -i INPUT.csv -o OUTPUTFOLDER
+```
+
+or as a single file:
+
+```
+python parserInterPro.py -i INPUT.csv -o OUTPUTFOLDER -s
+```
 
 
 # Contact
