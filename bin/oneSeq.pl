@@ -1118,6 +1118,7 @@ if (!$coreOnly) {
 	    my ($in, $stdout, $err);
 	    eval {
 	    @cmd = ($pl,$viz,$i,$p,$g,$o,$ap);
+
 	    if ($debug){ printVariableDebug(@cmd);}
 	    print "\n##############################\n";
 	    print "Writing of Visualisation file for feature architecture.\n";
