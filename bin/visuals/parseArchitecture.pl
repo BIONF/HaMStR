@@ -16,11 +16,12 @@ use Env qw(ONESEQDIR);
 # AUTHOR:		Holger Bergmann, bergmann@bio.uni-frankfurt.de
 # DESCRIPTION:  parsing output of oneSeq.pl and FAS to create input to phyloprofile app
 # DATE:         16.12.2016
+# Last Modified:	19.11.2019
 
 #######
 #SETUP
 #######
-my $version = 1.3;
+my $version = 1.4;
 my $configure = 1;
 my $useIDasis = 1;
 if ($configure == 0){
@@ -41,10 +42,12 @@ my $outFile;
 my $help;
 my $getversion;
 my $debug = 0;
+my $append;
 
 ##### Command line options
 GetOptions ("h"             => \$help,
             "v"             => \$getversion,
+	    "append"	    => \$append,
             "input=s"       => \$inFile, 
             "profile=s"     => \$proFile,
             "group=s"       => \$groupID,
@@ -84,9 +87,13 @@ my ($in_base, $in_path, $in_suffix) = fileparse( $inFile, qr/\.[^.]*/ );
 my @direction = split(/_/,$in_base);
 #print $direction[1]."\n";
 
-
-open(OUT,">".$outFile."_".$direction[1].".domains") || die "Cannot create $outFile!\n";
-
+if (defined $append) {
+	open(OUT,">>".$outFile."_".$direction[1].".domains") || die "Cannot create $outFile!\n";
+	print "I am now here\n";
+}
+else {
+	open(OUT,">".$outFile."_".$direction[1].".domains") || die "Cannot create $outFile!\n";
+}
 open(IN,$inFile) || die "Cannot open $inFile!\n";
 
 ### MAIN

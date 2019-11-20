@@ -1,6 +1,6 @@
 #!/usr/bin/perl
 use strict;
-use lib '../lib';
+use lib '/share/project/ingo/src/HaMStR/lib';
 use Getopt::Long;
 use Bio::Perl;
 use File::Copy;

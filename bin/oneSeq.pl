@@ -1,13 +1,13 @@
-#!/usr/bin/perl
+#!/usr/bin/env perl
 
 use strict;
 use warnings;
 use File::Copy qw(move);
 
 use Env qw(ONESEQDIR);
-use lib '/share/project/ingo/src/HaMStR/lib';
+use lib '../lib';
 use Parallel::ForkManager;
-use DBI;
+#use DBI;
 use IO::Handle;
 use Getopt::Long;
 use Bio::DB::Taxonomy;
@@ -85,10 +85,13 @@ my $startTime = time;
 ## Modified 24. Nov. 2018: Release      - release oneSeq v1.3.1
 ##                                      - Not included feature/feature-updated-fas-util
 
+## Modified 19. July 2019: - Changes	- added option to run muscle instead of mafft
+
+## Modified 22. July 2019: - invoked priority mode for the fas score computation if t = 30
 ############ General settings
 my $version = 'oneSeq v.1.4';
 ##### configure
-my $configure = 1;
+my $configure = 0;
 if ($configure == 0){
 	die "\n\n$version\n\nPLEASE RUN THE CONFIGURE OR CONFIGURE_MAC SCRIPT BEFORE USING oneSeq.pl\n\n";
 }
@@ -188,6 +191,7 @@ my $countercheck = 0;
 my $fasoff      = 0;
 my $fasstrict   = 0; 
 my $fas_T       = 0.75;
+my $priThreshold = '-t 30';
 my %profile     = ();
 my %fas_score_keeper = ();
 my $eval_filter = 0.001;
@@ -195,6 +199,7 @@ my $inst_eval_filter = 0.01;
 my $weight_seed = 0;
 
 my $help;
+my @profile = qw();
 my $showTaxa;
 my $refSpec;
 my $seqFile = '';
@@ -217,6 +222,7 @@ my $debug;
 my $corestrict;
 my $inputSeq = "";
 my $rbh;
+my $append;
 # Note, the evalue defaults ($eval_blast, $eval_hmmer) will be relaxed for final hamstr run by $eval_relaxfac
 my $eval_blast = 0.00001; #1E-5
 my $eval_hmmer = 0.00001; #1E-5
@@ -253,8 +259,10 @@ my $ignoreDistance = 0; 	## flag to normalise the score by the distance in the t
 my $distDeviation = 0.05; 	## Span in which a score is consideren similar
 my $breakAfter = 5; 		## Number of Significantly bad candidates after which the current run cancels
 my %hashTree;
+my $aln = 'muscle';
 ################# Command line options
 GetOptions ("h"                 => \$help,
+	    "append"	=> \$append,
             "showTaxa"          => \$showTaxa,
             "refSpec=s"         => \$refSpec,
 	    "db"                => \$dbmode,
@@ -307,7 +315,8 @@ GetOptions ("h"                 => \$help,
             "version"           => \$getversion,
 			"reuse_core"        => \$coreex,
 			"ignoreDistance"	=> \$ignoreDistance,
-			"distDeviation=s"	=> \$distDeviation);
+			"distDeviation=s"	=> \$distDeviation,
+		"aligner=s"	=> \$aln);
 
 ############# connect to the database
 if ($dbmode) {
@@ -531,7 +540,7 @@ if (!$coreOnly) {
 
 	    foreach (get_leaves($tree)) {
 		my $pid = $pm->start and next;
-		runHamstr(@{$_->name('supplied')}[0], $seqName, $finalOutput, $refSpec, $hitlimit, $representative, $strict, $coremode, $final_eval_blast, $final_eval_hmmer);
+		runHamstr(@{$_->name('supplied')}[0], $seqName, $finalOutput, $refSpec, $hitlimit, $representative, $strict, $coremode, $final_eval_blast, $final_eval_hmmer, $aln);
 		$pm->finish;
 	    }
 	    $pm->wait_all_children;
@@ -568,7 +577,9 @@ if (!$coreOnly) {
 	    my $size = floor(scalar(@k_ary) / $cpu);
 
 	    ## create tmp folder
-	    my $evaluationDir = $dataDir."/".$seqName."_".$processID."/fas_dir/fasscore_dir/";
+## modfied by Ingo 2019-11-19
+#	    my $evaluationDir = $dataDir."/".$seqName."_".$processID."/fas_dir/fasscore_dir/";
+           my $evaluationDir = $dataDir."/".$seqName."/fas_dir/fasscore_dir/";
 	    mkpath($evaluationDir);
 
 	    ## handle finalcontent (final hamstr orthologs)
@@ -656,7 +667,7 @@ if (!$coreOnly) {
 
 		    my ($name,$gene_set,$gene_id,$rep_id) = split (/\|/,$next_n[$ii]); 
 		    my $candseqFile = $coreOrthologsPath . $seqName . "/fas_dir/" . $gene_set . "_" . $gene_id . ".candidate";
-		    
+		    ## added 2019-11-19 Ingo
 		    open(CANDI_SEQ, ">".$candseqFile) or die "Error: Could not create $candseqFile\n";
 		    print CANDI_SEQ ">" . $next_n[$ii] . "\n" . $candicontent{$next_n[$ii]};
 		    close CANDI_SEQ;
@@ -671,10 +682,10 @@ if (!$coreOnly) {
 		    my $score_0;
 		    unless($weight_seed){
 			#weight will be determined on the basis of orthologs origin (taxon where the orthologs is dereived from)
-			$score_0 = runFAS($cand_annot, $seed_annot.$seqName."_seed", $gene_set."_".$gene_id, $seqName, $e_dir, $weightPath."/".$gene_set,$mode);
+			$score_0 = runFAS($cand_annot, $seed_annot.$seqName."_seed", $gene_set."_".$gene_id, $seqName, $e_dir, $weightPath."/".$gene_set,$mode, $priThreshold);
 		    }else{
 			#weight will be determined on the basis of seed species (taxon where the seed is dereived from)
-			$score_0 = runFAS($cand_annot, $seed_annot.$seqName."_seed", $gene_set."_".$gene_id, $seqName, $e_dir, $weightPath."/".$refSpec,$mode);
+			$score_0 = runFAS($cand_annot, $seed_annot.$seqName."_seed", $gene_set."_".$gene_id, $seqName, $e_dir, $weightPath."/".$refSpec,$mode, $priThreshold);
 		    }
 		    
 		    $core_fas_0_box{$headerkey} = $score_0;
@@ -698,6 +709,7 @@ if (!$coreOnly) {
 	sub nFAS_score_final{
 	    my $n = shift;
 	    my $e_dir = shift;
+	    printDebug("Sub nFas_score_final: e_dir is $e_dir\n", 1);
 	    my $ps = new Parallel::ForkManager($cpu);
 	    
 	    while (my @next_n = splice @_, 0, $n) {
@@ -714,7 +726,14 @@ if (!$coreOnly) {
 
 		    my ($name,$gene_set,$gene_id,$rep_id) = split (/\|/,$next_n[$ii]);            
 		    my $finOrth_seqFile = $e_dir . $gene_set . "_" . $gene_id . ".ortholog";
-
+                    ## added 2019-11-19 Ingo
+		    printDebug("finOrth_seqfile is $finOrth_seqFile"); 
+		    if (defined $profile{$gene_set}  && $append) {
+                        printDebug("FAS Score has already been computed and option -append has been selected. Skipping...");
+			$ii++;
+                        next;
+                    }
+                    ### end added
 		    open(ORTH_SEQ, ">".$finOrth_seqFile) or die "Error: Could not create $finOrth_seqFile\n";
 		    print ORTH_SEQ ">" . $next_n[$ii] . "\n" . $finalcontent{$next_n[$ii]};
 		    close ORTH_SEQ;
@@ -728,10 +747,10 @@ if (!$coreOnly) {
 		    my $score_1;
 		    unless($weight_seed){
 			#weight will be determined on the basis of orthologs origin (taxon where the orthologs is dereived from)
-			$score_1 = runFAS($seed_annot.$seqName."_seed", $cand_annot, $gene_set."_".$gene_id, $seqName, $e_dir, $weightPath."/".$gene_set,$mode);
+			$score_1 = runFAS($seed_annot.$seqName."_seed", $cand_annot, $gene_set."_".$gene_id, $seqName, $e_dir, $weightPath."/".$gene_set,$mode, $priThreshold);
 		    }else{
 			#weight will be determined on the basis of seed species (taxon where the seed is dereived from)
-			$score_1 = runFAS($seed_annot.$seqName."_seed", $cand_annot, $gene_set."_".$gene_id, $seqName, $e_dir, $weightPath."/".$refSpec,$mode);
+			$score_1 = runFAS($seed_annot.$seqName."_seed", $cand_annot, $gene_set."_".$gene_id, $seqName, $e_dir, $weightPath."/".$refSpec,$mode, $priThreshold);
 		    }
 		    $final_fas_1_box{$headerkey} = $score_1;
 		    # double check the FAS results (extra calculation needed, change of direction)
@@ -741,10 +760,10 @@ if (!$coreOnly) {
 			my $score_0;
 			unless($weight_seed){
 			    #weight will be determined on the basis of orthologs origin (taxon where the orthologs is dereived from)
-			    $score_0 = runFAS($cand_annot, $seed_annot.$seqName."_seed", $gene_set."_".$gene_id, $seqName, $e_dir, $weightPath."/".$gene_set,$mode);
+			    $score_0 = runFAS($cand_annot, $seed_annot.$seqName."_seed", $gene_set."_".$gene_id, $seqName, $e_dir, $weightPath."/".$gene_set,$mode, $priThreshold);
 			}else{
 			    #weight will be determined on the basis of seed species (taxon where the seed is dereived from)
-			    $score_0 = runFAS($cand_annot, $seed_annot.$seqName."_seed", $gene_set."_".$gene_id, $seqName, $e_dir, $weightPath."/".$refSpec,$mode);
+			    $score_0 = runFAS($cand_annot, $seed_annot.$seqName."_seed", $gene_set."_".$gene_id, $seqName, $e_dir, $weightPath."/".$refSpec,$mode, $priThreshold);
 			}
 			$final_fas_0_box{$headerkey} = $score_0;
 		    }
@@ -1064,7 +1083,7 @@ if (!$coreOnly) {
 	    my ($in, $stdout, $err);
 	    eval {
 	    @cmd = ($pl,$viz,$i,$o);
-	    #printVariableDebug(@cmd);
+	    if ($debug){printVariableDebug(@cmd);}
 	    print "\n##############################\n";
 	    print "Writing of Visualisation file for profile.\n";
 
@@ -1091,11 +1110,16 @@ if (!$coreOnly) {
 	    my $p       = "-p=$proFile";
 	    my $g       = "-g=$groupID";
 	    my $o	= "-o=$outfile";
+	    my $ap	= '';
+	    if (defined $append) {
+		$ap = "-append";
+	    }
 	    
 	    my ($in, $stdout, $err);
 	    eval {
-	    @cmd = ($pl,$viz,$i,$p,$g,$o);
-	    #printVariableDebug(@cmd);
+	    @cmd = ($pl,$viz,$i,$p,$g,$o,$ap);
+
+	    if ($debug){ printVariableDebug(@cmd);}
 	    print "\n##############################\n";
 	    print "Writing of Visualisation file for feature architecture.\n";
 
@@ -1134,9 +1158,10 @@ if (!$coreOnly) {
 	    system ($delCommandCandi) == 0 or die "Error deleting candidate files\n";
 	    print "--> ".$coreOrthologsPath.$seqName."/fas_dir/*.candidate\n";
 
-	    my $delCommandOrth = "rm -f ".$dataDir."/".$seqName."_".$processID."/fas_dir/fasscore_dir/*.ortholog";
+## modfified by Ingo 2019-11-19
+	    my $delCommandOrth = "rm -f ".$dataDir."/".$seqName."/fas_dir/fasscore_dir/*.ortholog";
 	    system ($delCommandOrth) == 0 or die "Error deleting single sequence files of orthologs\n";
-	    print "--> ".$dataDir."/".$seqName."_".$processID."/fas_dir/fasscore_dir/*.ortholog\n";
+	    print "--> ".$dataDir."/".$seqName."/fas_dir/fasscore_dir/*.ortholog\n";
 
 	    ## compress *_fas.xml files in coreOrthologs
 	    opendir(COREFAS,$coreOrthologsPath.$seqName . "/fas_dir/fasscore_dir");
@@ -1146,20 +1171,20 @@ if (!$coreOnly) {
 	    print "--> ".$coreOrthologsPath.$seqName."/fas_dir/fasscore_dir/*_fas.xml\n";
 
 	    ## compress *_1_fas.xml files in results
-	    opendir(COREFAS,$dataDir."/".$seqName."_".$processID."/fas_dir/fasscore_dir");
+	    opendir(COREFAS,$dataDir."/".$seqName."/fas_dir/fasscore_dir");
 	    @fasscores = grep(/_1_fas\.xml/,sort { $a cmp $b } readdir(COREFAS));
 	    closedir(COREFAS);
-	    compressScoreCollections($dataDir."/".$seqName."_".$processID."/fas_dir/fasscore_dir/", \@fasscores, "1");
+	    compressScoreCollections($dataDir."/".$seqName."/fas_dir/fasscore_dir/", \@fasscores, "1");
 	    
 	    if ($countercheck){
 		# compress *_0_fas.xml files: M.countercheck (cc) FAS out
-		opendir(COREFAS,$dataDir."/".$seqName."_".$processID."/fas_dir/fasscore_dir");
+		opendir(COREFAS,$dataDir."/".$seqName."/fas_dir/fasscore_dir");
 		my @fasscores_cc = grep(/_0_fas\.xml/,sort { $a cmp $b } readdir(COREFAS));
 		closedir(COREFAS);
-		compressScoreCollections($dataDir."/".$seqName."_".$processID."/fas_dir/fasscore_dir/", \@fasscores_cc, "0");
+		compressScoreCollections($dataDir."/".$seqName."/fas_dir/fasscore_dir/", \@fasscores_cc, "0");
 	    }
 
-	    print "--> ".$dataDir."/".$seqName."_".$processID."/fas_dir/fasscore_dir/*_fas.xml\n";
+	    print "--> ".$dataDir."/".$seqName."/fas_dir/fasscore_dir/*_fas.xml\n";
 	}
 	## keep FAS score results (including feature information) as *scores.collection files
 	## param: $cur_path - path to fas score files
@@ -1297,7 +1322,7 @@ if (!$coreOnly) {
 	# $weight: gene set of ortholog, used for weighting
 	# $mode: invocation mode (single --vs--> set or set --vs--> single)
 	sub runFAS{
-	    my ($single, $ortholog, $name, $group, $outdir, $weight, $mode) = ($_[0], $_[1], $_[2], $_[3], $_[4], $_[5], $_[6]);
+	    my ($single, $ortholog, $name, $group, $outdir, $weight, $mode, $priThreshold) = ($_[0], $_[1], $_[2], $_[3], $_[4], $_[5], $_[6], $_[7]);
 	    chdir($fasPath);
 
 	    my @cmd;
@@ -1330,8 +1355,8 @@ if (!$coreOnly) {
 	    my ($in, $score, $err);
 	    $score = "NAN";
 	    eval {
-	    @cmd = ($py,$fas,$s,$p,$r,$j,$a,$f,$i,$si,$m);
-	    printVariableDebug(@cmd);
+	    @cmd = ($py,$fas,$s,$p,$r,$j,$a,$f,$i,$si,$m,$priThreshold);
+	    if ($debug){printVariableDebug(@cmd);}
 	    print "\n##############################\n";
 	    print "Begin of FAS score calculation.\n";
 	    print "--> Running ". $fas_prog ."\n";
@@ -1606,21 +1631,26 @@ if (!$coreOnly) {
 	    }
 	    ## check whether a result file already exists:
 	    ## -force flag not set
-	    if (-e "$dataDir/$seqName.extended.fa" && !$force){
+	    if (-e "$dataDir/$seqName.extended.fa" && !$force && !$append){
 		my $input = '';
 		my $breaker = 0;
 
-		while (($input !~ /^[or]/i) and ($breaker < 4)) {
+		while (($input !~ /^[aor]/i) and ($breaker < 4)) {
 		    $breaker++;
-		    $input = getInput("\nAn outputfile $dataDir/$seqName.extended.fa already exists. Shall I overwrite it [o], or rename it [r]?", 1);
-		    if (($breaker > 3) and ($input !~ /[or]/i)){
-			    print "Please consider option -force.\n";
+		    $input = getInput("\nAn outputfile $dataDir/$seqName.extended.fa already exists. Shall I overwrite it [o], or rename it [r], or [a] append to it?", 1);
+		    if (($breaker > 3) and ($input !~ /[aor]/i)){
+			    print "Please consider option -force or option -append.\n";
 			    die "No proper answer is given: Quitting\n";
 		    }
 		}
 		if ($input =~ /o/i){
 		    unlink "$dataDir/$seqName.extended.fa" or warn "could not remove existing output file $dataDir/$seqName\n";
 		    printOut("Removing existing output file $dataDir/$seqName.extended.fa", 1);
+		    $force = 1;
+		}
+		elsif ($input =~ /a/i) {
+		    printOut("Appending output to $dataDir/$seqName.extended.fa\n", 1);
+		    $append = 1;
 		}
 		else {
 		    move "$dataDir/$seqName.extended.fa", "$dataDir/$seqName.extended.fa.old" or warn "Could not rename existing output file $dataDir/$seqName\n";
@@ -1631,14 +1661,17 @@ if (!$coreOnly) {
 		printOut ("--> $dataDir/$seqName.extended.fa already exists but will be removed due to option -force.",1);
 		unlink "$dataDir/$seqName.extended.fa" or warn "Could not remove existing output file $dataDir/$seqName.extended.fa\n";
 	    }
-	    if (-e "$dataDir/$seqName.extended.profile" && !$force){
+	    elsif (-e "$dataDir/$seqName.extended.fa" && $append){
+		printOut ("--> $dataDir/$seqName.extended.fa already exists but option -append has been chosen. Appending the output to the existing files\n", 1);
+	    }
+	    if (-e "$dataDir/$seqName.extended.profile" && !$force && !$append){
 		my $input = '';
 		my $breaker = 0;
 
-		while (($input !~ /^[or]/i) and ($breaker < 4)) {
+		while (($input !~ /^[aor]/i) and ($breaker < 4)) {
 		    $breaker++;
-		    $input = getInput("\nAn outputfile $dataDir/$seqName.extended.profile already exists. Shall I overwrite it [o], or rename it [r]?", 1);
-		    if (($breaker > 3) and ($input !~ /[or]/i)){
+		    $input = getInput("\nAn outputfile $dataDir/$seqName.extended.profile already exists. Shall I overwrite it [o], or rename it [r], or [a] append to it?", 1);
+		    if (($breaker > 3) and ($input !~ /[aor]/i)){
 			    print "Please consider option -force.\n";
 			    die "No proper answer is given: Quitting\n";
 		    }
@@ -1646,6 +1679,16 @@ if (!$coreOnly) {
 		if ($input =~ /o/i){
 		    unlink "$dataDir/$seqName.extended.profile" or warn "could not remove existing output file $dataDir/$seqName\n";
 		    printOut("Removing existing output file $dataDir/$seqName.extended.profile", 1);
+		}
+		elsif ($input =~ /a/i){
+		    printOut("Appending output to $dataDir/$seqName.extended.profile", 1);
+		    open (IN, "<$dataDir/$seqName.extended.profile") or die "failed to open $dataDir/$seqName.extended.profile after selection of option -append\n";
+		    while (<IN>) {
+			chomp $_;
+                        my @keys = split '\|', $_;
+			$profile{$keys[1]} = 1;
+		    }
+
 		}
 		else {
 		    move "$dataDir/$seqName.extended.profile", "$dataDir/$seqName.extended.profile.old" or warn "Could not rename existing output file $dataDir/$seqName\n";
@@ -1656,7 +1699,16 @@ if (!$coreOnly) {
 		printOut ("--> $dataDir/$seqName.extended.profile already exists but will be removed due to option -force.", 1);
 		unlink "$dataDir/$seqName.extended.profile" or warn "Could not remove existing output file $dataDir/$seqName.extended.profile\n";
 	    }
+	    elsif(-e "$dataDir/$seqName.extended.profile" && $append){
+                printOut ("--> $dataDir/$seqName.extended.profile already exist but option -append has been chosen. Appending the output to the existing files\n ", 1);
+		open (IN, "<$dataDir/$seqName.extended.profile") or die "failed to open $dataDir/$seqName.extended.profile after selection of option -append\n";
+                    while (<IN>) {
+                        chomp $_;
+			my @keys = split '\|', $_;
+                        $profile{$keys[1]} = 1;
+                    }
 
+	    }
 	    my $node;   
 	    $node = $db->get_taxon(-taxonid => $taxa{$refSpec});
 	    $node->name('supplied', $refSpec);
@@ -1764,8 +1816,19 @@ if (!$coreOnly) {
 		return $rankExists;
 	}
 
+############
+## modified by Ingo - Added Option to run Muscle
 	sub createAlnMsf {
-		my $linsiCommand = "mafft --maxiterate 1000 --localpair " . $outputFa . " > " . $outputAln;
+		my $linsiCommand = '';
+		if (!defined $aln or $aln eq 'mafft-linsi') {
+			my $linsiCommand = "mafft-linsi --anysymbol " . $outputFa . " > " . $outputAln;
+		}
+		elsif ($aln eq 'muscle') {
+			$linsiCommand = "muscle -quiet -in " . $outputFa . " -out " .$outputAln;
+		}
+		else {
+			die "issues with the msa. You need to select either mafft or muscle\n";
+		}
 		system($linsiCommand) == 0 or die "Could not run mafft-linsi\n";
 	}
 
@@ -1877,7 +1940,7 @@ if (!$coreOnly) {
 			my $keyName = @{$key->name('supplied')}[0];
 			my $nodeId = $wholeTree->find_node(-ncbi_taxid => $taxa{$keyName})->id;
 			print "Hamstr species: " . $key->scientific_name . " - " . @{$key->name('supplied')}[0] . "\n";
-			runHamstr(@{$key->name('supplied')}[0], $seqName, $outputFa, $refSpec, $core_hitlimit, $core_rep, $corestrict, $coremode, $eval_blast, $eval_hmmer);
+			runHamstr(@{$key->name('supplied')}[0], $seqName, $outputFa, $refSpec, $core_hitlimit, $core_rep, $corestrict, $coremode, $eval_blast, $eval_hmmer, $aln);
 			## check weather a candidate was found in the searched taxon
 			if(-e $candidatesFile) {
 				
@@ -2124,8 +2187,11 @@ sub getTree {
 	my $tree;
         foreach my $key (keys%taxa) {
 		my $node = $db->get_taxon(-taxonid => $taxa{$key});
-
+		printDebug("\$key in sub getTree is $key and taxid is $taxa{$key}\n");
 		$node->name('supplied', $key);
+		if (!defined $node){
+			print "ISSUE in sub getTree\n";
+		}
 		if($tree) {
 			$tree->merge_lineage($node);
 		} 
@@ -2146,7 +2212,7 @@ sub getTree {
 ##################### perform the hamstr search for orthologs
 # using the core-orthologs found in the previous steps
 sub runHamstr {
-	my ($taxon, $seqName, $outputFa, $refSpec, $hitlimit, $rep, $sub_strict, $subcoremode, $ev_blst, $ev_hmm) = (@_);
+	my ($taxon, $seqName, $outputFa, $refSpec, $hitlimit, $rep, $sub_strict, $subcoremode, $ev_blst, $ev_hmm, $aln) = (@_);
 	my $taxaDir = $taxaPath . $taxon;
 	printDebug("Running hamstr: $taxon\t$seqName\t$outputFa\t$refSpec\t$taxaDir"); 
 	if (! -e $taxaDir) {
@@ -2173,7 +2239,7 @@ sub runHamstr {
 		    my $taxon_id = substr($taxon, 6, length($taxon));
 		    my @hamstr = ($hamstrPath, "-sequence_file=".$seqfile, "-fasta_file=".$outputFa, "-hmmpath=".$coreOrthologsPath , "-outpath=".$outputPath,
 			     "-blastpath=".$blastPath , "-protein", "-hmmset=".$seqName, "-taxon=".$taxon, "-force", 
-			     "-eval_blast=".$ev_blst, "-eval_hmmer=".$ev_hmm, "-central");
+			     "-eval_blast=".$ev_blst, "-eval_hmmer=".$ev_hmm, "-central", "-aligner=".$aln);
 
 		    my $resultFile;
 			if (defined $autoLimit) {
@@ -2206,7 +2272,11 @@ sub runHamstr {
 		    if ($rbh) {
                         push @hamstr, "-rbh";
 		    }
-			
+## added 2019-11-19
+		    if ($append) {
+			push @hamstr, "-append";
+		    }
+##			
 		    if ($silent) {
                         push @hamstr, "-silent";
 		    }
@@ -2815,9 +2885,11 @@ ${bold}ADDITIONAL OPTIONS$norm
 -batch=<>
 	Currently has NO functionality.
 -group=<>
-	I think it allows to limit the search to a certain systematic group. NOTE: Needs to be checked.
+	Allows to limit the search to a certain systematic group
 -cleanup
         Temporary output will be deleted.
+-aligner
+	Choose between mafft-linsi or muscle for the multiple sequence alignment. DEFAULT: muscle
 
 ${bold}SPECIFYING FAS SUPPORT OPTIONS$norm
 
