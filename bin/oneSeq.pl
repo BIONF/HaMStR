@@ -2815,6 +2815,8 @@ ${bold}USING NON-DEFAULT PATHS$norm
 
 ${bold}ADDITIONAL OPTIONS$norm
 
+-append
+	Set this flag to append the output to existing output files
 -seqName=<>
         Specifies a name for the search. If not set a random name will be set.
 -db
