@@ -1,13 +1,13 @@
-#!/usr/bin/perl
+#!/usr/bin/env perl
 
 use strict;
 use warnings;
 use File::Copy qw(move);
 
 use Env qw(ONESEQDIR);
-use lib '/share/project/ingo/src/HaMStR/lib';
+use lib '../lib';
 use Parallel::ForkManager;
-use DBI;
+#use DBI;
 use IO::Handle;
 use Getopt::Long;
 use Bio::DB::Taxonomy;
@@ -157,6 +157,8 @@ my $currDir = getcwd;
 my $weightPath = "$path/weight_dir/";
 my $fasPath = "$path/bin/fas/";
 my $visualsPath = "$path/bin/visuals/";
+my $alignerVersion = "fasta-36.3.8e"; #Baustelle: check and set
+my $alignerPath = "$path/bin/aligner/$alignerVersion/bin";
 
 my @defaultRanks = ('superkingdom', 'kingdom',
         'superphylum', 'phylum', 'subphylum',
@@ -197,6 +199,7 @@ my $inst_eval_filter = 0.01;
 my $weight_seed = 0;
 
 my $help;
+my @profile = qw();
 my $showTaxa;
 my $refSpec;
 my $seqFile = '';
@@ -219,6 +222,7 @@ my $debug;
 my $corestrict;
 my $inputSeq = "";
 my $rbh;
+my $append;
 # Note, the evalue defaults ($eval_blast, $eval_hmmer) will be relaxed for final hamstr run by $eval_relaxfac
 my $eval_blast = 0.00001; #1E-5
 my $eval_hmmer = 0.00001; #1E-5
@@ -258,6 +262,7 @@ my %hashTree;
 my $aln = 'muscle';
 ################# Command line options
 GetOptions ("h"                 => \$help,
+	    "append"	=> \$append,
             "showTaxa"          => \$showTaxa,
             "refSpec=s"         => \$refSpec,
 	    "db"                => \$dbmode,
@@ -572,7 +577,9 @@ if (!$coreOnly) {
 	    my $size = floor(scalar(@k_ary) / $cpu);
 
 	    ## create tmp folder
-	    my $evaluationDir = $dataDir."/".$seqName."_".$processID."/fas_dir/fasscore_dir/";
+## modfied by Ingo 2019-11-19
+#	    my $evaluationDir = $dataDir."/".$seqName."_".$processID."/fas_dir/fasscore_dir/";
+           my $evaluationDir = $dataDir."/".$seqName."/fas_dir/fasscore_dir/";
 	    mkpath($evaluationDir);
 
 	    ## handle finalcontent (final hamstr orthologs)
@@ -660,7 +667,7 @@ if (!$coreOnly) {
 
 		    my ($name,$gene_set,$gene_id,$rep_id) = split (/\|/,$next_n[$ii]);
 		    my $candseqFile = $coreOrthologsPath . $seqName . "/fas_dir/" . $gene_set . "_" . $gene_id . ".candidate";
-
+		    ## added 2019-11-19 Ingo
 		    open(CANDI_SEQ, ">".$candseqFile) or die "Error: Could not create $candseqFile\n";
 		    print CANDI_SEQ ">" . $next_n[$ii] . "\n" . $candicontent{$next_n[$ii]};
 		    close CANDI_SEQ;
@@ -702,6 +709,7 @@ if (!$coreOnly) {
 	sub nFAS_score_final{
 	    my $n = shift;
 	    my $e_dir = shift;
+	    printDebug("Sub nFas_score_final: e_dir is $e_dir\n", 1);
 	    my $ps = new Parallel::ForkManager($cpu);
 
 	    while (my @next_n = splice @_, 0, $n) {
@@ -718,7 +726,14 @@ if (!$coreOnly) {
 
 		    my ($name,$gene_set,$gene_id,$rep_id) = split (/\|/,$next_n[$ii]);
 		    my $finOrth_seqFile = $e_dir . $gene_set . "_" . $gene_id . ".ortholog";
-
+                    ## added 2019-11-19 Ingo
+		    printDebug("finOrth_seqfile is $finOrth_seqFile");
+		    if (defined $profile{$gene_set}  && $append) {
+                        printDebug("FAS Score has already been computed and option -append has been selected. Skipping...");
+			$ii++;
+                        next;
+                    }
+                    ### end added
 		    open(ORTH_SEQ, ">".$finOrth_seqFile) or die "Error: Could not create $finOrth_seqFile\n";
 		    print ORTH_SEQ ">" . $next_n[$ii] . "\n" . $finalcontent{$next_n[$ii]};
 		    close ORTH_SEQ;
@@ -823,9 +838,9 @@ if (!$coreOnly) {
 		#local      local:local    ssearch36   Smith-Waterman
 		#glocal     global:local   glsearch36  Needleman-Wunsch
 		#global     global:global  ggsearch36  Needleman-Wunsch
-		my $loclocCommand = "$localaligner " . $outputFa . " " . $candidatesFile . " -s " . $alignmentscoreMatrix . " -m 9 -d 0 -z -1 -E 100" . " > " . $scorefile;
-		my $globlocCommand = "$glocalaligner " . $outputFa . " " . $candidatesFile . " -s " . $alignmentscoreMatrix . " -m 9 -d 0 -z -1 -E 100" . " > " . $scorefile;
-		my $globglobCommand = "$globalaligner " . $outputFa . " " . $candidatesFile . " -s " . $alignmentscoreMatrix . " -m 9 -d 0 -z -1 -E 100" . " > " . $scorefile;
+		my $loclocCommand = "$alignerPath/$localaligner " . $outputFa . " " . $candidatesFile . " -s " . $alignmentscoreMatrix . " -m 9 -d 0 -z -1 -E 100" . " > " . $scorefile;
+		my $globlocCommand = "$alignerPath/$glocalaligner " . $outputFa . " " . $candidatesFile . " -s " . $alignmentscoreMatrix . " -m 9 -d 0 -z -1 -E 100" . " > " . $scorefile;
+		my $globglobCommand = "$alignerPath/$globalaligner " . $outputFa . " " . $candidatesFile . " -s " . $alignmentscoreMatrix . " -m 9 -d 0 -z -1 -E 100" . " > " . $scorefile;
 
 		########################
 		## step: 2
@@ -872,9 +887,9 @@ if (!$coreOnly) {
 		#local      local:local    ssearch36   Smith-Waterman
 		#glocal     global:local   glsearch36  Needleman-Wunsch
 		#global     global:global  ggsearch36  Needleman-Wunsch
-		my $loclocCommand = "$localaligner " . $outputFa . " " . $candidatesFile . " -s " . $alignmentscoreMatrix . " -m 9 -d 0 -z -1 -E 100" . " > " . $scorefile;
-		my $globlocCommand = "$glocalaligner " . $outputFa . " " . $candidatesFile . " -s " . $alignmentscoreMatrix . " -m 9 -d 0 -z -1 -E 100" . " > " . $scorefile;
-		my $globglobCommand = "$globalaligner " . $outputFa . " " . $candidatesFile . " -s " . $alignmentscoreMatrix . " -m 9 -d 0 -z -1 -E 100" . " > " . $scorefile;
+		my $loclocCommand = "$alignerPath/$localaligner " . $outputFa . " " . $candidatesFile . " -s " . $alignmentscoreMatrix . " -m 9 -d 0 -z -1 -E 100" . " > " . $scorefile;
+		my $globlocCommand = "$alignerPath/$glocalaligner " . $outputFa . " " . $candidatesFile . " -s " . $alignmentscoreMatrix . " -m 9 -d 0 -z -1 -E 100" . " > " . $scorefile;
+		my $globglobCommand = "$alignerPath/$globalaligner " . $outputFa . " " . $candidatesFile . " -s " . $alignmentscoreMatrix . " -m 9 -d 0 -z -1 -E 100" . " > " . $scorefile;
 
 		########################
 		## step: 2
@@ -1095,10 +1110,15 @@ if (!$coreOnly) {
 	    my $p       = "-p=$proFile";
 	    my $g       = "-g=$groupID";
 	    my $o	= "-o=$outfile";
+	    my $ap	= '';
+	    if (defined $append) {
+		$ap = "-append";
+	    }
 
 	    my ($in, $stdout, $err);
 	    eval {
-	    @cmd = ($pl,$viz,$i,$p,$g,$o);
+	    @cmd = ($pl,$viz,$i,$p,$g,$o,$ap);
+
 	    if ($debug){ printVariableDebug(@cmd);}
 	    print "\n##############################\n";
 	    print "Writing of Visualisation file for feature architecture.\n";
@@ -1138,9 +1158,10 @@ if (!$coreOnly) {
 	    system ($delCommandCandi) == 0 or die "Error deleting candidate files\n";
 	    print "--> ".$coreOrthologsPath.$seqName."/fas_dir/*.candidate\n";
 
-	    my $delCommandOrth = "rm -f ".$dataDir."/".$seqName."_".$processID."/fas_dir/fasscore_dir/*.ortholog";
+## modfified by Ingo 2019-11-19
+	    my $delCommandOrth = "rm -f ".$dataDir."/".$seqName."/fas_dir/fasscore_dir/*.ortholog";
 	    system ($delCommandOrth) == 0 or die "Error deleting single sequence files of orthologs\n";
-	    print "--> ".$dataDir."/".$seqName."_".$processID."/fas_dir/fasscore_dir/*.ortholog\n";
+	    print "--> ".$dataDir."/".$seqName."/fas_dir/fasscore_dir/*.ortholog\n";
 
 	    ## compress *_fas.xml files in coreOrthologs
 	    opendir(COREFAS,$coreOrthologsPath.$seqName . "/fas_dir/fasscore_dir");
@@ -1150,20 +1171,20 @@ if (!$coreOnly) {
 	    print "--> ".$coreOrthologsPath.$seqName."/fas_dir/fasscore_dir/*_fas.xml\n";
 
 	    ## compress *_1_fas.xml files in results
-	    opendir(COREFAS,$dataDir."/".$seqName."_".$processID."/fas_dir/fasscore_dir");
+	    opendir(COREFAS,$dataDir."/".$seqName."/fas_dir/fasscore_dir");
 	    @fasscores = grep(/_1_fas\.xml/,sort { $a cmp $b } readdir(COREFAS));
 	    closedir(COREFAS);
-	    compressScoreCollections($dataDir."/".$seqName."_".$processID."/fas_dir/fasscore_dir/", \@fasscores, "1");
+	    compressScoreCollections($dataDir."/".$seqName."/fas_dir/fasscore_dir/", \@fasscores, "1");
 
 	    if ($countercheck){
 		# compress *_0_fas.xml files: M.countercheck (cc) FAS out
-		opendir(COREFAS,$dataDir."/".$seqName."_".$processID."/fas_dir/fasscore_dir");
+		opendir(COREFAS,$dataDir."/".$seqName."/fas_dir/fasscore_dir");
 		my @fasscores_cc = grep(/_0_fas\.xml/,sort { $a cmp $b } readdir(COREFAS));
 		closedir(COREFAS);
-		compressScoreCollections($dataDir."/".$seqName."_".$processID."/fas_dir/fasscore_dir/", \@fasscores_cc, "0");
+		compressScoreCollections($dataDir."/".$seqName."/fas_dir/fasscore_dir/", \@fasscores_cc, "0");
 	    }
 
-	    print "--> ".$dataDir."/".$seqName."_".$processID."/fas_dir/fasscore_dir/*_fas.xml\n";
+	    print "--> ".$dataDir."/".$seqName."/fas_dir/fasscore_dir/*_fas.xml\n";
 	}
 	## keep FAS score results (including feature information) as *scores.collection files
 	## param: $cur_path - path to fas score files
@@ -1610,21 +1631,26 @@ if (!$coreOnly) {
 	    }
 	    ## check whether a result file already exists:
 	    ## -force flag not set
-	    if (-e "$dataDir/$seqName.extended.fa" && !$force){
+	    if (-e "$dataDir/$seqName.extended.fa" && !$force && !$append){
 		my $input = '';
 		my $breaker = 0;
 
-		while (($input !~ /^[or]/i) and ($breaker < 4)) {
+		while (($input !~ /^[aor]/i) and ($breaker < 4)) {
 		    $breaker++;
-		    $input = getInput("\nAn outputfile $dataDir/$seqName.extended.fa already exists. Shall I overwrite it [o], or rename it [r]?", 1);
-		    if (($breaker > 3) and ($input !~ /[or]/i)){
-			    print "Please consider option -force.\n";
+		    $input = getInput("\nAn outputfile $dataDir/$seqName.extended.fa already exists. Shall I overwrite it [o], or rename it [r], or [a] append to it?", 1);
+		    if (($breaker > 3) and ($input !~ /[aor]/i)){
+			    print "Please consider option -force or option -append.\n";
 			    die "No proper answer is given: Quitting\n";
 		    }
 		}
 		if ($input =~ /o/i){
 		    unlink "$dataDir/$seqName.extended.fa" or warn "could not remove existing output file $dataDir/$seqName\n";
 		    printOut("Removing existing output file $dataDir/$seqName.extended.fa", 1);
+		    $force = 1;
+		}
+		elsif ($input =~ /a/i) {
+		    printOut("Appending output to $dataDir/$seqName.extended.fa\n", 1);
+		    $append = 1;
 		}
 		else {
 		    move "$dataDir/$seqName.extended.fa", "$dataDir/$seqName.extended.fa.old" or warn "Could not rename existing output file $dataDir/$seqName\n";
@@ -1635,14 +1661,17 @@ if (!$coreOnly) {
 		printOut ("--> $dataDir/$seqName.extended.fa already exists but will be removed due to option -force.",1);
 		unlink "$dataDir/$seqName.extended.fa" or warn "Could not remove existing output file $dataDir/$seqName.extended.fa\n";
 	    }
-	    if (-e "$dataDir/$seqName.extended.profile" && !$force){
+	    elsif (-e "$dataDir/$seqName.extended.fa" && $append){
+		printOut ("--> $dataDir/$seqName.extended.fa already exists but option -append has been chosen. Appending the output to the existing files\n", 1);
+	    }
+	    if (-e "$dataDir/$seqName.extended.profile" && !$force && !$append){
 		my $input = '';
 		my $breaker = 0;
 
-		while (($input !~ /^[or]/i) and ($breaker < 4)) {
+		while (($input !~ /^[aor]/i) and ($breaker < 4)) {
 		    $breaker++;
-		    $input = getInput("\nAn outputfile $dataDir/$seqName.extended.profile already exists. Shall I overwrite it [o], or rename it [r]?", 1);
-		    if (($breaker > 3) and ($input !~ /[or]/i)){
+		    $input = getInput("\nAn outputfile $dataDir/$seqName.extended.profile already exists. Shall I overwrite it [o], or rename it [r], or [a] append to it?", 1);
+		    if (($breaker > 3) and ($input !~ /[aor]/i)){
 			    print "Please consider option -force.\n";
 			    die "No proper answer is given: Quitting\n";
 		    }
@@ -1650,6 +1679,16 @@ if (!$coreOnly) {
 		if ($input =~ /o/i){
 		    unlink "$dataDir/$seqName.extended.profile" or warn "could not remove existing output file $dataDir/$seqName\n";
 		    printOut("Removing existing output file $dataDir/$seqName.extended.profile", 1);
+		}
+		elsif ($input =~ /a/i){
+		    printOut("Appending output to $dataDir/$seqName.extended.profile", 1);
+		    open (IN, "<$dataDir/$seqName.extended.profile") or die "failed to open $dataDir/$seqName.extended.profile after selection of option -append\n";
+		    while (<IN>) {
+			chomp $_;
+                        my @keys = split '\|', $_;
+			$profile{$keys[1]} = 1;
+		    }
+
 		}
 		else {
 		    move "$dataDir/$seqName.extended.profile", "$dataDir/$seqName.extended.profile.old" or warn "Could not rename existing output file $dataDir/$seqName\n";
@@ -1660,7 +1699,16 @@ if (!$coreOnly) {
 		printOut ("--> $dataDir/$seqName.extended.profile already exists but will be removed due to option -force.", 1);
 		unlink "$dataDir/$seqName.extended.profile" or warn "Could not remove existing output file $dataDir/$seqName.extended.profile\n";
 	    }
+	    elsif(-e "$dataDir/$seqName.extended.profile" && $append){
+                printOut ("--> $dataDir/$seqName.extended.profile already exist but option -append has been chosen. Appending the output to the existing files\n ", 1);
+		open (IN, "<$dataDir/$seqName.extended.profile") or die "failed to open $dataDir/$seqName.extended.profile after selection of option -append\n";
+                    while (<IN>) {
+                        chomp $_;
+			my @keys = split '\|', $_;
+                        $profile{$keys[1]} = 1;
+                    }
 
+	    }
 	    my $node;
 	    $node = $db->get_taxon(-taxonid => $taxa{$refSpec});
 	    $node->name('supplied', $refSpec);
@@ -2224,7 +2272,11 @@ sub runHamstr {
 		    if ($rbh) {
                         push @hamstr, "-rbh";
 		    }
-
+## added 2019-11-19
+		    if ($append) {
+			push @hamstr, "-append";
+		    }
+##
 		    if ($silent) {
                         push @hamstr, "-silent";
 		    }
@@ -2763,6 +2815,8 @@ ${bold}USING NON-DEFAULT PATHS$norm
 
 ${bold}ADDITIONAL OPTIONS$norm
 
+-append
+	Set this flag to append the output to existing output files
 -seqName=<>
         Specifies a name for the search. If not set a random name will be set.
 -db

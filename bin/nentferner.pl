@@ -1,5 +1,5 @@
 #!/usr/bin/perl
-use lib '../lib';
+use lib '/share/project/ingo/src/HaMStR/lib';
 use Filehandler;
 use strict;
 use Getopt::Long;
