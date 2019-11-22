@@ -1,11 +1,11 @@
-#!/usr/bin/env perl
+#!/home/vinh/anaconda3/envs/hamstr/bin/perl
 
 use strict;
 use warnings;
 use File::Copy qw(move);
 
 use Env qw(ONESEQDIR);
-use lib '../lib';
+use lib '/home/vinh/programs/HaMStR/lib';
 use Parallel::ForkManager;
 #use DBI;
 use IO::Handle;
@@ -91,7 +91,7 @@ my $startTime = time;
 ############ General settings
 my $version = 'oneSeq v.1.4';
 ##### configure
-my $configure = 0;
+my $configure = 1;
 if ($configure == 0){
 	die "\n\n$version\n\nPLEASE RUN THE CONFIGURE OR CONFIGURE_MAC SCRIPT BEFORE USING oneSeq.pl\n\n";
 }
@@ -157,8 +157,8 @@ my $currDir = getcwd;
 my $weightPath = "$path/weight_dir/";
 my $fasPath = "$path/bin/fas/";
 my $visualsPath = "$path/bin/visuals/";
-my $alignerVersion = "fasta-36.3.8e"; #Baustelle: check and set
-my $alignerPath = "$path/bin/aligner/$alignerVersion/bin";
+# my $alignerVersion = "fasta-36.3.8e"; #Baustelle: check and set
+# my $alignerPath = "$path/bin/aligner/$alignerVersion/bin";
 
 my @defaultRanks = ('superkingdom', 'kingdom',
         'superphylum', 'phylum', 'subphylum',
@@ -838,9 +838,9 @@ if (!$coreOnly) {
 		#local      local:local    ssearch36   Smith-Waterman
 		#glocal     global:local   glsearch36  Needleman-Wunsch
 		#global     global:global  ggsearch36  Needleman-Wunsch
-		my $loclocCommand = "$alignerPath/$localaligner " . $outputFa . " " . $candidatesFile . " -s " . $alignmentscoreMatrix . " -m 9 -d 0 -z -1 -E 100" . " > " . $scorefile;
-		my $globlocCommand = "$alignerPath/$glocalaligner " . $outputFa . " " . $candidatesFile . " -s " . $alignmentscoreMatrix . " -m 9 -d 0 -z -1 -E 100" . " > " . $scorefile;
-		my $globglobCommand = "$alignerPath/$globalaligner " . $outputFa . " " . $candidatesFile . " -s " . $alignmentscoreMatrix . " -m 9 -d 0 -z -1 -E 100" . " > " . $scorefile;
+		my $loclocCommand = "$localaligner " . $outputFa . " " . $candidatesFile . " -s " . $alignmentscoreMatrix . " -m 9 -d 0 -z -1 -E 100" . " > " . $scorefile;
+		my $globlocCommand = "$glocalaligner " . $outputFa . " " . $candidatesFile . " -s " . $alignmentscoreMatrix . " -m 9 -d 0 -z -1 -E 100" . " > " . $scorefile;
+		my $globglobCommand = "$globalaligner " . $outputFa . " " . $candidatesFile . " -s " . $alignmentscoreMatrix . " -m 9 -d 0 -z -1 -E 100" . " > " . $scorefile;
 
 		########################
 		## step: 2
@@ -887,9 +887,9 @@ if (!$coreOnly) {
 		#local      local:local    ssearch36   Smith-Waterman
 		#glocal     global:local   glsearch36  Needleman-Wunsch
 		#global     global:global  ggsearch36  Needleman-Wunsch
-		my $loclocCommand = "$alignerPath/$localaligner " . $outputFa . " " . $candidatesFile . " -s " . $alignmentscoreMatrix . " -m 9 -d 0 -z -1 -E 100" . " > " . $scorefile;
-		my $globlocCommand = "$alignerPath/$glocalaligner " . $outputFa . " " . $candidatesFile . " -s " . $alignmentscoreMatrix . " -m 9 -d 0 -z -1 -E 100" . " > " . $scorefile;
-		my $globglobCommand = "$alignerPath/$globalaligner " . $outputFa . " " . $candidatesFile . " -s " . $alignmentscoreMatrix . " -m 9 -d 0 -z -1 -E 100" . " > " . $scorefile;
+		my $loclocCommand = "$localaligner " . $outputFa . " " . $candidatesFile . " -s " . $alignmentscoreMatrix . " -m 9 -d 0 -z -1 -E 100" . " > " . $scorefile;
+		my $globlocCommand = "$glocalaligner " . $outputFa . " " . $candidatesFile . " -s " . $alignmentscoreMatrix . " -m 9 -d 0 -z -1 -E 100" . " > " . $scorefile;
+		my $globglobCommand = "$globalaligner " . $outputFa . " " . $candidatesFile . " -s " . $alignmentscoreMatrix . " -m 9 -d 0 -z -1 -E 100" . " > " . $scorefile;
 
 		########################
 		## step: 2

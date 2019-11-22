@@ -1,5 +1,5 @@
-#!/usr/bin/perl
-use lib '/share/project/ingo/src/HaMStR/lib';
+#!/home/vinh/anaconda3/envs/hamstr/bin/perl
+use lib '/home/vinh/programs/HaMStR/lib';
 use Filehandler;
 use strict;
 use Getopt::Long;

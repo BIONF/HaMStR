@@ -1,6 +1,35 @@
 #!/bin/bash
 
-# check dependencies
+sys="$(uname)" # Linux for Linux or Darwin for MacOS
+echo $sys
+
+### check grep and sed availability
+echo "-------------------------------------"
+echo "Checking grep and sed availability..."
+grepprog='grep'
+sedprog='sed'
+if [ "$sys" == "Darwin" ]; then
+    sedprog='gsed'
+fi
+
+# NOTE: install only available for Linux!
+if [ -z "$(which $sedprog)" ]; then
+    if [ "$sys" == "Darwin" ]; then
+        echo "$sedprog could not be found. Please update the setup script"
+    fi
+	conda install -c conda-forge sed
+fi
+
+if [ -z "$(which $grepprog)" ]; then
+    if [ "$sys" == "Darwin" ]; then
+        echo "$grepprog could not be found. Please update the setup script"
+    fi
+	conda install -c bioconda grep
+fi
+
+echo "done!"
+
+### check dependencies
 echo "-------------------------------------"
 echo "Installing dependencies..."
 
@@ -54,7 +83,7 @@ done
 
 for i in "${dependencies[@]}"; do
   if [ -z "$(which $i)" ]; then
-    echo "$i not found. Please install it to HaMStR!"
+    echo "$i not found. Please install it to use HaMStR!"
     flag=1
   fi
 done
@@ -135,8 +164,6 @@ done
 echo "done!"
 
 ### download tools
-sys="$(uname)" # Linux for Linux or Darwin for MacOS
-echo $sys
 echo "-------------------------------------"
 echo "Downloading and installing annotation tools/databases:"
 
@@ -179,73 +206,111 @@ if ! [ -f Pfam-A.hmm ]; then
   gunzip Pfam-A.hmm.gz
   gunzip Pfam-A.hmm.dat.gz
   hmmpress Pfam-A.hmm
+  mv $CURRENT/bin/pfam_scan.pl $CURRENT/bin/fas/Pfam/
 fi
-mv $CURRENT/bin/pfam_scan.pl $CURRENT/bin/fas/Pfam/
 cd $CURRENT
 
 ### download data
 echo "-------------------------------------"
 echo "Getting pre-calculated data"
 
-if [[ $CURRENT == */HaMStR ]] || [[ $CURRENT == */hamstr ]]; then
-  echo "Processing $CURRENT ..."
-  echo "Downloading data from https://applbio.biologie.uni-frankfurt.de/download/hamstr_qfo/data_HaMStR.tar"
-  wget --no-check-certificate https://applbio.biologie.uni-frankfurt.de/download/hamstr_qfo/data_HaMStR.tar
-  if [ ! -f $CURRENT/data_HaMStR.tar ]; then
-    echo "File not found!"
-  else
-    CHECKSUM=$(cksum data_HaMStR.tar)
-    echo "Checksum: $CHECKSUM"
-    if [ "$CHECKSUM" == "557087663 1952579568 data_HaMStR.tar" ]; then
-      echo "Extracting archive data_HaMStR.tar"
-      tar xfv $CURRENT/data_HaMStR.tar
-      rm $CURRENT/data_HaMStR.tar
-      echo "Archive data_HaMStR.tar extracted into $CURRENT"
-      if [ ! -d $CURRENT/data_HaMStR ]; then
-        echo "Directory $CURRENT/data_HaMStR not found!"
+if ! [ "$(ls -A $CURRENT/taxonomy)" ]; then
+    if [[ $CURRENT == */HaMStR ]] || [[ $CURRENT == */hamstr ]]; then
+      echo "Processing $CURRENT ..."
+      echo "Downloading data from https://applbio.biologie.uni-frankfurt.de/download/hamstr_qfo/data_HaMStR.tar"
+      wget --no-check-certificate https://applbio.biologie.uni-frankfurt.de/download/hamstr_qfo/data_HaMStR.tar
+      if [ ! -f $CURRENT/data_HaMStR.tar ]; then
+        echo "File not found!"
       else
-        printf "\nMoving gene sets ...\n--------------------\n"
-        rsync -rva data_HaMStR/genome_dir/* $CURRENT/genome_dir
-        printf "\nMoving blast databases ...\n--------------------------\n"
-        rsync -rva data_HaMStR/blast_dir/* $CURRENT/blast_dir
-        printf "\nMoving annotations ...\n----------------------\n"
-        rsync -rva data_HaMStR/weight_dir/* $CURRENT/weight_dir
-        printf "\nMoving Taxonomy ...\n-------------------\n"
-        rsync -rva data_HaMStR/taxonomy/* $CURRENT/taxonomy
-        # printf "\nMoving Pfam ...\n---------------\n"
-        # rsync -rva data_HaMStR/Pfam/* $CURRENT/bin/fas/Pfam
-        printf "\nMoving SMART ...\n----------------\n"
-        rsync -rva data_HaMStR/SMART/* $CURRENT/bin/fas/SMART
-        printf "\nMoving CAST ...\n---------------\n"
-        rsync -rva data_HaMStR/CAST/* $CURRENT/bin/fas/CAST
-        printf "\nMoving COILS ...\n----------------\n"
-        rsync -rva data_HaMStR/COILS2/* $CURRENT/bin/fas/COILS2
-        # printf "\nMoving SEG ...\n--------------\n"echo "export ONESEQDIR=${CURRENT}" >> ~/.bashrc
-        # rsync -rva data_HaMStR/SEG/* $CURRENT/bin/fas/SEG
-        printf "\nMoving SignalP ...\n------------------\n"
-        rsync -rva data_HaMStR/SignalP/* $CURRENT/bin/fas/SignalP
-        printf "\nMoving TMHMM ...\n----------------\n"
-        rsync -rva data_HaMStR/TMHMM/* $CURRENT/bin/fas/TMHMM
-        rsync -rva data_HaMStR/README* $CURRENT/
-        printf "\nRemoving duplicated data. Please wait.\n------------------------------------\n"
-        rm -rf $CURRENT/data_HaMStR
-        printf "\nFinished. Data should be in place to run HaMStR.\n"
+        CHECKSUM=$(cksum data_HaMStR.tar)
+        echo "Checksum: $CHECKSUM"
+        if [ "$CHECKSUM" == "557087663 1952579568 data_HaMStR.tar" ]; then
+          echo "Extracting archive data_HaMStR.tar"
+          tar xfv $CURRENT/data_HaMStR.tar
+          rm $CURRENT/data_HaMStR.tar
+          echo "Archive data_HaMStR.tar extracted into $CURRENT"
+          if [ ! -d $CURRENT/data_HaMStR ]; then
+            echo "Directory $CURRENT/data_HaMStR not found!"
+          else
+            printf "\nMoving gene sets ...\n--------------------\n"
+            rsync -rva data_HaMStR/genome_dir/* $CURRENT/genome_dir
+            printf "\nMoving blast databases ...\n--------------------------\n"
+            rsync -rva data_HaMStR/blast_dir/* $CURRENT/blast_dir
+            printf "\nMoving annotations ...\n----------------------\n"
+            rsync -rva data_HaMStR/weight_dir/* $CURRENT/weight_dir
+            printf "\nMoving Taxonomy ...\n-------------------\n"
+            rsync -rva data_HaMStR/taxonomy/* $CURRENT/taxonomy
+            # printf "\nMoving Pfam ...\n---------------\n"
+            # rsync -rva data_HaMStR/Pfam/* $CURRENT/bin/fas/Pfam
+            printf "\nMoving SMART ...\n----------------\n"
+            rsync -rva data_HaMStR/SMART/* $CURRENT/bin/fas/SMART
+            printf "\nMoving CAST ...\n---------------\n"
+            rsync -rva data_HaMStR/CAST/* $CURRENT/bin/fas/CAST
+            printf "\nMoving COILS ...\n----------------\n"
+            rsync -rva data_HaMStR/COILS2/* $CURRENT/bin/fas/COILS2
+            # printf "\nMoving SEG ...\n--------------\n"echo "export ONESEQDIR=${CURRENT}" >> ~/.bashrc
+            # rsync -rva data_HaMStR/SEG/* $CURRENT/bin/fas/SEG
+            printf "\nMoving SignalP ...\n------------------\n"
+            rsync -rva data_HaMStR/SignalP/* $CURRENT/bin/fas/SignalP
+            printf "\nMoving TMHMM ...\n----------------\n"
+            rsync -rva data_HaMStR/TMHMM/* $CURRENT/bin/fas/TMHMM
+            rsync -rva data_HaMStR/README* $CURRENT/
+            printf "\nRemoving duplicated data. Please wait.\n------------------------------------\n"
+            rm -rf $CURRENT/data_HaMStR
+            printf "\nFinished. Data should be in place to run HaMStR.\n"
+          fi
+        else
+          echo "Something went wrong with the download. Checksum does not match."
+        fi
       fi
     else
-      echo "Something went wrong with the download. Checksum does not match."
+      echo "Please change into your HaMStR directory and run install_data.sh again."
+      echo "Exiting."
+      exit
     fi
-  fi
-else
-  echo "Please change into your HaMStR directory and run install_data.sh again."
-  echo "Exiting."
-  exit
 fi
 
+### download data
+echo "-------------------------------------"
+echo "Source bashrc"
 if [ -z "$(grep ONESEQDIR=$CURRENT ~/.bashrc)" ]; then
   echo "export ONESEQDIR=${CURRENT}" >> ~/.bashrc
 fi
 source ~/.bashrc
 echo "done!"
+
+### adapt paths in hamstr scripts
+echo "-------------------------------------"
+echo "Adapting paths in hamstr scripts"
+# update the sed and grep commands
+$sedprog -i -e "s/\(my \$sedprog = '\).*/\1$sedprog';/" $CURRENT/bin/hamstr.pl;
+$sedprog -i -e "s/\(my \$grepprog = '\).*/\1$grepprog';/" $CURRENT/bin/hamstr.pl;
+$sedprog -i -e "s/\(my \$sedprog = '\).*/\1$sedprog';/" $CURRENT/bin/oneSeq.pl;
+$sedprog -i -e "s/\(my \$grepprog = '\).*/\1$grepprog';/" $CURRENT/bin/oneSeq.pl;
+
+# localize the perl installation
+path2perl=`which perl`
+echo "path to perl: $path2perl"
+$sedprog -i -e "s|\#\!.*|\#\!$path2perl|g" $CURRENT/bin/hamstr.pl;
+$sedprog -i -e "s|\#\!.*|\#\!$path2perl|g" $CURRENT/bin/nentferner.pl;
+$sedprog -i -e "s|\#\!.*|\#\!$path2perl|g" $CURRENT/bin/translate.pl;
+$sedprog -i -e "s|\#\!.*|\#\!$path2perl|g" $CURRENT/bin/oneSeq.pl;
+
+# get lib path
+path2dir=$CURRENT
+echo "path to lib: $path2dir/lib"
+$sedprog -i -e "s|use lib.*lib\(.*\)|use lib '$path2dir/lib\1|" $CURRENT/bin/hamstr.pl
+$sedprog -i -e "s|use lib.*|use lib '$path2dir/lib';|" $CURRENT/bin/nentferner.pl
+$sedprog -i -e "s|use lib.*|use lib '$path2dir/lib';|g" $CURRENT/bin/translate.pl
+$sedprog -i -e "s|use lib.*|use lib '$path2dir/lib';|g" $CURRENT/bin/oneSeq.pl
+
+# paths to core_ortholog and blast_dir
+echo "default path to blast_dir and core_orthologs: $path2dir"
+$sedprog -i -e "s|\(my \$path = \).*|\1 '$path2dir';|g" $CURRENT/bin/hamstr.pl
+
+###### CAN REMOVE THIS VAR $check_genewise in hamstr.pl ##########################
+$sedprog -i -e 's/$check_genewise = [0,1];/$check_genewise = 1;/' $CURRENT/bin/hamstr.pl;
+###############################################
 
 ### final check
 echo "-------------------------------------"
@@ -300,24 +365,17 @@ echo "done!"
 
 if [ "$flag" == 1 ]; then
     echo "Some tools were not installed correctly. Please check again!"
+    exit
 else
-    echo "Please restart the terminal and run ./configure within HaMStR/bin folder to continue."
+    echo "Generating symbolic link hamstr -> hamstr.pl"
+    ln -s -f $CURRENT/bin/hamstr.pl ./hamstr
+    echo "All tests succeeded, HaMStR should be ready to run";
+    $sedprog -i -e 's/my $configure = .*/my $configure = 1;/' $CURRENT/bin/hamstr.pl;
+    $sedprog -i -e 's/my $configure = .*/my $configure = 1;/' $CURRENT/bin/oneSeq.pl;
+    echo "Restart terminal and test your HaMStR with:"
+    echo "perl bin/oneSeq.pl -sequence_file=infile.fa -seqid=P83876 -refspec=HUMAN@9606@1 -minDist=genus -maxDist=kingdom -coreOrth=5 -cleanup -global"
+    echo "or"
+    echo "oneSeq.pl -h"
+    echo "for more details."
 fi
 exit 1
-
-### configuration
-# echo "-------------------------------------"
-# echo "configuration...."
-# cd "bin"
-# if [ $sys=="Linux" ]; then
-#     bash ./configure -p -n
-# elif [ $sys=="Darwin" ]; then
-#     bash ./configure_mac -p -n
-# fi
-#
-# echo "done!"
-# echo "Restart terminal and test your HaMStR with:"
-# echo "oneSeq.pl -sequence_file=infile.fa -seqid=P83876 -refspec=HUMAN@9606@1 -minDist=genus -maxDist=kingdom -coreOrth=5 -cleanup -global"
-# echo "or"
-# echo "oneSeq.pl -h"
-# echo "for more details."

@@ -1,6 +1,6 @@
-#!/usr/bin/perl
+#!/home/vinh/anaconda3/envs/hamstr/bin/perl
 use strict;
-use lib '/share/project/ingo/src/HaMStR/lib';
+use lib '/home/vinh/programs/HaMStR/lib';
 use Getopt::Long;
 use Bio::Perl;
 use File::Copy;

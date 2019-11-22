@@ -61,10 +61,10 @@ $sedprog -i -e "s|\#\!.*|\#\!$path2perl|g" oneSeq.pl;
 path2dir=`pwd |$sedprog -e 's/\(.*\)\/.*/\1/'`;
 
 echo "	updating path to lib: $path2dir"
-$sedprog -i -e "s|use lib.*lib\(.*\)|use lib '$path2dir/lib\1|" hamstr.pl
+# $sedprog -i -e "s|use lib.*lib\(.*\)|use lib '$path2dir/lib\1|" hamstr.pl
 $sedprog -i -e "s|use lib.*|use lib '$path2dir/lib';|" nentferner.pl
 $sedprog -i -e "s|use lib.*|use lib '$path2dir/lib';|g" translate.pl
-$sedprog -i -e "s|use lib.*|use lib '$path2dir/lib';|g" oneSeq.pl
+# $sedprog -i -e "s|use lib.*|use lib '$path2dir/lib';|g" oneSeq.pl
 
 ## update the default paths to core_ortholog and blast_dir
 echo "	updating default path to blast_dir and core_orthologs: $path2bin"
