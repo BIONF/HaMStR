@@ -1,11 +1,11 @@
-#!/home/vinh/anaconda3/envs/hamstr/bin/perl
+#!/home/vinh/anaconda3/envs/hamstr_2/bin/perl
 
 use strict;
 use warnings;
 use File::Copy qw(move);
 
 use Env qw(ONESEQDIR);
-use lib '/home/vinh/programs/HaMStR/lib';
+use lib '/home/vinh/programs/test/HaMStR/lib';
 use Parallel::ForkManager;
 #use DBI;
 use IO::Handle;

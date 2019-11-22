@@ -1,7 +1,7 @@
 #!/bin/bash
 
 sys="$(uname)" # Linux for Linux or Darwin for MacOS
-echo $sys
+echo "Current OS system: $sys"
 
 ### check grep and sed availability
 echo "-------------------------------------"
@@ -74,7 +74,9 @@ for i in "${dependencies[@]}"; do
     elif [ "$tool" = "genewise" ]; then
       conda install -y -c bioconda wise2
       wisePath=$(which "genewise")
-      echo "export WISECONFIGDIR=${wisePath}" >> ~/.bashrc
+      if [ -z "$(grep WISECONFIGDIR=$wisePath ~/.bashrc)" ]; then
+          echo "export WISECONFIGDIR=${wisePath}" >> ~/.bashrc
+      fi
     else
       conda install -y -c bioconda $i
     fi
@@ -167,7 +169,9 @@ echo "done!"
 echo "-------------------------------------"
 echo "Downloading and installing annotation tools/databases:"
 
+fasta36="yes"
 if [ -z "$(which fasta36)" ]; then
+  fasta36="no"
   echo "fasta-36"
   fasta36v="fasta-36.3.8h"
   wget "http://faculty.virginia.edu/wrpearson/fasta/fasta36/${fasta36v}.tar.gz"
@@ -181,11 +185,15 @@ if [ -z "$(which fasta36)" ]; then
     make -f ../make/Makefile.os_x86_64 all
   fi
   fastaPath=$(cd -- ../bin && pwd)
-  echo "export PATH=${fastaPath}:\$PATH" >> ~/.bashrc
+  if [ -z "$(grep PATH=${fastaPath} ~/.bashrc)" ]; then
+      echo "export PATH=${fastaPath}:\$PATH" >> ~/.bashrc
+  fi
 fi
 cd $CURRENT
 
+seg="yes"
 if [ -z "$(which seg)" ]; then
+  seg="no"
   echo "SEG"
   cd "bin/fas/SEG"
   wget -r -l 2 -np ftp://ftp.ncbi.nih.gov/pub/seg/seg
@@ -193,8 +201,10 @@ if [ -z "$(which seg)" ]; then
   rm -rf ftp.ncbi.nih.gov
   rm -rf archive
   make
-  seqPath=$(pwd)
-  echo "export PATH=${seqPath}:\$PATH" >> ~/.bashrc
+  segPath=$(pwd)
+  if [ -z "$(grep PATH=${segPath} ~/.bashrc)" ]; then
+      echo "export PATH=${segPath}:\$PATH" >> ~/.bashrc
+  fi
 fi
 cd $CURRENT
 
@@ -220,7 +230,7 @@ if ! [ "$(ls -A $CURRENT/taxonomy)" ]; then
       echo "Downloading data from https://applbio.biologie.uni-frankfurt.de/download/hamstr_qfo/data_HaMStR.tar"
       wget --no-check-certificate https://applbio.biologie.uni-frankfurt.de/download/hamstr_qfo/data_HaMStR.tar
       if [ ! -f $CURRENT/data_HaMStR.tar ]; then
-        echo "File not found!"
+        echo "File data_HaMStR.tar not found! Please try again!"
       else
         CHECKSUM=$(cksum data_HaMStR.tar)
         echo "Checksum: $CHECKSUM"
@@ -257,7 +267,7 @@ if ! [ "$(ls -A $CURRENT/taxonomy)" ]; then
             rsync -rva data_HaMStR/README* $CURRENT/
             printf "\nRemoving duplicated data. Please wait.\n------------------------------------\n"
             rm -rf $CURRENT/data_HaMStR
-            printf "\nFinished. Data should be in place to run HaMStR.\n"
+            printf "\nDone! Data should be in place to run HaMStR.\n"
           fi
         else
           echo "Something went wrong with the download. Checksum does not match."
@@ -273,8 +283,14 @@ fi
 ### download data
 echo "-------------------------------------"
 echo "Source bashrc"
+
 if [ -z "$(grep ONESEQDIR=$CURRENT ~/.bashrc)" ]; then
   echo "export ONESEQDIR=${CURRENT}" >> ~/.bashrc
+fi
+
+wisePath=$(which "genewise")
+if [ -z "$(grep WISECONFIGDIR=$wisePath ~/.bashrc)" ]; then
+    echo "export WISECONFIGDIR=${wisePath}" >> ~/.bashrc
 fi
 source ~/.bashrc
 echo "done!"
@@ -328,7 +344,6 @@ condaPkgs=(
   clustalw
   mafft
   muscle
-
 )
 for i in "${condaPkgs[@]}"; do
     if [[ -z $(conda list | grep "$i ") ]]; then
@@ -350,8 +365,6 @@ echo "done!"
 
 echo "Environment paths"
 envPaths=(
-  "PATH=$CURRENT/bin/aligner/fasta-36"
-  "PATH=$CURRENT/bin/fas/SEG"
   "ONESEQDIR=$CURRENT"
   WISECONFIGDIR
 )
@@ -361,14 +374,26 @@ for i in "${envPaths[@]}"; do
         flag=1
     fi
 done
+if [ "$fasta36" == "no" ]; then
+    if [ -z "$(grep PATH=$CURRENT/bin/aligner/fasta-36 ~/.bashrc)" ]; then
+        echo "$CURRENT/bin/aligner/fasta-36 was not added into ~/.bashrc"
+        flag=1
+    fi
+fi
+if [ "$seg" == "no" ]; then
+    if [ -z "$(grep PATH=$CURRENT/bin/fas/SEG ~/.bashrc)" ]; then
+        echo "$CURRENT/bin/fas/SEG was not added into ~/.bashrc"
+        flag=1
+    fi
+fi
 echo "done!"
 
 if [ "$flag" == 1 ]; then
-    echo "Some tools were not installed correctly. Please check again!"
+    echo "Some tools were not installed correctly or paths were not added into ~/.bashrc. Please check again!"
     exit
 else
     echo "Generating symbolic link hamstr -> hamstr.pl"
-    ln -s -f $CURRENT/bin/hamstr.pl ./hamstr
+    ln -s -f $CURRENT/bin/hamstr.pl $CURRENT/bin/hamstr
     echo "All tests succeeded, HaMStR should be ready to run";
     $sedprog -i -e 's/my $configure = .*/my $configure = 1;/' $CURRENT/bin/hamstr.pl;
     $sedprog -i -e 's/my $configure = .*/my $configure = 1;/' $CURRENT/bin/oneSeq.pl;

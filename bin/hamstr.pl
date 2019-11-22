@@ -1,9 +1,9 @@
-#!/home/vinh/anaconda3/envs/hamstr/bin/perl
+#!/home/vinh/anaconda3/envs/hamstr_2/bin/perl
 use strict;
 use Getopt::Long;
-use lib '/home/vinh/programs/HaMStR/lib';
-# use lib '/home/vinh/programs/HaMStR/lib/Bio';
-# use lib '/home/vinh/programs/HaMStR/lib/XML';
+use lib '/home/vinh/programs/test/HaMStR/lib';
+# use lib '/home/vinh/programs/test/HaMStR/lib/Bio';
+# use lib '/home/vinh/programs/test/HaMStR/lib/XML';
 use Parallel::ForkManager;
 use Bio::SearchIO;
 use Bio::Search::Hit::BlastHit;
@@ -198,7 +198,7 @@ if ($configure == 0){
 ########## EDIT THE FOLLOWING LINES TO CUSTOMIZE YOUR SCRIPT ##################
 my $prog = 'hmmsearch'; #program for the hmm search
 my $eval = 1; # default evalue cutoff for the hmm search
-my $path =  '/home/vinh/programs/HaMStR';
+my $path =  '/home/vinh/programs/test/HaMStR';
 my $sedprog = 'sed';
 my $grepprog = 'grep';
 my $alignmentprog = 'clustalw';
