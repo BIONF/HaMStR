@@ -225,7 +225,7 @@ echo "-------------------------------------"
 echo "Getting pre-calculated data"
 
 if ! [ "$(ls -A $CURRENT/taxonomy)" ]; then
-    if [[ $CURRENT == */HaMStR ]] || [[ $CURRENT == */hamstr ]]; then
+    # if [[ $CURRENT == */HaMStR ]] || [[ $CURRENT == */hamstr ]]; then
       echo "Processing $CURRENT ..."
       echo "Downloading data from https://applbio.biologie.uni-frankfurt.de/download/hamstr_qfo/data_HaMStR.tar"
       wget --no-check-certificate https://applbio.biologie.uni-frankfurt.de/download/hamstr_qfo/data_HaMStR.tar
@@ -273,11 +273,11 @@ if ! [ "$(ls -A $CURRENT/taxonomy)" ]; then
           echo "Something went wrong with the download. Checksum does not match."
         fi
       fi
-    else
-      echo "Please change into your HaMStR directory and run install_data.sh again."
-      echo "Exiting."
-      exit
-    fi
+    # else
+    #   echo "Please change into your HaMStR directory and run install_data.sh again."
+    #   echo "Exiting."
+    #   exit
+    # fi
 fi
 
 ### download data
