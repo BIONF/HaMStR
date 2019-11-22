@@ -1,7 +1,7 @@
-HaMStR-OneSeq
+# HaMStR-OneSeq
 
-# Installation
-## 1. Prepare a conda environment
+## Installation
+### 1. Prepare a conda environment
 Follow [this link](https://docs.conda.io/projects/conda/en/latest/user-guide/install/index.html) to install conda (anaconda or miniconda) to your system.
 
 Add additional chanels [bioconda](https://bioconda.github.io/) and [conda-forge](https://conda-forge.org/):
@@ -15,7 +15,7 @@ Create environment for installing HaMStR
 conda create --name hamstr perl perl-app-cpanminus -y
 ```
 
-## 2. Install HaMStR into conda hamstr environment
+### 2. Install HaMStR into conda hamstr environment
 Activate the environment
 ```
 conda activate hamstr
@@ -33,7 +33,7 @@ bin/setup.sh
 ```
 After the setup run successfully, you can restart the terminal to start using HaMStR.
 
-# Usage
+## Usage
 HaMStR will run smoothly with the provided sample file if everything is set correctly:
 
 * hamstr/data/infile.fa (your input files should be placed here)
@@ -45,7 +45,7 @@ HaMStR will run smoothly with the provided sample file if everything is set corr
 HaMStR-OneSeq integrates the prediction of orthologs and the comparison of their Feature Architecture Similarity score (FAS). The provided output file seqname.extended.profile contains the ID’s and the FAS scores for the orthologs in a TAB-separated file format (FAS scores are computed pairwise between the seeding input gene and it’s predicted orthologous genes).
 
 
-# Visualization
+## Visualization
 HaMStR provides you with a set of output files in plain text format. For a rich visualisation of the provided information you can plug them into the Phyloprofile tool (https://github.com/BIONF/phyloprofile)
 
 * seqname.extended.profile  (Profile with FAS score for ortholgs)
@@ -77,7 +77,7 @@ To prepare the additional input file (*.domains) you just need to concatenate th
 The resulting file combined_1.matrix and combined_1.domains can be plugged into the Phyloprofile tool (R shiny) for further investigation.
 
 
-# Gene sets, Annotations, Blast DBs
+## Gene sets, Annotations, Blast DBs
 
 Within the data package (https://fasta.bioch.virginia.edu/fasta_www2/fasta_list2.shtml) we provide a set of 78 reference taxa (gene sets in genome_dir, annotations in weight_dir, blast databases in blast_dir). They can be automatically downloaded with the `setup.sh` script. This data comes "ready to use" with the HaMStR-OneSeq framework. Species data must be present in the three directories listed below. For each species/taxon there is a sub-directory named in accordance to the naming schema ([Species acronym]@[NCBI ID]@[Proteome version]).:
 
@@ -143,7 +143,5 @@ To prove if your manually added species is integrated into the HaMStR framework 
 
 This command simply prints a list of all available taxa.
 
-Happy HaMStRing.
-
-# Contact
+## Contact
 For further support or bug reports please contact: ???@bio.uni-frankfurt.de
