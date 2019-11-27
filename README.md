@@ -23,7 +23,7 @@ conda activate hamstr
 
 Get HaMStR source code from GitHub
 ```
-git clone https://github.com/BIONF/HaMStR
+git clone --depth=1 https://github.com/BIONF/HaMStR
 ```
 
 Run setup.sh in the HaMStR/bin folde to install HaMStR and its dependencies
