@@ -297,9 +297,9 @@ if ! [ "$(ls -A $CURRENT/taxonomy)" ]; then
     # fi
 fi
 
-### download data
+### add paths to bash profile file
 echo "-------------------------------------"
-echo "Source bashrc"
+echo "Adding paths to ~/$bashFile"
 
 if [ -z "$(grep ONESEQDIR=$CURRENT ~/$bashFile)" ]; then
   echo "export ONESEQDIR=${CURRENT}" >> ~/$bashFile
@@ -309,7 +309,6 @@ wisePath=$(which "genewise")
 if [ -z "$(grep WISECONFIGDIR=$wisePath ~/$bashFile)" ]; then
     echo "export WISECONFIGDIR=${wisePath}" >> ~/$bashFile
 fi
-source ~/$bashFile
 echo "done!"
 
 ### adapt paths in hamstr scripts
@@ -411,6 +410,8 @@ if [ "$flag" == 1 ]; then
 else
     echo "Generating symbolic link hamstr -> hamstr.pl"
     ln -s -f $CURRENT/bin/hamstr.pl $CURRENT/bin/hamstr
+    echo "Sourcing bash profile file"
+    source ~/$bashFile
     echo "All tests succeeded, HaMStR should be ready to run";
     $sedprog -i -e 's/my $configure = .*/my $configure = 1;/' $CURRENT/bin/hamstr.pl;
     $sedprog -i -e 's/my $configure = .*/my $configure = 1;/' $CURRENT/bin/oneSeq.pl;
