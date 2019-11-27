@@ -4,10 +4,10 @@
 ### 1. Prepare a conda environment
 Follow [this link](https://docs.conda.io/projects/conda/en/latest/user-guide/install/index.html) to install conda (anaconda or miniconda) to your system.
 
-Add additional chanels [bioconda](https://bioconda.github.io/) and [conda-forge](https://conda-forge.org/):
+Add additional channels [bioconda](https://bioconda.github.io/) and [conda-forge](https://conda-forge.org/):
 ```
-conda config --add chanel bioconda
-conda config --add chanel conda-forge
+conda config --add channels bioconda
+conda config --add channels conda-forge
 ```
 
 Create environment for installing HaMStR
