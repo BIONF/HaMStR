@@ -3,30 +3,48 @@
 sys="$(uname)" # Linux for Linux or Darwin for MacOS
 echo "Current OS system: $sys"
 
-### check grep and sed availability
+flag=0
+### check grep, sed and wget availability
 echo "-------------------------------------"
-echo "Checking grep and sed availability..."
+echo "Checking .bash_profile/.bashrc, grep, sed/gsed and wget availability..."
 grepprog='grep'
 sedprog='sed'
+wgetprog='wget'
+bashFile='.bashrc'
 if [ "$sys" == "Darwin" ]; then
     sedprog='gsed'
+    bashFile='.bash_profile'
 fi
 
 # NOTE: install only available for Linux!
 if [ -z "$(which $sedprog)" ]; then
     if [ "$sys" == "Darwin" ]; then
-        echo "$sedprog could not be found. Please update the setup script"
+        echo "$sedprog not found. Please install it first (e.g. using brew)!"
+        flag=1
     fi
 	conda install -c conda-forge sed
 fi
 
 if [ -z "$(which $grepprog)" ]; then
     if [ "$sys" == "Darwin" ]; then
-        echo "$grepprog could not be found. Please update the setup script"
+        echo "$grepprog not found. Please install it first (e.g. using brew)!"
+        flag=1
     fi
 	conda install -c bioconda grep
 fi
 
+if [ -z "$(which $wgetprog)" ]; then
+    if [ "$sys" == "Darwin" ]; then
+        echo "$wgetprog not found. Please install it first (e.g. using brew)!"
+        flag=1
+    fi
+	conda install -c anaconda wget
+fi
+
+if ! [ -f ~/$bashFile ]; then
+    touch ~/$bashFile
+fi
+if [ "$flag" == 1 ]; then exit 1; fi
 echo "done!"
 
 ### check dependencies
@@ -60,7 +78,6 @@ dependencies=(
   muscle
 )
 
-flag=0
 for i in "${dependencies[@]}"; do
   if [ -z "$(which $i)" ]; then
     echo $i
@@ -74,8 +91,8 @@ for i in "${dependencies[@]}"; do
     elif [ "$tool" = "genewise" ]; then
       conda install -y -c bioconda wise2
       wisePath=$(which "genewise")
-      if [ -z "$(grep WISECONFIGDIR=$wisePath ~/.bashrc)" ]; then
-          echo "export WISECONFIGDIR=${wisePath}" >> ~/.bashrc
+      if [ -z "$(grep WISECONFIGDIR=$wisePath ~/$bashFile)" ]; then
+          echo "export WISECONFIGDIR=${wisePath}" >> ~/$bashFile
       fi
     else
       conda install -y -c bioconda $i
@@ -185,8 +202,8 @@ if [ -z "$(which fasta36)" ]; then
     make -f ../make/Makefile.os_x86_64 all
   fi
   fastaPath=$(cd -- ../bin && pwd)
-  if [ -z "$(grep PATH=${fastaPath} ~/.bashrc)" ]; then
-      echo "export PATH=${fastaPath}:\$PATH" >> ~/.bashrc
+  if [ -z "$(grep PATH=${fastaPath} ~/$bashFile)" ]; then
+      echo "export PATH=${fastaPath}:\$PATH" >> ~/$bashFile
   fi
 fi
 cd $CURRENT
@@ -202,8 +219,8 @@ if [ -z "$(which seg)" ]; then
   rm -rf archive
   make
   segPath=$(pwd)
-  if [ -z "$(grep PATH=${segPath} ~/.bashrc)" ]; then
-      echo "export PATH=${segPath}:\$PATH" >> ~/.bashrc
+  if [ -z "$(grep PATH=${segPath} ~/$bashFile)" ]; then
+      echo "export PATH=${segPath}:\$PATH" >> ~/$bashFile
   fi
 fi
 cd $CURRENT
@@ -258,7 +275,7 @@ if ! [ "$(ls -A $CURRENT/taxonomy)" ]; then
             rsync -rva data_HaMStR/CAST/* $CURRENT/bin/fas/CAST
             printf "\nMoving COILS ...\n----------------\n"
             rsync -rva data_HaMStR/COILS2/* $CURRENT/bin/fas/COILS2
-            # printf "\nMoving SEG ...\n--------------\n"echo "export ONESEQDIR=${CURRENT}" >> ~/.bashrc
+            # printf "\nMoving SEG ...\n--------------\n"echo "export ONESEQDIR=${CURRENT}" >> ~/$bashFile
             # rsync -rva data_HaMStR/SEG/* $CURRENT/bin/fas/SEG
             printf "\nMoving SignalP ...\n------------------\n"
             rsync -rva data_HaMStR/SignalP/* $CURRENT/bin/fas/SignalP
@@ -284,15 +301,15 @@ fi
 echo "-------------------------------------"
 echo "Source bashrc"
 
-if [ -z "$(grep ONESEQDIR=$CURRENT ~/.bashrc)" ]; then
-  echo "export ONESEQDIR=${CURRENT}" >> ~/.bashrc
+if [ -z "$(grep ONESEQDIR=$CURRENT ~/$bashFile)" ]; then
+  echo "export ONESEQDIR=${CURRENT}" >> ~/$bashFile
 fi
 
 wisePath=$(which "genewise")
-if [ -z "$(grep WISECONFIGDIR=$wisePath ~/.bashrc)" ]; then
-    echo "export WISECONFIGDIR=${wisePath}" >> ~/.bashrc
+if [ -z "$(grep WISECONFIGDIR=$wisePath ~/$bashFile)" ]; then
+    echo "export WISECONFIGDIR=${wisePath}" >> ~/$bashFile
 fi
-source ~/.bashrc
+source ~/$bashFile
 echo "done!"
 
 ### adapt paths in hamstr scripts
@@ -369,27 +386,27 @@ envPaths=(
   WISECONFIGDIR
 )
 for i in "${envPaths[@]}"; do
-    if [ -z "$(grep $i ~/.bashrc)" ]; then
-        echo "$i was not added into ~/.bashrc"
+    if [ -z "$(grep $i ~/$bashFile)" ]; then
+        echo "$i was not added into ~/$bashFile"
         flag=1
     fi
 done
 if [ "$fasta36" == "no" ]; then
-    if [ -z "$(grep PATH=$CURRENT/bin/aligner/fasta-36 ~/.bashrc)" ]; then
-        echo "$CURRENT/bin/aligner/fasta-36 was not added into ~/.bashrc"
+    if [ -z "$(grep PATH=$CURRENT/bin/aligner/fasta-36 ~/$bashFile)" ]; then
+        echo "$CURRENT/bin/aligner/fasta-36 was not added into ~/$bashFile"
         flag=1
     fi
 fi
 if [ "$seg" == "no" ]; then
-    if [ -z "$(grep PATH=$CURRENT/bin/fas/SEG ~/.bashrc)" ]; then
-        echo "$CURRENT/bin/fas/SEG was not added into ~/.bashrc"
+    if [ -z "$(grep PATH=$CURRENT/bin/fas/SEG ~/$bashFile)" ]; then
+        echo "$CURRENT/bin/fas/SEG was not added into ~/$bashFile"
         flag=1
     fi
 fi
 echo "done!"
 
 if [ "$flag" == 1 ]; then
-    echo "Some tools were not installed correctly or paths were not added into ~/.bashrc. Please check again!"
+    echo "Some tools were not installed correctly or paths were not added into ~/$bashFile. Please check again!"
     exit
 else
     echo "Generating symbolic link hamstr -> hamstr.pl"
@@ -400,7 +417,7 @@ else
     echo "Restart terminal and test your HaMStR with:"
     echo "perl bin/oneSeq.pl -sequence_file=infile.fa -seqid=P83876 -refspec=HUMAN@9606@1 -minDist=genus -maxDist=kingdom -coreOrth=5 -cleanup -global"
     echo "or"
-    echo "oneSeq.pl -h"
+    echo "perl bin/oneSeq.pl -h"
     echo "for more details."
 fi
 exit 1
