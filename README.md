@@ -8,6 +8,7 @@ Add additional channels [bioconda](https://bioconda.github.io/) and [conda-forge
 ```
 conda config --add channels bioconda
 conda config --add channels conda-forge
+conda config --set channel-priority strict
 ```
 
 Create environment for installing HaMStR
