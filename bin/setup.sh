@@ -163,7 +163,6 @@ folders=(
   weight_dir
   taxonomy
   output
-  tmp
   "bin/fas/CAST"
   "bin/fas/COILS2"
   "bin/fas/Pfam"
