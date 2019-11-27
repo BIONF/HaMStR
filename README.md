@@ -1,6 +1,10 @@
 # HaMStR-OneSeq
 
 ## Installation
+
+### 0. Basic system tools requirement
+You need to have `wget`, `grep` and `sed` (or `gsed` for **MacOS**) to install HaMStR. So please install them if they are missing. For MacOS users, we recommend using [Homebrew](https://brew.sh) to install those command line tools.
+
 ### 1. Prepare a conda environment
 Follow [this link](https://docs.conda.io/projects/conda/en/latest/user-guide/install/index.html) to install conda (anaconda or miniconda) to your system.
 
