@@ -1,11 +1,11 @@
-#!/usr/bin/env perl
+#!/home/ingo/anaconda3/envs/py27/bin/perl
 
 use strict;
 use warnings;
 use File::Copy qw(move);
 
 use Env qw(ONESEQDIR);
-use lib '../lib';
+use lib '/share/project/ingo/src/HaMStR/lib';
 use Parallel::ForkManager;
 #use DBI;
 use IO::Handle;
@@ -91,7 +91,7 @@ my $startTime = time;
 ############ General settings
 my $version = 'oneSeq v.1.4';
 ##### configure
-my $configure = 0;
+my $configure = 1;
 if ($configure == 0){
 	die "\n\n$version\n\nPLEASE RUN THE CONFIGURE OR CONFIGURE_MAC SCRIPT BEFORE USING oneSeq.pl\n\n";
 }
@@ -2185,18 +2185,21 @@ sub getTaxa {
 sub getTree {
 	# the full lineages of the species are merged into a single tree
 	my $tree;
-        foreach my $key (keys%taxa) {
+        foreach my $key (sort {lc $a cmp lc $b} keys %taxa) {
 		my $node = $db->get_taxon(-taxonid => $taxa{$key});
 		printDebug("\$key in sub getTree is $key and taxid is $taxa{$key}\n");
-		$node->name('supplied', $key);
 		if (!defined $node){
-			print "ISSUE in sub getTree\n";
+			print "ISSUE in sub getTree. No correspodence found in taxonomy file for $key and taxid $taxa{$key}. Skipping...\n";
+			next;
 		}
-		if($tree) {
-			$tree->merge_lineage($node);
-		} 
 		else {
-			$tree = Bio::Tree::Tree->new(-verbose => $db->verbose, -node => $node);
+			$node->name('supplied', $key);
+			if($tree) {
+				$tree->merge_lineage($node);
+			} 
+			else {
+				$tree = Bio::Tree::Tree->new(-verbose => $db->verbose, -node => $node);
+			}
 		}
 	}
         if ($debug){
