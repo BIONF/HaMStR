@@ -1,11 +1,11 @@
-#!/home/ingo/anaconda3/envs/py27/bin/perl
+#!/usr/bin/perl
 
 use strict;
 use warnings;
 use File::Copy qw(move);
 
 use Env qw(ONESEQDIR);
-use lib '/share/project/ingo/src/HaMStR/lib';
+use lib '../lib';
 use Parallel::ForkManager;
 #use DBI;
 use IO::Handle;
@@ -18,6 +18,7 @@ use Bio::SeqIO;
 use Bio::SearchIO;
 use Term::Cap;
 use POSIX;
+use File::Path;
 
 use IPC::Run qw( run timeout );
 use Time::HiRes;
@@ -88,10 +89,14 @@ my $startTime = time;
 ## Modified 19. July 2019: - Changes	- added option to run muscle instead of mafft
 
 ## Modified 22. July 2019: - invoked priority mode for the fas score computation if t = 30
+
+## Modified 2. Dec. 2019
+## Bug Fix: Check for taxa with invalid NCBI Taxonomy Id runs now properly and crashes are avoided
+## Implemented cleanup of the core ortholog directory to avoid accumulation of feature annotations
 ############ General settings
 my $version = 'oneSeq v.1.4';
 ##### configure
-my $configure = 1;
+my $configure = 0;
 if ($configure == 0){
 	die "\n\n$version\n\nPLEASE RUN THE CONFIGURE OR CONFIGURE_MAC SCRIPT BEFORE USING oneSeq.pl\n\n";
 }
@@ -344,46 +349,6 @@ for (keys %taxa){
 }
 checkOptions();
 
-#### moved down
-#my $tree = getTree();
-#my $treeDelFlag = 0;
-## modified 2019-02-04 / change tree only when also computing the core set
-#if($group and !$coreex) {
-#   foreach($tree->get_nodes()) {
-#      if($_->id == $groupNode->id) {
-#         $groupNode = $_;
-#      }
-#   }
-#   $tree->set_root_node($groupNode);
-#}
-
-## Tree without deletions
-#my $wholeTree = getTree();
-## modified 2019-02-04 / change tree only when also computing the core set
-#if($group and !$coreex) {
-#   foreach($wholeTree->get_nodes()) {
-#      if($_->id == $groupNode->id) {
-#         $groupNode = $_;
-#      }
-#   }
-#   $wholeTree->set_root_node($groupNode);
-#}
-
-## initialise control nodes
-#my $currentDistNode = $wholeTree->find_node(-ncbi_taxid => $taxa{$refSpec});
-#my $currentNoRankDistNode = $currentDistNode->ancestor; ## the node from which the distance to other species will be calculated
-#my $currentChildsToIgnoreNode = $currentDistNode;		## the node containing all child species which will not be included in the candidates file
-##### moved down
-#if (!defined $coreex){
-#  %hashTree = buildHashTree();
-#}
-#if (!$coreex) {
-#    removeMaxDist();
-
-#    printDebug("Subroutine call removeMinDist\nRefspec is $refSpec\nTaxon is $taxa{$refSpec}\n");
-#    $treeDelFlag = removeMinDist($taxa{$refSpec});
-#}
-##### end moved down
 my $outputFa =  $coreOrthologsPath . $seqName . "/" . $seqName . ".fa";
 my $outputAln = $coreOrthologsPath . $seqName . "/" . $seqName . ".aln";
 my $finalOutput = $dataDir . '/' . $seqName . '.extended.fa';
@@ -1146,6 +1111,19 @@ if (!$coreOnly) {
 	    system ($delCommandTmp) == 0 or die "Error deleting result files\n";
 	    print "--> $outputPath/tmp deleted.\n";
 	    
+	    my $seedName = $seqName . '_seed';
+	    my $annopath = $coreOrthologsPath.$seqName."/fas_dir/annotation_dir"; 
+            opendir(ANNODIR, $annopath) or warn "Could not open $annopath in sub runAutoCleanup\n";
+	    my @annodirs = grep (!/$seedName/, readdir(ANNODIR));
+	    print scalar(@annodirs) . " content of $annopath\n";
+	    for (my $anno = 0; $anno < @annodirs; $anno++){
+		if ($annodirs[$anno] ne '..' and $annodirs[$anno] ne '.') {
+			print "Deleting $annopath/$annodirs[$anno]\n";
+			rmtree ($annopath."/".$annodirs[$anno]);
+		}
+	    }
+            closedir (ANNODIR);
+	    print "--> Feature annotation files in $annopath deleted.\n";  
 	}
 
 	## removing single fasta files of predicted orthologs - meta files that are pooled in multifastas as results
