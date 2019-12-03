@@ -205,8 +205,11 @@ Dependencies
     lib32z1
 
     Packages for Perl:
-    Parallel/ForkManager.pm
-    IPC/Run.pm
+      * Parallel/ForkManager.pm
+      * IPC/Run.pm
+      * Statistics::R
+      * DB::File
+      
 
 
 
