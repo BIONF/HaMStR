@@ -54,56 +54,7 @@ echo "-------------------------------------"
 echo "Installing dependencies..."
 sudo apt-get update -y
 
-# if [ -z "$(which R)" ]; then
-#     echo "R"
-#     # conda install -y r
-# fi
-
-# if [[ -z $(conda list | grep "pkg-config ") ]]; then
-#     echo "pkg-config"
-#     conda install -y pkg-config
-# fi
-#
-# if [[ -z $(conda list | grep "perl-bioperl ") ]]; then
-#     echo "perl-bioperl"
-#     conda install -y -c bioconda perl-bioperl
-#     conda install -y -c bioconda perl-bioperl-core
-#     conda install -y -c bioconda perl-bioperl-run
-# fi
-#
-# dependencies=(
-#   blastp # blast
-#   blastall # blast-legacy
-#   genewise # wise2
-#   hmmsearch # hmmer (for both hmmsearch and hmmbuild)
-#   clustalw
-#   mafft # for linsi
-#   muscle
-# )
-#
-# for i in "${dependencies[@]}"; do
-#   if [ -z "$(which $i)" ]; then
-#     echo $i
-#     tool=$i
-#     if [ "$tool" = "blastp" ]; then
-#       conda install -y -c bioconda blast
-#     elif [ "$tool" = "blastall" ]; then
-#       conda install -y -c bioconda blast-legacy
-#     elif [ "$tool" = "hmmsearch" ]; then
-#       conda install -y -c bioconda hmmer
-#     elif [ "$tool" = "genewise" ]; then
-#       conda install -y -c bioconda wise2
-#       wisePath=$(which "genewise")
-#       if [ -z "$(grep WISECONFIGDIR=$wisePath ~/$bashFile)" ]; then
-#           echo "export WISECONFIGDIR=${wisePath}" >> ~/$bashFile
-#       fi
-#     else
-#       conda install -y -c bioconda $i
-#     fi
-#   fi
-# done
-
-dependenciesIns=(
+dependencies=(
   build-essential # for make
   curl
   r-base # for Statistics::R
@@ -123,7 +74,7 @@ dependenciesIns=(
   lib32z1
 )
 
-for i in "${dependenciesIns[@]}"; do
+for i in "${dependencies[@]}"; do
 	echo $i
 	sudo apt-get install -y -qq $i > /dev/null
 done
@@ -244,35 +195,6 @@ if [ -z "$(which fasta36)" ]; then
 fi
 cd $CURRENT
 
-# seg="yes"
-# if [ -z "$(which seg)" ]; then
-#   seg="no"
-#   echo "SEG"
-#   cd "bin/fas/SEG"
-#   wget -r -l 2 -np ftp://ftp.ncbi.nih.gov/pub/seg/seg
-#   mv ftp.ncbi.nih.gov/pub/seg/seg/* $(pwd)
-#   rm -rf ftp.ncbi.nih.gov
-#   rm -rf archive
-#   make
-#   segPath=$(pwd)
-#   if [ -z "$(grep PATH=${segPath} ~/$bashFile)" ]; then
-#       echo "export PATH=${segPath}:\$PATH" >> ~/$bashFile
-#   fi
-# fi
-# cd $CURRENT
-#
-# cd "bin/fas/Pfam/Pfam-hmms"
-# if ! [ -f Pfam-A.hmm ]; then
-#   echo "pfam-A.hmm"
-#   wget ftp://ftp.ebi.ac.uk/pub/databases/Pfam/current_release//Pfam-A.hmm.gz
-#   wget ftp://ftp.ebi.ac.uk/pub/databases/Pfam/current_release/Pfam-A.hmm.dat.gz
-#   gunzip Pfam-A.hmm.gz
-#   gunzip Pfam-A.hmm.dat.gz
-#   hmmpress Pfam-A.hmm
-#   mv $CURRENT/bin/pfam_scan.pl $CURRENT/bin/fas/Pfam/
-# fi
-# cd $CURRENT
-
 ### download data
 echo "-------------------------------------"
 echo "Getting pre-calculated data"
@@ -385,26 +307,6 @@ echo "-------------------------------------"
 echo "Final check..."
 flag=0
 
-# echo "Conda packages"
-# condaPkgs=(
-#   perl-bioperl
-#   perl-bioperl-core
-#   blast
-#   blast-legacy
-#   hmmer
-#   wise2
-#   clustalw
-#   mafft
-#   muscle
-# )
-# for i in "${condaPkgs[@]}"; do
-#     if [[ -z $(conda list | grep "$i ") ]]; then
-#         echo "$i could not be installed"
-#         flag=1
-#     fi
-# done
-# echo "done!"
-#
 echo "Perl modules"
 for i in "${perlModules[@]}"; do
   msg=$((perl -e "use $i") 2>&1)
