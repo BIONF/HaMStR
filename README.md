@@ -12,7 +12,7 @@ Get HaMStR source code from GitHub
 git clone --depth=1 https://github.com/BIONF/HaMStR
 ```
 
-Run `setup.sh` in the HaMStR/bin folder with root privileges `sudo` to install HaMStR and its dependencies
+Run `setup.sh` script in the HaMStR/bin folder with root privileges (using `sudo`) to install HaMStR and its dependencies
 ```
 cd HaMStR
 sudo bin/setup.sh
