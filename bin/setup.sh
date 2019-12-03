@@ -181,94 +181,94 @@ done
 
 echo "done!"
 
-# ### prepare folder
-# echo "-------------------------------------"
-# echo "Preparing folders..."
-# DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
-# cd $DIR/..
-# CURRENT=$(pwd)
-#
-# # create required folders
-# folders=(
-#   blast_dir
-#   core_orthologs
-#   genome_dir
-#   weight_dir
-#   taxonomy
-#   output
-#   "bin/fas/CAST"
-#   "bin/fas/COILS2"
-#   "bin/fas/Pfam"
-#   "bin/fas/Pfam/Pfam-hmms"
-#   "bin/fas/Pfam/output_files"
-#   "bin/fas/SEG"
-#   "bin/fas/SignalP"
-#   "bin/fas/SMARublastT"
-#   "bin/fas/TMHMM"
-#   "bin/aligner"
-# )
-#
-# for i in "${folders[@]}"; do
-#   echo "$i"
-#   if [ ! -d $i ]; then mkdir $i; fi
-# done
-# echo "done!"
-#
-# ### download tools
-# echo "-------------------------------------"
-# echo "Downloading and installing annotation tools/databases:"
-#
-# fasta36="yes"
-# if [ -z "$(which fasta36)" ]; then
-#   fasta36="no"
-#   echo "fasta-36"
-#   fasta36v="fasta-36.3.8h"
-#   wget "http://faculty.virginia.edu/wrpearson/fasta/fasta36/${fasta36v}.tar.gz"
-#   tar xfv $fasta36v.tar.gz
-#   rm "${fasta36v}.tar.gz"
-#   mv $fasta36v bin/aligner
-#   cd "bin/aligner/$fasta36v/src"
-#   if [ $sys=="Linux" ]; then
-#     make -f ../make/Makefile.linux64_sse2 all
-#   elif [ $sys=="Darwin" ]; then
-#     make -f ../make/Makefile.os_x86_64 all
-#   fi
-#   fastaPath=$(cd -- ../bin && pwd)
-#   if [ -z "$(grep PATH=${fastaPath} ~/$bashFile)" ]; then
-#       echo "export PATH=${fastaPath}:\$PATH" >> ~/$bashFile
-#   fi
-# fi
-# cd $CURRENT
-#
-# seg="yes"
-# if [ -z "$(which seg)" ]; then
-#   seg="no"
-#   echo "SEG"
-#   cd "bin/fas/SEG"
-#   wget -r -l 2 -np ftp://ftp.ncbi.nih.gov/pub/seg/seg
-#   mv ftp.ncbi.nih.gov/pub/seg/seg/* $(pwd)
-#   rm -rf ftp.ncbi.nih.gov
-#   rm -rf archive
-#   make
-#   segPath=$(pwd)
-#   if [ -z "$(grep PATH=${segPath} ~/$bashFile)" ]; then
-#       echo "export PATH=${segPath}:\$PATH" >> ~/$bashFile
-#   fi
-# fi
-# cd $CURRENT
-#
-# cd "bin/fas/Pfam/Pfam-hmms"
-# if ! [ -f Pfam-A.hmm ]; then
-#   echo "pfam-A.hmm"
-#   wget ftp://ftp.ebi.ac.uk/pub/databases/Pfam/current_release//Pfam-A.hmm.gz
-#   wget ftp://ftp.ebi.ac.uk/pub/databases/Pfam/current_release/Pfam-A.hmm.dat.gz
-#   gunzip Pfam-A.hmm.gz
-#   gunzip Pfam-A.hmm.dat.gz
-#   hmmpress Pfam-A.hmm
-#   mv $CURRENT/bin/pfam_scan.pl $CURRENT/bin/fas/Pfam/
-# fi
-# cd $CURRENT
-#
+### prepare folder
+echo "-------------------------------------"
+echo "Preparing folders..."
+DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
+cd $DIR/..
+CURRENT=$(pwd)
+
+# create required folders
+folders=(
+  blast_dir
+  core_orthologs
+  genome_dir
+  weight_dir
+  taxonomy
+  output
+  "bin/fas/CAST"
+  "bin/fas/COILS2"
+  "bin/fas/Pfam"
+  "bin/fas/Pfam/Pfam-hmms"
+  "bin/fas/Pfam/output_files"
+  "bin/fas/SEG"
+  "bin/fas/SignalP"
+  "bin/fas/SMARublastT"
+  "bin/fas/TMHMM"
+  "bin/aligner"
+)
+
+for i in "${folders[@]}"; do
+  echo "$i"
+  if [ ! -d $i ]; then mkdir $i; fi
+done
+echo "done!"
+
+### download tools
+echo "-------------------------------------"
+echo "Downloading and installing annotation tools/databases:"
+
+fasta36="yes"
+if [ -z "$(which fasta36)" ]; then
+  fasta36="no"
+  echo "fasta-36"
+  fasta36v="fasta-36.3.8h"
+  wget "http://faculty.virginia.edu/wrpearson/fasta/fasta36/${fasta36v}.tar.gz"
+  tar xfv $fasta36v.tar.gz
+  rm "${fasta36v}.tar.gz"
+  mv $fasta36v bin/aligner
+  cd "bin/aligner/$fasta36v/src"
+  if [ $sys=="Linux" ]; then
+    make -f ../make/Makefile.linux64_sse2 all
+  elif [ $sys=="Darwin" ]; then
+    make -f ../make/Makefile.os_x86_64 all
+  fi
+  fastaPath=$(cd -- ../bin && pwd)
+  if [ -z "$(grep PATH=${fastaPath} ~/$bashFile)" ]; then
+      echo "export PATH=${fastaPath}:\$PATH" >> ~/$bashFile
+  fi
+fi
+cd $CURRENT
+
+seg="yes"
+if [ -z "$(which seg)" ]; then
+  seg="no"
+  echo "SEG"
+  cd "bin/fas/SEG"
+  wget -r -l 2 -np ftp://ftp.ncbi.nih.gov/pub/seg/seg
+  mv ftp.ncbi.nih.gov/pub/seg/seg/* $(pwd)
+  rm -rf ftp.ncbi.nih.gov
+  rm -rf archive
+  make
+  segPath=$(pwd)
+  if [ -z "$(grep PATH=${segPath} ~/$bashFile)" ]; then
+      echo "export PATH=${segPath}:\$PATH" >> ~/$bashFile
+  fi
+fi
+cd $CURRENT
+
+cd "bin/fas/Pfam/Pfam-hmms"
+if ! [ -f Pfam-A.hmm ]; then
+  echo "pfam-A.hmm"
+  wget ftp://ftp.ebi.ac.uk/pub/databases/Pfam/current_release//Pfam-A.hmm.gz
+  wget ftp://ftp.ebi.ac.uk/pub/databases/Pfam/current_release/Pfam-A.hmm.dat.gz
+  gunzip Pfam-A.hmm.gz
+  gunzip Pfam-A.hmm.dat.gz
+  hmmpress Pfam-A.hmm
+  mv $CURRENT/bin/pfam_scan.pl $CURRENT/bin/fas/Pfam/
+fi
+cd $CURRENT
+
 # ### download data
 # echo "-------------------------------------"
 # echo "Getting pre-calculated data"
