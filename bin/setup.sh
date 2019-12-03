@@ -47,11 +47,12 @@ echo "done!"
 ### check dependencies
 echo "-------------------------------------"
 echo "Installing dependencies..."
+sudo apt-get update -y
 
-if [ -z "$(which R)" ]; then
-    echo "R"
-    conda install -y r
-fi
+# if [ -z "$(which R)" ]; then
+#     echo "R"
+#     # conda install -y r
+# fi
 
 # if [[ -z $(conda list | grep "pkg-config ") ]]; then
 #     echo "pkg-config"
@@ -74,7 +75,7 @@ dependencies=(
   mafft # for linsi
   muscle
 )
-
+#
 # for i in "${dependencies[@]}"; do
 #   if [ -z "$(which $i)" ]; then
 #     echo $i
@@ -96,6 +97,35 @@ dependencies=(
 #     fi
 #   fi
 # done
+
+dependenciesIns=(
+  build-essential # for make
+  curl
+  wise
+  hmmer # hmmer (for both hmmsearch and hmmbuild)
+  clustalw
+  mafft
+  muscle
+  blast2 # blast
+  ncbi-blast+
+  ncbi-blast+-legacy
+  libdbi-perl
+  libipc-run-perl
+  perl-doc
+  locales
+  lib32ncurses5
+  lib32z1
+)
+
+for i in "${dependenciesIns[@]}"; do
+	echo $i
+	sudo apt-get install -y -qq $i > /dev/null
+done
+
+wisePath=$(which "genewise")
+if [ -z "$(grep WISECONFIGDIR=$wisePath ~/$bashFile)" ]; then
+    echo "export WISECONFIGDIR=${wisePath}" >> ~/$bashFile
+fi
 
 for i in "${dependencies[@]}"; do
   if [ -z "$(which $i)" ]; then
