@@ -101,6 +101,7 @@ dependencies=(
 dependenciesIns=(
   build-essential # for make
   curl
+  r-base # for Statistics::R
   wise
   hmmer # hmmer (for both hmmsearch and hmmbuild)
   clustalw
