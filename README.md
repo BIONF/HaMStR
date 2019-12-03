@@ -147,7 +147,7 @@ To prove if your manually added species is integrated into the HaMStR framework 
 	perl bin/oneSeq.pl -showTaxa
 This command simply prints a list of all available taxa.
 
-Dependencies
+## Dependencies
 * blastp (blastall)
 * genewise
 * hmmsearch
