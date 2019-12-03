@@ -142,7 +142,7 @@ perlModules=(
 for i in "${perlModules[@]}"; do
   msg=$((perldoc -l $i) 2>&1)
   if [[ "$(echo $msg)" == *"No documentation"* ]]; then
-    cpanm ${i} --force
+    cpanm ${i} --quiet --force
   fi
 done
 

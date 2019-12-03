@@ -3,6 +3,11 @@
 sys="$(uname)" # Linux for Linux or Darwin for MacOS
 echo "Current OS system: $sys"
 
+if [ "$EUID" -ne 0 ]
+  then echo "Please run as root!"
+  exit
+fi
+
 flag=0
 ### check grep, sed and wget availability
 echo "-------------------------------------"
@@ -170,7 +175,7 @@ perlModules=(
 for i in "${perlModules[@]}"; do
   msg=$((perldoc -l $i) 2>&1)
   if [[ "$(echo $msg)" == *"No documentation"* ]]; then
-    cpanm ${i} --force
+    cpanm ${i} --quiet --force
   fi
 done
 
