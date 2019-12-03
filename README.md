@@ -145,8 +145,43 @@ Please take care that all parameter paths are provided as absolute paths. This a
 To prove if your manually added species is integrated into the HaMStR framework your can run:
 
 	perl bin/oneSeq.pl -showTaxa
-
 This command simply prints a list of all available taxa.
 
+Dependencies
+* blastp (blastall)
+* genewise
+* hmmsearch
+* hmmbuild
+* clustalw2
+* mafft-linsi
+* Perl
+* Python (FAS scoring compatible with both python v2.7 and 3.6)
+
+* locale-gen
+* en_US
+* en_US.UTF-8
+*de_DE
+* de_DE.UTF-8
+
+Packages for Ubuntu 16.04:
+* blast2
+* hmmer
+* clustalw
+* mafft
+* libdbi-perl
+* libipc-run-perl
+* wise
+* locales
+* ncbi-blast+
+* ncbi-blast+-legacy
+* lib32ncurses5
+* lib32z1
+
+Packages for Perl:
+* Parallel/ForkManager.pm
+* IPC/Run.pm
+* Statistics::R
+* DB::File
+      
 ## Contact
 For further support or bug reports please contact: ???@bio.uni-frankfurt.de
