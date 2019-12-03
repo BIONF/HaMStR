@@ -207,34 +207,34 @@ if [ -z "$(which fasta36)" ]; then
 fi
 cd $CURRENT
 
-seg="yes"
-if [ -z "$(which seg)" ]; then
-  seg="no"
-  echo "SEG"
-  cd "bin/fas/SEG"
-  wget -r -l 2 -np ftp://ftp.ncbi.nih.gov/pub/seg/seg
-  mv ftp.ncbi.nih.gov/pub/seg/seg/* $(pwd)
-  rm -rf ftp.ncbi.nih.gov
-  rm -rf archive
-  make
-  segPath=$(pwd)
-  if [ -z "$(grep PATH=${segPath} ~/$bashFile)" ]; then
-      echo "export PATH=${segPath}:\$PATH" >> ~/$bashFile
-  fi
-fi
-cd $CURRENT
-
-cd "bin/fas/Pfam/Pfam-hmms"
-if ! [ -f Pfam-A.hmm ]; then
-  echo "pfam-A.hmm"
-  wget ftp://ftp.ebi.ac.uk/pub/databases/Pfam/current_release//Pfam-A.hmm.gz
-  wget ftp://ftp.ebi.ac.uk/pub/databases/Pfam/current_release/Pfam-A.hmm.dat.gz
-  gunzip Pfam-A.hmm.gz
-  gunzip Pfam-A.hmm.dat.gz
-  hmmpress Pfam-A.hmm
-  mv $CURRENT/bin/pfam_scan.pl $CURRENT/bin/fas/Pfam/
-fi
-cd $CURRENT
+# seg="yes"
+# if [ -z "$(which seg)" ]; then
+#   seg="no"
+#   echo "SEG"
+#   cd "bin/fas/SEG"
+#   wget -r -l 2 -np ftp://ftp.ncbi.nih.gov/pub/seg/seg
+#   mv ftp.ncbi.nih.gov/pub/seg/seg/* $(pwd)
+#   rm -rf ftp.ncbi.nih.gov
+#   rm -rf archive
+#   make
+#   segPath=$(pwd)
+#   if [ -z "$(grep PATH=${segPath} ~/$bashFile)" ]; then
+#       echo "export PATH=${segPath}:\$PATH" >> ~/$bashFile
+#   fi
+# fi
+# cd $CURRENT
+# 
+# cd "bin/fas/Pfam/Pfam-hmms"
+# if ! [ -f Pfam-A.hmm ]; then
+#   echo "pfam-A.hmm"
+#   wget ftp://ftp.ebi.ac.uk/pub/databases/Pfam/current_release//Pfam-A.hmm.gz
+#   wget ftp://ftp.ebi.ac.uk/pub/databases/Pfam/current_release/Pfam-A.hmm.dat.gz
+#   gunzip Pfam-A.hmm.gz
+#   gunzip Pfam-A.hmm.dat.gz
+#   hmmpress Pfam-A.hmm
+#   mv $CURRENT/bin/pfam_scan.pl $CURRENT/bin/fas/Pfam/
+# fi
+# cd $CURRENT
 
 ### download data
 echo "-------------------------------------"
@@ -250,7 +250,7 @@ if ! [ "$(ls -A $CURRENT/taxonomy)" ]; then
       else
         CHECKSUM=$(cksum data_HaMStR.tar)
         echo "Checksum: $CHECKSUM"
-        if [ "$CHECKSUM" == "557087663 1952579568 data_HaMStR.tar" ]; then
+        if [ "$CHECKSUM" == "4100986910 5840435200 data_HaMStR.tar" ]; then
           echo "Extracting archive data_HaMStR.tar"
           tar xfv $CURRENT/data_HaMStR.tar
           rm $CURRENT/data_HaMStR.tar
@@ -266,16 +266,16 @@ if ! [ "$(ls -A $CURRENT/taxonomy)" ]; then
             rsync -rva data_HaMStR/weight_dir/* $CURRENT/weight_dir
             printf "\nMoving Taxonomy ...\n-------------------\n"
             rsync -rva data_HaMStR/taxonomy/* $CURRENT/taxonomy
-            # printf "\nMoving Pfam ...\n---------------\n"
-            # rsync -rva data_HaMStR/Pfam/* $CURRENT/bin/fas/Pfam
+            printf "\nMoving Pfam ...\n---------------\n"
+            rsync -rva data_HaMStR/Pfam/* $CURRENT/bin/fas/Pfam
             printf "\nMoving SMART ...\n----------------\n"
             rsync -rva data_HaMStR/SMART/* $CURRENT/bin/fas/SMART
             printf "\nMoving CAST ...\n---------------\n"
             rsync -rva data_HaMStR/CAST/* $CURRENT/bin/fas/CAST
             printf "\nMoving COILS ...\n----------------\n"
             rsync -rva data_HaMStR/COILS2/* $CURRENT/bin/fas/COILS2
-            # printf "\nMoving SEG ...\n--------------\n"echo "export ONESEQDIR=${CURRENT}" >> ~/$bashFile
-            # rsync -rva data_HaMStR/SEG/* $CURRENT/bin/fas/SEG
+            printf "\nMoving SEG ...\n--------------\n"echo "export ONESEQDIR=${CURRENT}" >> ~/$bashFile
+            rsync -rva data_HaMStR/SEG/* $CURRENT/bin/fas/SEG
             printf "\nMoving SignalP ...\n------------------\n"
             rsync -rva data_HaMStR/SignalP/* $CURRENT/bin/fas/SignalP
             printf "\nMoving TMHMM ...\n----------------\n"
