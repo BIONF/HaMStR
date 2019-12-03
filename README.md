@@ -184,31 +184,31 @@ Dependencies
 * Perl
 * Python (FAS scoring compatible with both python v2.7 and 3.6)
     
-    locale-gen
-    en_US
-    en_US.UTF-8
-    de_DE
-    de_DE.UTF-8
+* locale-gen
+* en_US
+* en_US.UTF-8
+*de_DE
+* de_DE.UTF-8
     
-    Packages for Ubuntu 16.04:
-    blast2
-    hmmer
-    clustalw
-    mafft
-    libdbi-perl
-    libipc-run-perl
-    wise
-    locales
-    ncbi-blast+
-    ncbi-blast+-legacy
-    lib32ncurses5
-    lib32z1
+Packages for Ubuntu 16.04:
+* blast2
+* hmmer
+* clustalw
+* mafft
+* libdbi-perl
+* libipc-run-perl
+* wise
+* locales
+* ncbi-blast+
+* ncbi-blast+-legacy
+* lib32ncurses5
+* lib32z1
 
-    Packages for Perl:
-      * Parallel/ForkManager.pm
-      * IPC/Run.pm
-      * Statistics::R
-      * DB::File
+Packages for Perl:
+* Parallel/ForkManager.pm
+* IPC/Run.pm
+* Statistics::R
+* DB::File
       
 
 
