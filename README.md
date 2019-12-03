@@ -5,37 +5,43 @@
 ### 0. Basic system tools requirement
 You need to have `wget`, `grep` and `sed` (or `gsed` for **MacOS**) to install HaMStR. So please install them if they are missing. For MacOS users, we recommend using [Homebrew](https://brew.sh) to install those command line tools.
 
-### 1. Prepare a conda environment
-Follow [this link](https://docs.conda.io/projects/conda/en/latest/user-guide/install/index.html) to install conda (anaconda or miniconda) to your system.
-
-Add additional channels [bioconda](https://bioconda.github.io/) and [conda-forge](https://conda-forge.org/):
-```
-conda config --add channels bioconda
-conda config --add channels conda-forge
-conda config --set channel-priority strict
-```
-
-Create environment for installing HaMStR
-```
-conda create --name hamstr perl perl-app-cpanminus -y
-```
-
-### 2. Install HaMStR into conda hamstr environment
-Activate the environment
-```
-conda activate hamstr
-```
+### 1a. Install in Ubuntu/MacOS
 
 Get HaMStR source code from GitHub
 ```
 git clone --depth=1 https://github.com/BIONF/HaMStR
 ```
 
-Run setup.sh in the HaMStR/bin folde to install HaMStR and its dependencies
+Run `setup.sh` in the HaMStR/bin folder with root privileges `sudo` to install HaMStR and its dependencies
 ```
 cd HaMStR
-bin/setup.sh
+sudo bin/setup.sh
 ```
+
+After the setup run successfully, you can restart the terminal to start using HaMStR.
+
+### 1b. Install using Anaconda
+
+Follow [this link](https://docs.conda.io/projects/conda/en/latest/user-guide/install/index.html) to install conda (anaconda or miniconda) to your system.
+
+Add additional channels [bioconda](https://bioconda.github.io/) and [conda-forge](https://conda-forge.org/):
+```
+conda config --add channels bioconda
+conda config --add channels conda-forge
+```
+
+Create and activate a conda environment for HaMStR
+```
+conda create --name hamstr -y
+conda activate hamstr
+```
+
+Install HaMStR
+```
+conda install -c trvinh hamstr
+setup_hamstr
+```
+
 After the setup run successfully, you can restart the terminal to start using HaMStR.
 
 ## Usage
