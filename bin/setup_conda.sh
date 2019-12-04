@@ -207,6 +207,18 @@ if [ -z "$(which fasta36)" ]; then
 fi
 cd $CURRENT
 
+cd "taxonomy"
+if ! [ -f "nodes" ]; then
+  wget "ftp://ftp.ncbi.nih.gov/pub/taxonomy/taxdump.tar.gz"
+  tar xfv taxdump.tar.gz
+  rm taxdump.tar.gz
+  perl $CURRENT/bin/indexTaxonomy.pl $CURRENT/taxonomy
+  rm *.dmp
+  rm gc.prt
+  rm readme.txt
+fi
+cd $CURRENT
+
 # seg="yes"
 # if [ -z "$(which seg)" ]; then
 #   seg="no"
@@ -264,8 +276,8 @@ if ! [ "$(ls -A $CURRENT/taxonomy)" ]; then
             rsync -rva data_HaMStR/blast_dir/* $CURRENT/blast_dir
             printf "\nMoving annotations ...\n----------------------\n"
             rsync -rva data_HaMStR/weight_dir/* $CURRENT/weight_dir
-            printf "\nMoving Taxonomy ...\n-------------------\n"
-            rsync -rva data_HaMStR/taxonomy/* $CURRENT/taxonomy
+            # printf "\nMoving Taxonomy ...\n-------------------\n"
+            # rsync -rva data_HaMStR/taxonomy/* $CURRENT/taxonomy
             printf "\nMoving Pfam ...\n---------------\n"
             rsync -rva data_HaMStR/Pfam/* $CURRENT/bin/fas/Pfam
             printf "\nMoving SMART ...\n----------------\n"
