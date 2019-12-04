@@ -17,6 +17,11 @@ sedprog='sed'
 wgetprog='wget'
 bashFile='.bashrc'
 if [ "$sys" == "Darwin" ]; then
+    if [ -z "$(which brew)" ]; then
+        echo "Please install homebrew to install dependencies tools and libraries!"
+        echo "Check https://brew.sh"
+        exit
+    fi
     sedprog='gsed'
     bashFile='.bash_profile'
 fi
@@ -24,22 +29,19 @@ fi
 # NOTE: install only available for Linux!
 if [ -z "$(which $sedprog)" ]; then
     if [ "$sys" == "Darwin" ]; then
-        echo "$sedprog not found. Please install it first (e.g. using brew)!"
-        flag=1
+        brew install gnu-sed
     fi
 fi
 
 if [ -z "$(which $grepprog)" ]; then
     if [ "$sys" == "Darwin" ]; then
-        echo "$grepprog not found. Please install it first (e.g. using brew)!"
-        flag=1
+        brew install grep
     fi
 fi
 
 if [ -z "$(which $wgetprog)" ]; then
     if [ "$sys" == "Darwin" ]; then
-        echo "$wgetprog not found. Please install it first (e.g. using brew)!"
-        flag=1
+        brew install wget
     fi
 fi
 
@@ -52,9 +54,8 @@ echo "done!"
 ### check dependencies
 echo "-------------------------------------"
 echo "Installing dependencies..."
-sudo apt-get update -y
 
-dependencies=(
+dependenciesUbuntu=(
   build-essential # for make
   curl
   r-base # for Statistics::R
@@ -74,24 +75,54 @@ dependencies=(
   lib32z1
 )
 
-for i in "${dependencies[@]}"; do
-	echo $i
-	sudo apt-get install -y -qq $i > /dev/null
-done
+dependenciesMac=(
+  brewsci/bio/genewise
+  hmmer # hmmer (for both hmmsearch and hmmbuild)
+  brewsci/bio/clustalw
+  mafft
+  brewsci/bio/muscle
+  blast
+  brewsci/bio/blast-legacy
+)
+
+if [ "$sys" == "Darwin" ]; then
+  for i in "${dependenciesMac[@]}"; do
+  	echo $i
+  	brew install $i
+  done
+else
+  sudo apt-get update -y
+  for i in "${dependenciesUbuntu[@]}"; do
+  	echo $i
+  	sudo apt-get install -y -qq $i > /dev/null
+  done
+fi
 
 wisePath=$(which "genewise")
 if [ -z "$(grep WISECONFIGDIR=$wisePath ~/$bashFile)" ]; then
     echo "export WISECONFIGDIR=${wisePath}" >> ~/$bashFile
 fi
 
+dependencies=(
+  genewise
+  hmmsearch # hmmer (for both hmmsearch and hmmbuild)
+  hmmbuild
+  clustalw
+  mafft
+  muscle
+  blastn
+  blastall
+)
+
 for i in "${dependencies[@]}"; do
   if [ -z "$(which $i)" ]; then
-    echo "$i not found. Please install it to use HaMStR!"
+    echo "$i not found / cannot be automatically installed. Please install it to install/use HaMStR!"
     flag=1
   fi
 done
 if [ "$flag" == 1 ]; then exit 1; fi
 
+echo "Installing Perl modules..."
 perlModules=(
   DBI
   DB_File
