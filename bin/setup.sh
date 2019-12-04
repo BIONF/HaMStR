@@ -162,11 +162,6 @@ if [ -z "$(which cpanm)" ]; then
   curl -L http://cpanmin.us | perl - --sudo App::cpanminus
 fi
 
-if [ "$sys" == "Darwin" ]; then
-  echo "$(whoami)"
-  [ "$UID" -eq 0 ] || exec sudo "$0" "$@"
-fi
-
 for i in "${perlModules[@]}"; do
   msg=$((perldoc -l $i) 2>&1)
   if [[ "$(echo $msg)" == *"No documentation"* ]]; then
