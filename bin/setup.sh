@@ -268,7 +268,7 @@ if ! [ "$(ls -A $CURRENT/taxonomy)" ]; then
             rsync -rva data_HaMStR/CAST/* $CURRENT/bin/fas/CAST
             printf "\nMoving COILS ...\n----------------\n"
             rsync -rva data_HaMStR/COILS2/* $CURRENT/bin/fas/COILS2
-            printf "\nMoving SEG ...\n--------------\n"echo "export ONESEQDIR=${CURRENT}" >> ~/$bashFile
+            printf "\nMoving SEG ...\n--------------\n"
             rsync -rva data_HaMStR/SEG/* $CURRENT/bin/fas/SEG
             printf "\nMoving SignalP ...\n------------------\n"
             rsync -rva data_HaMStR/SignalP/* $CURRENT/bin/fas/SignalP
