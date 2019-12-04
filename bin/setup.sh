@@ -3,11 +3,6 @@
 sys="$(uname)" # Linux for Linux or Darwin for MacOS
 echo "Current OS system: $sys"
 
-if [ "$EUID" -ne 0 ]
-  then echo "Please run as root!"
-  exit
-fi
-
 flag=0
 ### check grep, sed and wget availability
 echo "-------------------------------------"
@@ -24,6 +19,11 @@ if [ "$sys" == "Darwin" ]; then
     fi
     sedprog='gsed'
     bashFile='.bash_profile'
+else
+  if [ "$EUID" -ne 0 ]
+    then echo "Please run as root!"
+    exit
+  fi
 fi
 
 # NOTE: install only available for Linux!
