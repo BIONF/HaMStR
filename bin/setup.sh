@@ -20,10 +20,8 @@ if [ "$sys" == "Darwin" ]; then
     sedprog='gsed'
     bashFile='.bash_profile'
 else
-  if [ "$EUID" -ne 0 ]
-    then echo "Please run as root!"
-    exit
-  fi
+  echo "$(whoami)"
+  [ "$UID" -eq 0 ] || exec sudo "$0" "$@"
 fi
 
 # NOTE: install only available for Linux!
@@ -241,12 +239,13 @@ if ! [ -f "nodes" ]; then
   rm readme.txt
 fi
 cd $CURRENT
+echo "done!"
 
 ### download data
 echo "-------------------------------------"
 echo "Getting pre-calculated data"
 
-if ! [ "$(ls -A $CURRENT/taxonomy)" ]; then
+if ! [ "$(ls -A $CURRENT/genome_dir)" ]; then
     # if [[ $CURRENT == */HaMStR ]] || [[ $CURRENT == */hamstr ]]; then
       echo "Processing $CURRENT ..."
       echo "Downloading data from https://applbio.biologie.uni-frankfurt.de/download/hamstr_qfo/data_HaMStR.tar"

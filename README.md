@@ -12,11 +12,12 @@ Get HaMStR source code from GitHub
 git clone --depth=1 https://github.com/BIONF/HaMStR
 ```
 
-Run `setup.sh` script in the HaMStR/bin folder with root privileges (using `sudo`) to install HaMStR and its dependencies
+Run `setup.sh` script in the HaMStR/bin folder to install HaMStR and its dependencies
 ```
 cd HaMStR
-sudo bin/setup.sh
+bin/setup.sh
 ```
+*Enter root password if required (some dependencies need root privileges to be installed)*
 
 After the setup run successfully, you can restart the terminal to start using HaMStR.
 
@@ -188,6 +189,6 @@ Packages for Perl:
 * IPC/Run.pm
 * Statistics::R
 * DB::File
-      
+
 ## Contact
 For further support or bug reports please contact: ???@bio.uni-frankfurt.de

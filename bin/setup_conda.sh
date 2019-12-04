@@ -252,7 +252,7 @@ cd $CURRENT
 echo "-------------------------------------"
 echo "Getting pre-calculated data"
 
-if ! [ "$(ls -A $CURRENT/taxonomy)" ]; then
+if ! [ "$(ls -A $CURRENT/genome_dir)" ]; then
     # if [[ $CURRENT == */HaMStR ]] || [[ $CURRENT == */hamstr ]]; then
       echo "Processing $CURRENT ..."
       echo "Downloading data from https://applbio.biologie.uni-frankfurt.de/download/hamstr_qfo/data_HaMStR.tar"
