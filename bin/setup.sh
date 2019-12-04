@@ -61,7 +61,7 @@ dependenciesUbuntu=(
   r-base # for Statistics::R
   wise
   hmmer # hmmer (for both hmmsearch and hmmbuild)
-  clustalw
+  clustal-w
   mafft
   muscle
   blast2 # blast
