@@ -90,6 +90,10 @@ if [ "$sys" == "Darwin" ]; then
   	echo $i
   	brew install $i
   done
+  if [ -z "$(grep clustalw ~/$bashFile)" ]; then
+      echo "alias clustalw='clustalw2'" >> ~/$bashFile
+  fi
+
 else
   sudo apt-get update -y
   for i in "${dependenciesUbuntu[@]}"; do
@@ -105,9 +109,9 @@ fi
 
 dependencies=(
   genewise
-  hmmsearch # hmmer (for both hmmsearch and hmmbuild)
+  hmmsearch
   hmmbuild
-  clustalw
+  # clustalw2
   mafft
   muscle
   blastn
