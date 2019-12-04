@@ -1,9 +1,7 @@
-#!/home/vinh/anaconda3/envs/hamstr_2/bin/perl
+#!/usr/bin/perl
 use strict;
 use Getopt::Long;
-use lib '/home/vinh/programs/test/HaMStR/lib';
-# use lib '/home/vinh/programs/test/HaMStR/lib/Bio';
-# use lib '/home/vinh/programs/test/HaMStR/lib/XML';
+use lib '../lib';
 use Parallel::ForkManager;
 use Bio::SearchIO;
 use Bio::Search::Hit::BlastHit;
@@ -191,9 +189,9 @@ use Statistics::R;
 ######################## start main ###########################################
 my $version = "HaMStR v.13.2.10";
 ######################## checking whether the configure script has been run ###
-my $configure = 1;
+my $configure = 0;
 if ($configure == 0){
-	die "\n\n$version\n\nPLEASE RUN THE CONFIGURE OR CONFIGURE_MAC SCRIPT BEFORE USING HAMSTR\n\n";
+	die "\n\n$version\n\nPLEASE RUN Setup.sh FILE BEFORE USING HAMSTR\n\n";
 }
 ########## EDIT THE FOLLOWING LINES TO CUSTOMIZE YOUR SCRIPT ##################
 my $prog = 'hmmsearch'; #program for the hmm search

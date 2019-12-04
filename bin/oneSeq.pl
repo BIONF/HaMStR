@@ -4,7 +4,7 @@ use warnings;
 use File::Copy qw(move);
 
 use Env qw(ONESEQDIR);
-use lib '/home/vinh/programs/test/HaMStR/lib';
+use lib '../lib';
 use Parallel::ForkManager;
 #use DBI;
 use IO::Handle;
@@ -97,7 +97,7 @@ my $version = 'oneSeq v.1.4';
 ##### configure
 my $configure = 0;
 if ($configure == 0){
-	die "\n\n$version\n\nPLEASE RUN THE CONFIGURE OR CONFIGURE_MAC SCRIPT BEFORE USING oneSeq.pl\n\n";
+	die "\n\n$version\n\nPLEASE RUN Setup.sh FILE BEFORE USING oneSeq.pl\n\n";
 }
 ##### hostname
 my $hostname = `hostname`;
