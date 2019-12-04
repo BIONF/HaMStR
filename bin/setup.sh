@@ -61,7 +61,7 @@ dependenciesUbuntu=(
   r-base # for Statistics::R
   wise
   hmmer # hmmer (for both hmmsearch and hmmbuild)
-  clustal-w
+  clustalw
   mafft
   muscle
   blast2 # blast
@@ -78,7 +78,7 @@ dependenciesUbuntu=(
 dependenciesMac=(
   brewsci/bio/genewise
   hmmer # hmmer (for both hmmsearch and hmmbuild)
-  brewsci/bio/clustalw
+  brewsci/bio/clustal-w
   mafft
   brewsci/bio/muscle
   blast
