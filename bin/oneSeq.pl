@@ -5,7 +5,7 @@ use warnings;
 use File::Copy qw(move);
 
 use Env qw(ONESEQDIR);
-use lib '../lib';
+use lib '..//lib';
 use Parallel::ForkManager;
 #use DBI;
 use IO::Handle;
@@ -156,7 +156,7 @@ my $genome_dir = "genome_dir";
 my $taxaPath = "$path/$genome_dir/";
 my $blastPath = "$path/blast_dir/";
 my $idx_dir = "$path/taxonomy/";
-my $tmpdir = "$path/tmp"; ## Baustelle
+my $tmpdir = "$outputPath"; ## Baustelle
 my $dataDir = $path . '/data';
 my $currDir = getcwd;
 my $weightPath = "$path/weight_dir/";
@@ -272,7 +272,7 @@ GetOptions ("h"                 => \$help,
             "refSpec=s"         => \$refSpec,
 	    "db"                => \$dbmode,
 	    "filter=s"          => \$filter,
-            "sequence_file=s"   => \$seqFile,
+            "seqFile=s"   => \$seqFile,
             "seqId=s"           => \$seqId,
             "seqName=s"         => \$seqName,
             "silent"            => \$silent,
@@ -282,9 +282,9 @@ GetOptions ("h"                 => \$help,
             "coreTaxa=s"        => \$coreTaxa,
             "strict"            => \$strict,
             "rbh"               => \$rbh,
-            "eval_blast=s"      => \$eval_blast,
-            "eval_hmmer=s"      => \$eval_hmmer,
-            "eval_relaxfac=s"       => \$eval_relaxfac,
+            "evalBlast=s"      => \$eval_blast,
+            "evalHmmer=s"      => \$eval_hmmer,
+            "evalRelaxfac=s"       => \$eval_relaxfac,
             "checkCoorthologsRef"       => \$checkcoorthologsref,
             "coreCheckCoorthologsRef"   => \$cccr,
             "hitlimitHamstr=s"          => \$hitlimit,
@@ -292,7 +292,7 @@ GetOptions ("h"                 => \$help,
 	    "autoLimitHamstr"	=> \$autoLimit,
 	    "scoreCutoff=s" => \$scoreCutoff,
             "scoreThreshold" => \$scoreThreshold,
-            "corerep"           => \$core_rep,
+            "coreRep"           => \$core_rep,
             "coreStrict"        => \$corestrict,
             "coreOnly"          => \$coreOnly,
             "group=s"           => \$group,
@@ -311,14 +311,14 @@ GetOptions ("h"                 => \$help,
             "outpath=s"         => \$outputPath,
             "hmmpath=s"         => \$coreOrthologsPath,
             "debug"             => \$debug,
-            "core_hitlimit=s"   => \$core_hitlimit,
+            "coreHitlimit=s"   => \$core_hitlimit,
             "hitlimit=s"        => \$hitlimit,
             "force"             => \$force,
             "cleanup"           => \$autoclean,
             "addenv=s"          => \$addenv,
-            "weight_seed"       => \$weight_seed,
+            "weightSeed"       => \$weight_seed,
             "version"           => \$getversion,
-			"reuse_core"        => \$coreex,
+			"reuseCore"        => \$coreex,
 			"ignoreDistance"	=> \$ignoreDistance,
 			"distDeviation=s"	=> \$distDeviation,
 		"aligner=s"	=> \$aln);
@@ -352,8 +352,8 @@ checkOptions();
 my $outputFa =  $coreOrthologsPath . $seqName . "/" . $seqName . ".fa";
 my $outputAln = $coreOrthologsPath . $seqName . "/" . $seqName . ".aln";
 my $finalOutput = $dataDir . '/' . $seqName . '.extended.fa';
-
-createFoldersAndFiles($outputFa, $seqName, $inputSeq, $refSpec);
+$tmpdir = $tmpdir . '/' . $seqName . '/tmp';
+createFoldersAndFiles($outputFa, $seqName, $inputSeq, $refSpec, $tmpdir);
 
 my $curCoreOrthologs = 0;
 my $hamstrSpecies = $refSpec;
@@ -1443,7 +1443,10 @@ if (!$coreOnly) {
 		    }
 		}
 	    }
-### mod ingo
+	    ### check for colision of force and append. Change in favor of append
+	    if ($force == 1 and $append ==1) {
+		$force = 0;
+	    }
 	    ### check the presence of the pre-computed core set
 	    if ($coreex) {
 		if (! -e "$coreOrthologsPath/$seqName/$seqName.fa") {
@@ -1819,11 +1822,11 @@ if (!$coreOnly) {
 
 	################
 	sub createFoldersAndFiles {
-	    my ($outputFa, $seqName, $inputSeq, $refSpec) = (@_);
+	    my ($outputFa, $seqName, $inputSeq, $refSpec, $tmpdir) = (@_);
 	    #create core orthologs directory
 	    my $dir = $coreOrthologsPath . $seqName;
 	if (!$coreex){
-	    mkdir "$dir", 0777 unless -d "$dir";
+	    mkdir "$dir", 0755 unless -d "$dir";
 	    my $header = $seqName . "|" . $refSpec . "|" . $seqId;
 	    
 	    #create FA file
@@ -1840,7 +1843,7 @@ if (!$coreOnly) {
 	    
 	    #create the folder for the hmm output
 	    my $hmmdir = $dir . "/hmm_dir";
-	    mkdir "$hmmdir", 0777 unless -d "$hmmdir";
+	    mkdir "$hmmdir", 0755 unless -d "$hmmdir";
 	}
 	    #create the fas_dir for core orthologs if fas support is ON
 	    if ($fas_support){
@@ -1853,6 +1856,7 @@ if (!$coreOnly) {
 		my $scoredir = $fasdir."/fasscore_dir";
 		mkdir "$scoredir", 0777 unless -d "$scoredir";
 	    }
+	mkdir "$tmpdir", 0755 unless -d "$tmpdir";
 	}
 	#################
 	sub fetchSequence {
@@ -2769,7 +2773,7 @@ ${bold}GENERAL$norm
 
 ${bold}REQUIRED$norm
 
--sequence_file=<>
+-seqFile=<>
 	Specifies the file containing the seed sequence (protein only) in fasta format. 
 	If not provided the program will ask for it.
 -seqId=<>
@@ -2823,11 +2827,11 @@ ${bold}ADDITIONAL OPTIONS$norm
 	Invokes the 'checkCoorthologsRef' behavior in the course of the core set compilation.
 -rbh
 	Requires a reciprocal best hit during the HaMStR search to accept a new ortholog.
--eval_blast=<>
+-evalBlast=<>
 	This option allows to set the e-value cut-off for the Blast search. Default: 1E-5
--eval_hmmer=<>
+-evalHmmer=<>
 	This options allows to set the e-value cut-off for the HMM search. Default: 1E-5
--eval_relaxfac=<>
+-evalRelaxfac=<>
 	This options allows to set the factor to relax the e-value cut-off (Blast search and HMM search) for the final HaMStR run. Default: 10
 -hitLimit=<>
 	Provide an integer specifying the number of hits of the initial pHMM based search that should be evaluated
