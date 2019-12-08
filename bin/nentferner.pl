@@ -1,5 +1,5 @@
 #!/usr/bin/perl
-use lib '/share/project/ingo/src/HaMStR/lib';
+use lib '../lib';
 use Filehandler;
 use strict;
 use Getopt::Long;
@@ -7,7 +7,7 @@ use Getopt::Long;
 # PROGRAM NAME: NENTFERNER.PL
 
 # AUTHOR: INGO EBERSBERGER, ebersber@eva.mpg.de
-# DATE: 
+# DATE:
 # DESCRIPTION: THE PROGRAM ALL REMOVES NEWLINES FROM THE INPUT TEXT
 
 # DATE LAST MODIFIED: 22/01/2001; 12.02.2004
@@ -35,7 +35,7 @@ my $ln;
 my $replace;
 my $offset = 1;
 GetOptions ("h" => \$help,
-	    "in=s" => \$infile, 
+	    "in=s" => \$infile,
 	    "out=s"=> \$outname,
 	    "space=s" => \$space,
 	    "sep=s" => \$sep,
@@ -44,7 +44,7 @@ GetOptions ("h" => \$help,
 	    "line_numbers" => \$ln,
 	    "offset=s" => \$offset,
 	    "replace" => \$replace);
- 
+
 ###############
 ## help
 if (defined $help) {
@@ -55,7 +55,7 @@ if (defined $help) {
 -sep=<tab||newline||no>\tdefault:newline. Set value to 'no' if you just want to join the lines\n
 -leading_space: set this flag to remove one blank from the beginning of each line in the file\n
 -reformat_qual: set this flag to reformat phred qual files such that every qual value occupies two bytes\n
--line_numbers\tChoose this option if you want to have the line number added to the output. Works best with -sep=tab. 
+-line_numbers\tChoose this option if you want to have the line number added to the output. Works best with -sep=tab.
 -offset=<>\tGive the number to start the line numbering with. Default is 1
 -replace\tSet this flag if you want to remove the newlines in the original file\n";
 }
@@ -117,7 +117,7 @@ die "The file $path2infile/$infile does not exist!\n" unless -e "$path2infile/$i
 tie (*IN, Filehandler::, "$infile", "$path2infile", "\n");
 tie (*OUT, Filehandler::, "$outname", ">$path2outfile", "\n");
 while (readline (IN)) {
-    
+
     if ($_ =~ />/) {
 	## the fasta header
 	if ($crunch == 1) {
@@ -166,6 +166,6 @@ print OUT $outline;
 close (OUT);
 close (IN);
 if ($replace) {
-	`mv $path2outfile/$outname $path2infile/$infile`; 
+	`mv $path2outfile/$outname $path2infile/$infile`;
 }
 exit;
