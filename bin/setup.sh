@@ -64,7 +64,7 @@ dependenciesUbuntu=(
   muscle
   blast2 # blast
   ncbi-blast+
-  ncbi-blast+-legacy
+  # ncbi-blast+-legacy
   libdbi-perl
   libipc-run-perl
   perl-doc
@@ -80,7 +80,7 @@ dependenciesMac=(
   mafft
   brewsci/bio/muscle
   blast
-  brewsci/bio/blast-legacy
+  # brewsci/bio/blast-legacy
 )
 
 if [ "$sys" == "Darwin" ]; then

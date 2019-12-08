@@ -70,7 +70,7 @@ fi
 
 dependencies=(
   blastp # blast
-  blastall # blast-legacy
+  # blastall # blast-legacy
   genewise # wise2
   hmmsearch # hmmer (for both hmmsearch and hmmbuild)
   clustalw
@@ -84,8 +84,8 @@ for i in "${dependencies[@]}"; do
     tool=$i
     if [ "$tool" = "blastp" ]; then
       conda install -y -c bioconda blast
-    elif [ "$tool" = "blastall" ]; then
-      conda install -y -c bioconda blast-legacy
+    # elif [ "$tool" = "blastall" ]; then
+    #   conda install -y -c bioconda blast-legacy
     elif [ "$tool" = "hmmsearch" ]; then
       conda install -y -c bioconda hmmer
     elif [ "$tool" = "genewise" ]; then
@@ -366,7 +366,7 @@ condaPkgs=(
   perl-bioperl
   perl-bioperl-core
   blast
-  blast-legacy
+  # blast-legacy
   hmmer
   wise2
   clustalw
