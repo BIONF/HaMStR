@@ -163,6 +163,7 @@ folders=(
   weight_dir
   taxonomy
   output
+  tmp
   "bin/fas/CAST"
   "bin/fas/COILS2"
   "bin/fas/Pfam"
@@ -416,7 +417,7 @@ fi
 echo "done!"
 
 if [ "$flag" == 1 ]; then
-    echo "Some tools were not installed correctly or paths were not added into ~/$bashFile. Please check again!"
+    echo "Some tools were not installed correctly or paths were not added into ~/$bashFile. Please run this setup again to try one more time!"
     exit
 else
     echo "Generating symbolic link hamstr -> hamstr.pl"
