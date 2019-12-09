@@ -113,7 +113,7 @@ dependencies=(
   mafft
   muscle
   blastn
-  blastall
+  # blastall
 )
 
 for i in "${dependencies[@]}"; do
