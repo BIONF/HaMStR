@@ -207,9 +207,10 @@ if [ -z "$(which fasta36)" ]; then
 	  elif [ $sys=="Darwin" ]; then
 	    make -f ../make/Makefile.os_x86_64 all
 	  fi
-  fi
-  if [ -z "$(grep PATH=$CURRENT/bin/aligner/bin ~/$bashFile)" ]; then
-      echo "export PATH=$CURRENT/bin/aligner/bin:\$PATH" >> ~/$bashFile
+  else
+	  if [ -z "$(grep PATH=$CURRENT/bin/aligner/bin ~/$bashFile)" ]; then
+	      echo "export PATH=$CURRENT/bin/aligner/bin:\$PATH" >> ~/$bashFile
+	  fi
   fi
 fi
 cd $CURRENT
