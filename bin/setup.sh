@@ -215,7 +215,7 @@ fasta36="yes"
 if [ -z "$(which fasta36)" ]; then
   fasta36="no"
   fasta36v="fasta-36.3.8h"
-  if ! [ -f "bin/aligner/$fasta36v/src/ggsearch36" ]; then
+  if ! [ -f "bin/aligner/$fasta36v/bin/fasta36" ]; then
 	  echo "fasta-36"
 	  wget "http://faculty.virginia.edu/wrpearson/fasta/fasta36/${fasta36v}.tar.gz"
 	  tar xfv $fasta36v.tar.gz
