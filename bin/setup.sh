@@ -214,17 +214,21 @@ echo "Downloading and installing annotation tools/databases:"
 fasta36="yes"
 if [ -z "$(which fasta36)" ]; then
   fasta36="no"
-  echo "fasta-36"
   fasta36v="fasta-36.3.8h"
-  wget "http://faculty.virginia.edu/wrpearson/fasta/fasta36/${fasta36v}.tar.gz"
-  tar xfv $fasta36v.tar.gz
-  rm "${fasta36v}.tar.gz"
-  mv $fasta36v bin/aligner
-  cd "bin/aligner/$fasta36v/src"
-  if [ $sys=="Linux" ]; then
-    make -f ../make/Makefile.linux64_sse2 all
-  elif [ $sys=="Darwin" ]; then
-    make -f ../make/Makefile.os_x86_64 all
+  if ! [ -f "bin/aligner/$fasta36v/src/ggsearch36" ]; then
+	  echo "fasta-36"
+	  wget "http://faculty.virginia.edu/wrpearson/fasta/fasta36/${fasta36v}.tar.gz"
+	  tar xfv $fasta36v.tar.gz
+	  rm "${fasta36v}.tar.gz"
+	  mv $fasta36v bin/aligner
+	  cd "bin/aligner/$fasta36v/src"
+	  if [ $sys=="Linux" ]; then
+	    make -f ../make/Makefile.linux64_sse2 all
+	  elif [ $sys=="Darwin" ]; then
+	    make -f ../make/Makefile.os_x86_64 all
+	  fi
+  else
+	  cd "bin/aligner/$fasta36v/src"
   fi
   fastaPath=$(cd -- ../bin && pwd)
   if [ -z "$(grep PATH=${fastaPath} ~/$bashFile)" ]; then
