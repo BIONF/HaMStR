@@ -18,6 +18,7 @@ if [ "$sys" == "Darwin" ]; then
         exit
     fi
     sedprog='gsed'
+	grepprog='ggrep'
     bashFile='.bash_profile'
 else
   echo "$(whoami)"
@@ -100,11 +101,6 @@ else
   done
 fi
 
-wisePath=$(which "genewise")
-if [ -z "$(grep WISECONFIGDIR=$wisePath ~/$bashFile)" ]; then
-    echo "export WISECONFIGDIR=${wisePath}" >> ~/$bashFile
-fi
-
 dependencies=(
   genewise
   hmmsearch
@@ -118,11 +114,16 @@ dependencies=(
 
 for i in "${dependencies[@]}"; do
   if [ -z "$(which $i)" ]; then
-    echo "$i not found / cannot be automatically installed. Please install it to install/use HaMStR!"
+    echo "$i not found / cannot be automatically installed. Please install it and run this setup again!"
     flag=1
   fi
 done
 if [ "$flag" == 1 ]; then exit 1; fi
+
+wisePath=$(which "genewise")
+if [ -z "$(grep WISECONFIGDIR=$wisePath ~/$bashFile)" ]; then
+    echo "export WISECONFIGDIR=${wisePath}" >> ~/$bashFile
+fi
 
 echo "Installing Perl modules..."
 perlModules=(
