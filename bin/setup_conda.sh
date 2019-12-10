@@ -14,7 +14,12 @@ bashFile='.bashrc'
 if [ "$sys" == "Darwin" ]; then
     sedprog='gsed'
 	grepprog='ggrep'
-    bashFile='.bash_profile'
+	shell=$(echo $SHELL)
+	if [ $shell == "/bin/zsh" ]; then
+    	bashFile='.zshrc'
+	else
+		bashFile='.bash_profile'
+	fi
 fi
 
 # NOTE: install only available for Linux!
@@ -71,7 +76,6 @@ fi
 
 dependencies=(
   blastp # blast
-  # blastall # blast-legacy
   genewise # wise2
   hmmsearch # hmmer (for both hmmsearch and hmmbuild)
   clustalw
@@ -85,8 +89,6 @@ for i in "${dependencies[@]}"; do
     tool=$i
     if [ "$tool" = "blastp" ]; then
       conda install -y -c bioconda blast
-    # elif [ "$tool" = "blastall" ]; then
-    #   conda install -y -c bioconda blast-legacy
     elif [ "$tool" = "hmmsearch" ]; then
       conda install -y -c bioconda hmmer
     elif [ "$tool" = "genewise" ]; then
@@ -214,6 +216,7 @@ if ! [ -f "nodes" ]; then
   wget "ftp://ftp.ncbi.nih.gov/pub/taxonomy/taxdump.tar.gz"
   tar xfv taxdump.tar.gz
   rm taxdump.tar.gz
+  echo "Taxonomy database indexing..."
   perl $CURRENT/bin/indexTaxonomy.pl $CURRENT/taxonomy
   rm *.dmp
   rm gc.prt
@@ -367,7 +370,6 @@ condaPkgs=(
   perl-bioperl
   perl-bioperl-core
   blast
-  # blast-legacy
   hmmer
   wise2
   clustalw

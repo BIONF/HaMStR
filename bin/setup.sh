@@ -19,7 +19,12 @@ if [ "$sys" == "Darwin" ]; then
     fi
     sedprog='gsed'
 	grepprog='ggrep'
-    bashFile='.bash_profile'
+	shell=$(echo $SHELL)
+	if [ $shell == "/bin/zsh" ]; then
+    	bashFile='.zshrc'
+	else
+		bashFile='.bash_profile'
+	fi
 else
   echo "$(whoami)"
   [ "$UID" -eq 0 ] || exec sudo "$0" "$@"
@@ -65,7 +70,6 @@ dependenciesUbuntu=(
   muscle
   blast2 # blast
   ncbi-blast+
-  # ncbi-blast+-legacy
   libdbi-perl
   libipc-run-perl
   perl-doc
@@ -81,7 +85,6 @@ dependenciesMac=(
   mafft
   brewsci/bio/muscle
   blast
-  # brewsci/bio/blast-legacy
 )
 
 if [ "$sys" == "Darwin" ]; then
@@ -235,6 +238,7 @@ if ! [ -f "nodes" ]; then
   wget "ftp://ftp.ncbi.nih.gov/pub/taxonomy/taxdump.tar.gz"
   tar xfv taxdump.tar.gz
   rm taxdump.tar.gz
+  echo "Taxonomy database indexing..."
   perl $CURRENT/bin/indexTaxonomy.pl $CURRENT/taxonomy
   rm *.dmp
   rm gc.prt
