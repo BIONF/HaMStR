@@ -135,6 +135,7 @@ perlModules=(
   File::Copy
   File::Path
   File::Basename
+  File::Which
   List::Util
   Parallel::ForkManager
   POSIX
@@ -220,7 +221,7 @@ if [ -z "$(which fasta36)" ]; then
 	  wget "http://faculty.virginia.edu/wrpearson/fasta/fasta36/${fasta36v}.tar.gz"
 	  tar xfv $fasta36v.tar.gz
 	  rm "${fasta36v}.tar.gz"
-	  mv "$fasta36v/* bin/aligner/"
+	  mv $fasta36v/* bin/aligner/
 	  rm -rf $fasta36v
 	  cd "bin/aligner/src"
 	  if [ $sys=="Linux" ]; then

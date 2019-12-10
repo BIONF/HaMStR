@@ -127,10 +127,10 @@ my $glocalaligner = 'glsearch36';
 my $localaligner = 'ssearch36';
 
 my $fasta36Path = which('fasta36');
-if ($fasta36Path eq "") {
-	$globalaligner = $path.'/bin/aligner/'.'ggsearch36';
-	$glocalaligner = $path.'/bin/aligner/'.'glsearch36';
-	$localaligner = $path.'/bin/aligner/'.'ssearch36';
+if ( !(defined $fasta36Path) || $fasta36Path eq "") {
+	$globalaligner = $path.'/bin/aligner/bin/'.'ggsearch36';
+	$glocalaligner = $path.'/bin/aligner/bin/'.'glsearch36';
+	$localaligner = $path.'/bin/aligner/bin/'.'ssearch36';
 }
 
 # my $blast_prog = 'blastall';
