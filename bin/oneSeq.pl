@@ -3,10 +3,9 @@ use strict;
 use warnings;
 use File::Copy qw(move);
 
-use Env qw(ONESEQDIR);
+# use Env qw(ONESEQDIR);
 use lib '..//lib';
 use Parallel::ForkManager;
-#use DBI;
 use IO::Handle;
 use Getopt::Long;
 use Bio::DB::Taxonomy;
@@ -25,6 +24,7 @@ use File::Path;
 use File::Basename;
 use List::Util qw(shuffle);
 use File::Copy;
+use Cwd 'abs_path';
 
 my $startTime = time;
 
@@ -108,10 +108,12 @@ my $ospeed = $termios->getospeed;
 my $t = Tgetent Term::Cap { TERM => undef, OSPEED => $ospeed };
 my ($norm, $under, $bold) = map { $t->Tputs($_,1) } qw/me md us/;
 #### Paths
-my $path=$ONESEQDIR;
-if (!(defined $path) or !(-e $path)) {
-	die "Please set the environmental variabel ONESEQDIR\n";
-}
+my $path = abs_path(dirname(__FILE__));
+$path =~ s/\/bin//;
+# my $path=$ONESEQDIR;
+# if (!(defined $path) or !(-e $path)) {
+# 	die "Please set the environmental variabel ONESEQDIR\n";
+# }
 $path =~ s/\/$//;
 printDebug("Path is $path");
 
@@ -2772,7 +2774,7 @@ ${bold}GENERAL$norm
 ${bold}REQUIRED$norm
 
 -seqFile=<>
-	Specifies the file containing the seed sequence (protein only) in fasta format. 
+	Specifies the file containing the seed sequence (protein only) in fasta format.
 	If not provided the program will ask for it.
 -seqId=<>
 	Specifies the sequence identifier of the seed sequence in the reference protein set.
