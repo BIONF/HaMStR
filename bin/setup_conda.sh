@@ -193,24 +193,22 @@ fasta36="yes"
 if [ -z "$(which fasta36)" ]; then
   fasta36="no"
   fasta36v="fasta-36.3.8h"
-  if ! [ -f "bin/aligner/$fasta36v/bin/fasta36" ]; then
+  if ! [ -f "bin/aligner/bin/fasta36" ]; then
 	  echo "fasta-36"
 	  wget "http://faculty.virginia.edu/wrpearson/fasta/fasta36/${fasta36v}.tar.gz"
 	  tar xfv $fasta36v.tar.gz
 	  rm "${fasta36v}.tar.gz"
-	  mv $fasta36v bin/aligner
-	  cd "bin/aligner/$fasta36v/src"
+	  mv "$fasta36v/* bin/aligner/"
+	  rm -rf $fasta36v
+	  cd "bin/aligner/src"
 	  if [ $sys=="Linux" ]; then
 	    make -f ../make/Makefile.linux64_sse2 all
 	  elif [ $sys=="Darwin" ]; then
 	    make -f ../make/Makefile.os_x86_64 all
 	  fi
-  else
-	  cd "bin/aligner/$fasta36v/src"
   fi
-  fastaPath=$(cd -- ../bin && pwd)
-  if [ -z "$(grep PATH=${fastaPath} ~/$bashFile)" ]; then
-      echo "export PATH=${fastaPath}:\$PATH" >> ~/$bashFile
+  if [ -z "$(grep PATH=$CURRENT/bin/aligner/bin ~/$bashFile)" ]; then
+      echo "export PATH=$CURRENT/bin/aligner/bin:\$PATH" >> ~/$bashFile
   fi
 fi
 cd $CURRENT
@@ -335,8 +333,8 @@ echo "Adding paths to ~/$bashFile"
 #   echo "export ONESEQDIR=${CURRENT}" >> ~/$bashFile
 # fi
 
-if [ -z "$(grep PATH=$CURRENT/bin/oneSeq.pl ~/$bashFile)" ]; then
-	echo "export PATH=$CURRENT/bin/oneSeq.pl:\$PATH" >> ~/$bashFile
+if [ -z "$(grep PATH=$CURRENT/bin ~/$bashFile)" ]; then
+	echo "export PATH=$CURRENT/bin:\$PATH" >> ~/$bashFile
 fi
 
 wisePath=$(which "genewise")
@@ -424,13 +422,13 @@ for i in "${envPaths[@]}"; do
     fi
 done
 if [ "$fasta36" == "no" ]; then
-    if [ -z "$(grep PATH=$CURRENT/bin/aligner/fasta-36 ~/$bashFile)" ]; then
-        echo "$CURRENT/bin/aligner/fasta-36 was not added into ~/$bashFile"
+    if [ -z "$(grep PATH=$CURRENT/bin/aligner/bin ~/$bashFile)" ]; then
+        echo "$CURRENT/bin/aligner/bin was not added into ~/$bashFile"
         flag=1
     fi
 fi
-if [ -z "$(grep PATH=$CURRENT/bin/oneSeq.pl ~/$bashFile)" ]; then
-	echo "$CURRENT/bin/oneSeq.pl was not added into ~/$bashFile"
+if [ -z "$(grep PATH=$CURRENT/bin ~/$bashFile)" ]; then
+	echo "$CURRENT/bin was not added into ~/$bashFile"
 fi
 
 # if [ "$seg" == "no" ]; then

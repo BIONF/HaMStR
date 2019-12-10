@@ -22,6 +22,7 @@ use IPC::Run qw( run timeout );
 use Time::HiRes;
 use File::Path;
 use File::Basename;
+use File::Which;
 use List::Util qw(shuffle);
 use File::Copy;
 use Cwd 'abs_path';
@@ -120,9 +121,17 @@ printDebug("Path is $path");
 #### Programs and output
 my $sedprog = 'sed';
 my $grepprog = 'grep';
+
 my $globalaligner = 'ggsearch36';
 my $glocalaligner = 'glsearch36';
 my $localaligner = 'ssearch36';
+
+my $fasta36Path = which('fasta36');
+if ($fasta36Path eq "") {
+	$globalaligner = $path.'/bin/aligner/'.'ggsearch36';
+	$glocalaligner = $path.'/bin/aligner/'.'glsearch36';
+	$localaligner = $path.'/bin/aligner/'.'ssearch36';
+}
 
 # my $blast_prog = 'blastall';
 my $algorithm = "blastp";
