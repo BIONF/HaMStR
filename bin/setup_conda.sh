@@ -192,17 +192,21 @@ echo "Downloading and installing annotation tools/databases:"
 fasta36="yes"
 if [ -z "$(which fasta36)" ]; then
   fasta36="no"
-  echo "fasta-36"
   fasta36v="fasta-36.3.8h"
-  wget "http://faculty.virginia.edu/wrpearson/fasta/fasta36/${fasta36v}.tar.gz"
-  tar xfv $fasta36v.tar.gz
-  rm "${fasta36v}.tar.gz"
-  mv $fasta36v bin/aligner
-  cd "bin/aligner/$fasta36v/src"
-  if [ $sys=="Linux" ]; then
-    make -f ../make/Makefile.linux64_sse2 all
-  elif [ $sys=="Darwin" ]; then
-    make -f ../make/Makefile.os_x86_64 all
+  if ! [ -f "bin/aligner/$fasta36v/bin/fasta36" ]; then
+	  echo "fasta-36"
+	  wget "http://faculty.virginia.edu/wrpearson/fasta/fasta36/${fasta36v}.tar.gz"
+	  tar xfv $fasta36v.tar.gz
+	  rm "${fasta36v}.tar.gz"
+	  mv $fasta36v bin/aligner
+	  cd "bin/aligner/$fasta36v/src"
+	  if [ $sys=="Linux" ]; then
+	    make -f ../make/Makefile.linux64_sse2 all
+	  elif [ $sys=="Darwin" ]; then
+	    make -f ../make/Makefile.os_x86_64 all
+	  fi
+  else
+	  cd "bin/aligner/$fasta36v/src"
   fi
   fastaPath=$(cd -- ../bin && pwd)
   if [ -z "$(grep PATH=${fastaPath} ~/$bashFile)" ]; then
@@ -258,59 +262,69 @@ echo "-------------------------------------"
 echo "Getting pre-calculated data"
 
 if ! [ "$(ls -A $CURRENT/genome_dir)" ]; then
-    # if [[ $CURRENT == */HaMStR ]] || [[ $CURRENT == */hamstr ]]; then
-      echo "Processing $CURRENT ..."
-      echo "Downloading data from https://applbio.biologie.uni-frankfurt.de/download/hamstr_qfo/data_HaMStR.tar"
-      wget --no-check-certificate https://applbio.biologie.uni-frankfurt.de/download/hamstr_qfo/data_HaMStR.tar
-      if [ ! -f $CURRENT/data_HaMStR.tar ]; then
-        echo "File data_HaMStR.tar not found! Please try again!"
-      else
-        CHECKSUM=$(cksum data_HaMStR.tar)
-        echo "Checksum: $CHECKSUM"
-        if [ "$CHECKSUM" == "4100986910 5840435200 data_HaMStR.tar" ]; then
-          echo "Extracting archive data_HaMStR.tar"
-          tar xfv $CURRENT/data_HaMStR.tar
-          rm $CURRENT/data_HaMStR.tar
-          echo "Archive data_HaMStR.tar extracted into $CURRENT"
-          if [ ! -d $CURRENT/data_HaMStR ]; then
-            echo "Directory $CURRENT/data_HaMStR not found!"
-          else
-            printf "\nMoving gene sets ...\n--------------------\n"
-            rsync -rva data_HaMStR/genome_dir/* $CURRENT/genome_dir
-            printf "\nMoving blast databases ...\n--------------------------\n"
-            rsync -rva data_HaMStR/blast_dir/* $CURRENT/blast_dir
-            printf "\nMoving annotations ...\n----------------------\n"
-            rsync -rva data_HaMStR/weight_dir/* $CURRENT/weight_dir
-            # printf "\nMoving Taxonomy ...\n-------------------\n"
-            # rsync -rva data_HaMStR/taxonomy/* $CURRENT/taxonomy
-            printf "\nMoving Pfam ...\n---------------\n"
-            rsync -rva data_HaMStR/Pfam/* $CURRENT/bin/fas/Pfam
-            printf "\nMoving SMART ...\n----------------\n"
-            rsync -rva data_HaMStR/SMART/* $CURRENT/bin/fas/SMART
-            printf "\nMoving CAST ...\n---------------\n"
-            rsync -rva data_HaMStR/CAST/* $CURRENT/bin/fas/CAST
-            printf "\nMoving COILS ...\n----------------\n"
-            rsync -rva data_HaMStR/COILS2/* $CURRENT/bin/fas/COILS2
-            printf "\nMoving SEG ...\n--------------\n"
-            rsync -rva data_HaMStR/SEG/* $CURRENT/bin/fas/SEG
-            printf "\nMoving SignalP ...\n------------------\n"
-            rsync -rva data_HaMStR/SignalP/* $CURRENT/bin/fas/SignalP
-            printf "\nMoving TMHMM ...\n----------------\n"
-            rsync -rva data_HaMStR/TMHMM/* $CURRENT/bin/fas/TMHMM
-            rsync -rva data_HaMStR/README* $CURRENT/
-            printf "\nRemoving duplicated data. Please wait.\n------------------------------------\n"
-            rm -rf $CURRENT/data_HaMStR
-            printf "\nDone! Data should be in place to run HaMStR.\n"
-          fi
-        else
-          echo "Something went wrong with the download. Checksum does not match."
-        fi
-      fi
-    # else
-    #   echo "Please change into your HaMStR directory and run install_data.sh again."
-    #   echo "Exiting."
-    #   exit
-    # fi
+	echo "Processing $CURRENT ..."
+	if [ ! -f $CURRENT/data_HaMStR.tar ]; then
+		echo "Downloading data from https://applbio.biologie.uni-frankfurt.de/download/hamstr_qfo/data_HaMStR.tar"
+		wget --no-check-certificate https://applbio.biologie.uni-frankfurt.de/download/hamstr_qfo/data_HaMStR.tar
+	else
+		CHECKSUM=$(cksum data_HaMStR.tar)
+		echo "Checksum: $CHECKSUM"
+		if ! [ "$CHECKSUM" == "4100986910 5840435200 data_HaMStR.tar" ]; then
+    		  rm $CURRENT/data_HaMStR.tar
+    		  echo "Downloading data from https://applbio.biologie.uni-frankfurt.de/download/hamstr_qfo/data_HaMStR.tar"
+      		  wget --no-check-certificate https://applbio.biologie.uni-frankfurt.de/download/hamstr_qfo/data_HaMStR.tar
+    	fi
+    fi
+
+	if [ ! -f $CURRENT/data_HaMStR.tar ]; then
+	  echo "File data_HaMStR.tar not found! Please try to download again from"
+	  echo "https://applbio.biologie.uni-frankfurt.de/download/hamstr_qfo/data_HaMStR.tar"
+	  exit
+	fi
+
+	CHECKSUM=$(cksum data_HaMStR.tar)
+	if [ "$CHECKSUM" == "4100986910 5840435200 data_HaMStR.tar" ]; then
+	  echo "Extracting archive data_HaMStR.tar"
+	  tar xfv $CURRENT/data_HaMStR.tar
+	  rm $CURRENT/data_HaMStR.tar
+	  echo "Archive data_HaMStR.tar extracted into $CURRENT"
+	  if [ ! -d $CURRENT/data_HaMStR ]; then
+		echo "Directory $CURRENT/data_HaMStR not found!"
+	  else
+		printf "\nMoving gene sets ...\n--------------------\n"
+		rsync -rva data_HaMStR/genome_dir/* $CURRENT/genome_dir
+		printf "\nMoving blast databases ...\n--------------------------\n"
+		rsync -rva data_HaMStR/blast_dir/* $CURRENT/blast_dir
+		printf "\nMoving annotations ...\n----------------------\n"
+		rsync -rva data_HaMStR/weight_dir/* $CURRENT/weight_dir
+		# printf "\nMoving Taxonomy ...\n-------------------\n"
+		# rsync -rva data_HaMStR/taxonomy/* $CURRENT/taxonomy
+		printf "\nMoving Pfam ...\n---------------\n"
+		rsync -rva data_HaMStR/Pfam/* $CURRENT/bin/fas/Pfam
+		printf "\nMoving SMART ...\n----------------\n"
+		rsync -rva data_HaMStR/SMART/* $CURRENT/bin/fas/SMART
+		printf "\nMoving CAST ...\n---------------\n"
+		rsync -rva data_HaMStR/CAST/* $CURRENT/bin/fas/CAST
+		printf "\nMoving COILS ...\n----------------\n"
+		rsync -rva data_HaMStR/COILS2/* $CURRENT/bin/fas/COILS2
+		printf "\nMoving SEG ...\n--------------\n"
+		rsync -rva data_HaMStR/SEG/* $CURRENT/bin/fas/SEG
+		printf "\nMoving SignalP ...\n------------------\n"
+		rsync -rva data_HaMStR/SignalP/* $CURRENT/bin/fas/SignalP
+		printf "\nMoving TMHMM ...\n----------------\n"
+		rsync -rva data_HaMStR/TMHMM/* $CURRENT/bin/fas/TMHMM
+		rsync -rva data_HaMStR/README* $CURRENT/
+		printf "\nRemoving duplicated data. Please wait.\n------------------------------------\n"
+		rm -rf $CURRENT/data_HaMStR
+		printf "\nDone! Data should be in place to run HaMStR.\n"
+	  fi
+	else
+	  echo "Something went wrong with the download. Checksum does not match."
+	  echo "Please try to download again from"
+	  echo "https://applbio.biologie.uni-frankfurt.de/download/hamstr_qfo/data_HaMStR.tar"
+	  echo "Please put it into $CURRENT folder and run this setup again!"
+	  exit
+	fi
 fi
 
 ### add paths to bash profile file
@@ -431,7 +445,7 @@ else
     $sedprog -i -e 's/my $configure = .*/my $configure = 1;/' $CURRENT/bin/hamstr.pl;
     $sedprog -i -e 's/my $configure = .*/my $configure = 1;/' $CURRENT/bin/oneSeq.pl;
     echo "Restart terminal and test your HaMStR with:"
-    echo "perl bin/oneSeq.pl -sequence_file=infile.fa -seqid=P83876 -refspec=HUMAN@9606@1 -minDist=genus -maxDist=kingdom -coreOrth=5 -cleanup -global"
+    echo "perl bin/oneSeq.pl -seqFile=infile.fa -seqid=P83876 -refspec=HUMAN@9606@1 -minDist=genus -maxDist=kingdom -coreOrth=5 -cleanup -global"
     echo "or"
     echo "perl bin/oneSeq.pl -h"
     echo "for more details."
