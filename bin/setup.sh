@@ -238,7 +238,7 @@ if ! [ -f "nodes" ]; then
   wget "ftp://ftp.ncbi.nih.gov/pub/taxonomy/taxdump.tar.gz"
   tar xfv taxdump.tar.gz
   rm taxdump.tar.gz
-  echo "Taxonomy database indexing..."
+  echo "Taxonomy database indexing. It can take a while, please wait..."
   perl $CURRENT/bin/indexTaxonomy.pl $CURRENT/taxonomy
   rm *.dmp
   rm gc.prt
@@ -315,7 +315,6 @@ if ! [ "$(ls -A $CURRENT/genome_dir)" ]; then
 	  echo "Please put it into $CURRENT folder and run this setup again!"
 	  exit
 	fi
-  fi
 fi
 
 ### add paths to bash profile file

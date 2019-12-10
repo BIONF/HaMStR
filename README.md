@@ -19,7 +19,7 @@ bin/setup.sh
 ```
 *Enter root password if required (some dependencies need root privileges to be installed)*
 
-After the setup run successfully, you can restart the terminal to start using HaMStR.
+After the setup run successfully, you can start using HaMStR (in some cases you should restart the terminal).
 
 ### 1b. Install using Anaconda
 
@@ -43,7 +43,9 @@ conda install -c trvinh hamstr
 setup_hamstr
 ```
 
-After the setup run successfully, you can restart the terminal to start using HaMStR.
+After the setup run successfully, you can start using HaMStR (in some cases you should restart the terminal).
+
+*For debugging the installation, please create a log file by running the setup as e.g. `bin/setup.sh | tee log.txt` for Linux/MacOS or `setup_hamstr | tee log.txt` for Anaconda and send us that log file, so that we can trouble shoot the issues. Most of the problems can be solved by just re-running the setup.*
 
 ## Usage
 HaMStR will run smoothly with the provided sample file if everything is set correctly:
