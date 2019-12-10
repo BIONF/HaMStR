@@ -13,6 +13,7 @@ wgetprog='wget'
 bashFile='.bashrc'
 if [ "$sys" == "Darwin" ]; then
     sedprog='gsed'
+	grepprog='ggrep'
     bashFile='.bash_profile'
 fi
 
