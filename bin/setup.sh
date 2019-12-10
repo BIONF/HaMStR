@@ -325,8 +325,12 @@ fi
 echo "-------------------------------------"
 echo "Adding paths to ~/$bashFile"
 
-if [ -z "$(grep ONESEQDIR=$CURRENT ~/$bashFile)" ]; then
-  echo "export ONESEQDIR=${CURRENT}" >> ~/$bashFile
+# if [ -z "$(grep ONESEQDIR=$CURRENT ~/$bashFile)" ]; then
+#   echo "export ONESEQDIR=${CURRENT}" >> ~/$bashFile
+# fi
+
+if [ -z "$(grep PATH=$CURRENT/bin/oneSeq.pl ~/$bashFile)" ]; then
+	echo "export PATH=$CURRENT/bin/oneSeq.pl:\$PATH" >> ~/$bashFile
 fi
 
 wisePath=$(which "genewise")
@@ -385,7 +389,7 @@ echo "done!"
 
 echo "Environment paths"
 envPaths=(
-  "ONESEQDIR=$CURRENT"
+  # "ONESEQDIR=$CURRENT"
   WISECONFIGDIR
 )
 for i in "${envPaths[@]}"; do
@@ -400,12 +404,16 @@ if [ "$fasta36" == "no" ]; then
         flag=1
     fi
 fi
-if [ "$seg" == "no" ]; then
-    if [ -z "$(grep PATH=$CURRENT/bin/fas/SEG ~/$bashFile)" ]; then
-        echo "$CURRENT/bin/fas/SEG was not added into ~/$bashFile"
-        flag=1
-    fi
+if [ -z "$(grep PATH=$CURRENT/bin/oneSeq.pl ~/$bashFile)" ]; then
+	echo "$CURRENT/bin/oneSeq.pl was not added into ~/$bashFile"
 fi
+
+# if [ "$seg" == "no" ]; then
+#     if [ -z "$(grep PATH=$CURRENT/bin/fas/SEG ~/$bashFile)" ]; then
+#         echo "$CURRENT/bin/fas/SEG was not added into ~/$bashFile"
+#         flag=1
+#     fi
+# fi
 echo "done!"
 
 if [ "$flag" == 1 ]; then
