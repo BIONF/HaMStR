@@ -88,7 +88,7 @@ To prepare the additional input file (*.domains) you just need to concatenate th
 
 ```
 cat seqname1_1.domains seqname2_1.domains seqname3_1.domains > combined_1.domains
-``
+```
 
 The resulting file combined_1.matrix and combined_1.domains can be plugged into the Phyloprofile tool (R shiny) for further investigation.
 
