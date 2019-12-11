@@ -73,9 +73,9 @@ The main input file for *PhyloProfile* is `seqname.phyloprofile`, which contains
 You can combine multiple HaMStR runs into a single phylogenetic profile input for data visualisation and data exploration. Each run is identified by the given seqname (opt -seqname=<>). This is either given by the user or randomly assigned. The following steps are necessary:
 
 ```
-# concatenate all desired profile files (*.profile) into one combined profile:
+# concatenate all desired profile files (seqname1.extended.profile, seqname1.extended.profile,...) into one combined profile:
 
-cat seqname1.extended.profile seqname2.extended.profile seqname3.extended.profile > combined.extended.profile
+cat *.extended.profile > combined.extended.profile
 
 # re-run the parsing script provided in HaMStR/bin/visuals/parseOneSeq.pl from your current data directory with the combined profile.
 
