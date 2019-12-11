@@ -17,7 +17,7 @@ Run `setup.sh` script in the HaMStR/bin folder to install HaMStR and its depende
 cd HaMStR
 bin/setup.sh
 ```
-*Enter root password if required (some dependencies need root privileges to be installed)*
+*Enter root password if required (some dependencies need root privileges to be installed. See [dependency list](#dependencies) for more info.)*
 
 After the setup run successfully, you can start using HaMStR (in some cases you should restart the terminal).
 
@@ -157,40 +157,79 @@ To prove if your manually added species is integrated into the HaMStR framework 
 This command simply prints a list of all available taxa.
 
 ## Dependencies
-* blastp (blastall)
-* genewise
-* hmmsearch
-* hmmbuild
-* clustalw2
-* mafft-linsi
-* Perl
-* Python (FAS scoring compatible with both python v2.7 and 3.6)
+HaMStR has some dependencies, that either will be automatically installed via the setup script, or must be installed by your system admin if you don't have the root privileges. In the following you will find the full list of HaMStR's dependencies for Ubuntu system as well as the alternatives for MacOS. In Ubuntu, you can install those system and bioinformatics tools/libraries using `apt-get` tool
+```
+sudo apt-get update -y
+sudo apt-get install tool_name -y
+```
+In MacOS, we suggest using [Homebrew](https://brew.sh) as a replacement for `apt-get`. After having Homebrew, you can install tools/libraries by using the command
+```
+brew install tool_name
+```
+In both operation systems, you can install Perl modules using `cpanm`.
+```
+# first, install cpanm
+curl -L http://cpanmin.us | perl - --sudo App::cpanminus
+# then, install perl module using cpanm
+sudo cpanm perl_module_name
+```
 
-* locale-gen
-* en_US
-* en_US.UTF-8
-*de_DE
-* de_DE.UTF-8
+_**Note: After having all these dependencies installed, you still need to run the setup script to configure HaMStR!!!**_
 
-Packages for Ubuntu 16.04:
-* blast2
-* hmmer
-* clustalw
-* mafft
-* libdbi-perl
-* libipc-run-perl
-* wise
+### System tools/libraries
+* grep (ggrep)
+* sed (gsed)
+* wget (wget)
+* build-essential
+* curl (curl)
 * locales
-* ncbi-blast+
-* ncbi-blast+-legacy
 * lib32ncurses5
 * lib32z1
+*In parentheses are Mac's alternative tools*
 
-Packages for Perl:
-* Parallel/ForkManager.pm
-* IPC/Run.pm
+### Bioinformatics tools
+* wise (brewsci/bio/genewise)
+* hmmer (hmmer)
+* ncbi-blast+ (blast)
+* blast2
+* clustalw (brewsci/bio/clustal-w)
+* mafft (mafft)
+* muscle (brewsci/bio/muscle)
+
+### Perl modules
+* libdbi-perl
+* libipc-run-perl
+* perl-doc
+* DBI
+* DB_File
+* File::Copy
+* File::Path
+* File::Basename
+* File::Which
+* List::Util
+* Parallel::ForkManager
+* POSIX
+* XML::SAX
+* XML::NamespaceSupport
+* XML::Parser
+* Getopt::Long
+* IO::Handle
+* IPC::Run
 * Statistics::R
-* DB::File
+* Term::Cap
+* Time::HiRes
+* Bio::AlignIO
+* Bio::Align::ProteinStatistics
+* Bio::DB::Taxonomy
+* Bio::SearchIO
+* Bio::SearchIO::blastxml
+* Bio::Search::Hit::BlastHit
+* Bio::Seq
+* Bio::SeqIO
+* Bio::SeqUtils
+* Bio::Tree::Tree
+* Bio::Tools::Run::StandAloneBlast
+
 
 ## Contact
-For further support or bug reports please contact: ???@bio.uni-frankfurt.de
+For further support or bug reports please contact: ebersberger@bio.uni-frankfurt.de

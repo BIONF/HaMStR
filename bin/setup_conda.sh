@@ -268,8 +268,6 @@ if ! [ "$(ls -A $CURRENT/genome_dir)" ]; then
 		rsync -rva data_HaMStR/blast_dir/* $CURRENT/blast_dir
 		printf "\nMoving annotations ...\n----------------------\n"
 		rsync -rva data_HaMStR/weight_dir/* $CURRENT/weight_dir
-		# printf "\nMoving Taxonomy ...\n-------------------\n"
-		# rsync -rva data_HaMStR/taxonomy/* $CURRENT/taxonomy
 		printf "\nMoving Pfam ...\n---------------\n"
 		rsync -rva data_HaMStR/Pfam/* $CURRENT/bin/fas/Pfam
 		printf "\nMoving SMART ...\n----------------\n"

@@ -95,7 +95,6 @@ if [ "$sys" == "Darwin" ]; then
   if [ -z "$(grep clustalw ~/$bashFile)" ]; then
       echo "alias clustalw='clustalw2'" >> ~/$bashFile
   fi
-
 else
   sudo apt-get update -y
   for i in "${dependenciesUbuntu[@]}"; do
