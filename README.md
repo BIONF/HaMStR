@@ -131,7 +131,7 @@ However, if needed the user can manually add further gene sets (multifasta forma
 sed -i "s/ .*//" SPECIES@12345@1.fa
 ```
 
-	Example, a before fasta file:
+Example, a before fasta file:
 ```
 >EXR66326.1 biofilm-associated domain protein, partial [Acinetobacter baumannii 339786]
 MTGEGPVAIHAEAVDAQGNVDVADADVTLTIDTTPQDLITAITVPEDLNGDGILNAAELGTDGSFNAQVALGPDAVDGTV
@@ -140,7 +140,7 @@ NRRLLITTQPTATDSNYKTPIYINAPNGELYFANQDETSVSSVVFKRVIGATAANAPYVASDSWTKKIRKWNTYNHEVSK
 ...
 ```
 
-	and after (this is how your sequence data should look like):
+and after (this is how your sequence data should look like):
 ```
 >EXR66326.1
 MTGEGPVAIHAEAVDAQGNVDVADADVTLTIDTTPQDLITAITVPEDLNGDGILNAAELGTDGSFNAQVALGPDAVDGTV
@@ -152,12 +152,12 @@ NRRLLITTQPTATDSNYKTPIYINAPNGELYFANQDETSVSSVVFKRVIGATAANAPYVASDSWTKKIRKWNTYNHEVSK
 
 5) Create a Blast DB for the species within the blast_dir
 
-	a) Create a Blast DB using makeblastdb
+a) Create a Blast DB using makeblastdb
 ```
 makeblastdb -dbtype prot -in genome_dir/SPECI@00001@1/SPECI@00001@1.fa -out blast_dir/SPECI@00001@1/SPECI@00001@1
 ```
 
-	b) Create a symbolic link with the blast_dir (change into the respective sub-directory in the blast_dir)
+b) Create a symbolic link with the blast_dir (change into the respective sub-directory in the blast_dir)
 ```
 cd blast_dir/SPECI@00001@1
 ln -s ../../genome_dir/SPECI@00001@1/SPECI@00001@1.fa SPECI@00001@1.fa
