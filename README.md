@@ -4,14 +4,14 @@ Table of Contents
 =================
 
    * [HaMStR-OneSeq](#hamstr-oneseq)
-      * [Installation](#installation)
+      * [How to install](#how-to-install)
          * [0. Basic system tools requirement](#0-basic-system-tools-requirement)
          * [1a. Install in Ubuntu/MacOS](#1a-install-in-ubuntumacos)
          * [1b. Install using Anaconda](#1b-install-using-anaconda)
       * [Usage](#usage)
       * [HaMStR and the utilisation of FAS](#hamstr-and-the-utilisation-of-fas)
-      * [Phylogenetic profile visualization](#phylogenetic-profile-visualization)
-      * [Gene sets, Annotations, Blast DBs](#gene-sets-annotations-blast-dbs)
+      * [Output visualization using PhyloProfile](#output-visualization-using-phyloprofile)
+      * [Pre-calculated data set](#pre-calculated-data-set)
       * [Dependencies](#dependencies)
          * [System tools/libraries](#system-toolslibraries)
          * [Bioinformatics tools](#bioinformatics-tools)
@@ -19,7 +19,7 @@ Table of Contents
       * [How to cite](#how-to-cite)
       * [Contact](#contact)
 
-## Installation
+## How to install
 
 ### 0. Basic system tools requirement
 You need to have `wget`, `grep` and `sed` (or `gsed` for **MacOS**) to install HaMStR. So please install them if they are missing. For MacOS users, we recommend using [Homebrew](https://brew.sh) to install those command line tools.
@@ -84,7 +84,7 @@ The output orthologous group for the query gene consist of these text files
 ## HaMStR and the utilisation of FAS
 HaMStR integrates the prediction of orthologs and the calculation of the Feature Architecture Similarty (FAS) scores. FAS scores are computed pairwise between the query gene and it's predicted orthologous genes using [FAS tool](https://github.com/BIONF/FAS), which will be automatically installed during the setup of HaMStR.
 
-## Phylogenetic profile visualization
+## Output visualization using PhyloProfile
 For a rich visualisation of the provided information from the HaMStR outputs, you can plug them into the [Phyloprofile tool](https://github.com/BIONF/phyloprofile).
 
 The main input file for *PhyloProfile* is `seqname.phyloprofile`, which contains list of all orthologous gene names and the taxonomy IDs of their taxa together with the FAS scores (if available). For analysing more information such as the FASTA sequences or the domain annotations, you can optionally input `seqname.extended.fa` and `seqname_1.domains` (or `seqname_0.domains`) to *PhyloProfile*.
@@ -111,7 +111,7 @@ cat *_1.domains > combined_1.domains
 The resulting file `combined.phyloprofile`, `combined_0.matrix` and `combined_1.domains` can be then plugged into the *Phyloprofile tool* for further investigation.
 
 
-## Gene sets, Annotations, Blast DBs
+## Pre-calculated data set
 
 Within the data package (https://fasta.bioch.virginia.edu/fasta_www2/fasta_list2.shtml) we provide a set of 78 reference taxa (gene sets in genome_dir, annotations in weight_dir, blast databases in blast_dir). They can be automatically downloaded with the `setup.sh` script. This data comes "ready to use" with the HaMStR-OneSeq framework. Species data must be present in the three directories listed below. For each species/taxon there is a sub-directory named in accordance to the naming schema ([Species acronym]@[NCBI ID]@[Proteome version]).:
 
