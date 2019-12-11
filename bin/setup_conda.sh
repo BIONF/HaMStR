@@ -232,7 +232,7 @@ if ! [ -f "nodes" ]; then
   rm readme.txt
 fi
 cd $CURRENT
-if ! [ -f "$CURRENT/taxonomy/nodes"]; then
+if ! [ -f "$CURRENT/taxonomy/nodes" ]; then
 	echo "Error while indexing NCBI taxonomy database! Please check $CURRENT/taxonomy/ folder and run this setup again!"
 	exit
 fi
@@ -251,7 +251,7 @@ if [ -z "$(which greedyFAS.py)" ]; then
 	fi
 fi
 cd $CURRENT
-if ! [ -f "$CURRENT/bin/fas/Pfam/Pfam-hmms/Pfam-A.hmm"]; then
+if ! [ -f "$CURRENT/bin/fas/Pfam/Pfam-hmms/Pfam-A.hmm" ]; then
 	echo "Installation of FAS failed! Please install it again if you still want to use FAS!"
 fi
 echo "done!"
