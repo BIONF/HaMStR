@@ -73,24 +73,23 @@ The main input file for *PhyloProfile* is `seqname.phyloprofile`, which contains
 You can combine multiple HaMStR runs into a single phylogenetic profile input for data visualisation and data exploration. Each run is identified by the given seqname (opt -seqname=<>). This is either given by the user or randomly assigned. The following steps are necessary:
 
 ```
-# concatenate all desired profile files (seqname1.extended.profile, seqname1.extended.profile,...) into one combined profile:
+# concatenate all desired profile files into one combined profile
 
 cat *.extended.profile > combined.extended.profile
 
-# re-run the parsing script provided in HaMStR/bin/visuals/parseOneSeq.pl from your current data directory with the combined profile.
+# re-run the parsing script from your current data directory with the combined profile
 
 perl /path/to/HaMStR/bin/visuals/parseOneSeq.pl -i combined.extended.profile -o combined.phyloprofile
 ```
 
-This provides you with an input file `combined.phyloprofile` for Phyloprofile.
-
 To prepare the additional input file (*.domains) you just need to concatenate them with each other (please mind the distinction between forward (1) and backward (0) FAS comparisons and do not mix them up).
 
 ```
-cat seqname1_1.domains seqname2_1.domains seqname3_1.domains > combined_1.domains
+cat *_0.domains > combined_0.domains
+cat *_1.domains > combined_1.domains
 ```
 
-The resulting file combined_1.matrix and combined_1.domains can be plugged into the Phyloprofile tool (R shiny) for further investigation.
+The resulting file `combined.phyloprofile`, `combined_0.matrix` and `combined_1.domains` can be then plugged into the Phyloprofile tool (R shiny) for further investigation.
 
 
 ## Gene sets, Annotations, Blast DBs
@@ -235,7 +234,7 @@ _**Note: After having all these dependencies installed, you still need to run th
 * Bio::Tree::Tree
 * Bio::Tools::Run::StandAloneBlast
 
-## Cite
+## How to cite
 Ebersberger, I., Strauss, S. & von Haeseler, A. HaMStR: Profile hidden markov model based search for orthologs in ESTs. BMC Evol Biol 9, 157 (2009), [doi:10.1186/1471-2148-9-157](https://doi.org/10.1186/1471-2148-9-157)
 
 ## Contact
