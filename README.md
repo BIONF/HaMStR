@@ -2,6 +2,8 @@
 
 Table of Contents
 =================
+
+   * [HaMStR-OneSeq](#hamstr-oneseq)
       * [Installation](#installation)
          * [0. Basic system tools requirement](#0-basic-system-tools-requirement)
          * [1a. Install in Ubuntu/MacOS](#1a-install-in-ubuntumacos)
