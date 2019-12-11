@@ -168,15 +168,6 @@ folders=(
   taxonomy
   output
   tmp
-  "bin/fas/CAST"
-  "bin/fas/COILS2"
-  "bin/fas/Pfam"
-  "bin/fas/Pfam/Pfam-hmms"
-  "bin/fas/Pfam/output_files"
-  "bin/fas/SEG"
-  "bin/fas/SignalP"
-  "bin/fas/SMART"
-  "bin/fas/TMHMM"
   "bin/aligner"
 )
 
@@ -296,21 +287,6 @@ if ! [ "$(ls -A $CURRENT/genome_dir)" ]; then
 		rsync -rva data_HaMStR/blast_dir/* $CURRENT/blast_dir
 		printf "\nMoving annotations ...\n----------------------\n"
 		rsync -rva data_HaMStR/weight_dir/* $CURRENT/weight_dir
-		# printf "\nMoving Pfam ...\n---------------\n"
-		# rsync -rva data_HaMStR/Pfam/* $CURRENT/bin/fas/Pfam
-		# printf "\nMoving SMART ...\n----------------\n"
-		# rsync -rva data_HaMStR/SMART/* $CURRENT/bin/fas/SMART
-		# printf "\nMoving CAST ...\n---------------\n"
-		# rsync -rva data_HaMStR/CAST/* $CURRENT/bin/fas/CAST
-		# printf "\nMoving COILS ...\n----------------\n"
-		# rsync -rva data_HaMStR/COILS2/* $CURRENT/bin/fas/COILS2
-		# printf "\nMoving SEG ...\n--------------\n"
-		# rsync -rva data_HaMStR/SEG/* $CURRENT/bin/fas/SEG
-		# printf "\nMoving SignalP ...\n------------------\n"
-		# rsync -rva data_HaMStR/SignalP/* $CURRENT/bin/fas/SignalP
-		# printf "\nMoving TMHMM ...\n----------------\n"
-		# rsync -rva data_HaMStR/TMHMM/* $CURRENT/bin/fas/TMHMM
-		# rsync -rva data_HaMStR/README* $CURRENT/
 		printf "\nRemoving duplicated data. Please wait.\n------------------------------------\n"
 		rm -rf $CURRENT/data_HaMStR
 		printf "\nDone! Data should be in place to run HaMStR.\n"
