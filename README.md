@@ -233,6 +233,8 @@ _**Note: After having all these dependencies installed, you still need to run th
 * Bio::Tree::Tree
 * Bio::Tools::Run::StandAloneBlast
 
+## Cite
+Ebersberger, I., Strauss, S. & von Haeseler, A. HaMStR: Profile hidden markov model based search for orthologs in ESTs. BMC Evol Biol 9, 157 (2009) doi:10.1186/1471-2148-9-157
 
 ## Contact
 For further support or bug reports please contact: ebersberger@bio.uni-frankfurt.de
