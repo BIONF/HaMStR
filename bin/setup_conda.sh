@@ -213,6 +213,12 @@ if [ -z "$(which fasta36)" ]; then
   fi
 fi
 cd $CURRENT
+if [ -z "$(which fasta36)" ]; then
+	if ! [ -f "$CURRENT/bin/aligner/bin/fasta36" ]; then
+		echo "fasta36 tool could not be found in $CURRENT/bin/aligner/. Please check again!"
+		exit
+	fi
+fi
 
 cd "taxonomy"
 if ! [ -f "nodes" ]; then
@@ -226,18 +232,28 @@ if ! [ -f "nodes" ]; then
   rm readme.txt
 fi
 cd $CURRENT
+if ! [ -f "$CURRENT/taxonomy/nodes"]; then
+	echo "Error while indexing NCBI taxonomy database! Please check $CURRENT/taxonomy/ folder and run this setup again!"
+	exit
+fi
 
 cd "bin"
-if ! [ -f "fas/Pfam/Pfam-hmms/Pfam-A.hmm"]; then
-    echo "FAS"
-    wget https://github.com/BIONF/FAS/archive/master.tar.gz
-    tar xfv master.tar.gz
-    mv FAS-master fas
-    rm master.tar.gz
-    chmod 755 fas/config/setup.sh
-    fas/config/setup.sh
+if [ -z "$(which greedyFAS.py)" ]; then
+	if ! [ -f "fas/Pfam/Pfam-hmms/Pfam-A.hmm"]; then
+	    echo "FAS"
+	    wget https://github.com/BIONF/FAS/archive/master.tar.gz
+	    tar xfv master.tar.gz
+		rm -rf fas
+	    mv FAS-master fas
+	    rm master.tar.gz
+	    chmod 755 fas/config/setup.sh
+	    fas/config/setup.sh
+	fi
 fi
 cd $CURRENT
+if ! [ -f "$CURRENT/bin/fas/Pfam/Pfam-hmms/Pfam-A.hmm"]; then
+	echo "Installation of FAS failed! Please install it again if you still want to use FAS!"
+fi
 echo "done!"
 
 ### download data
