@@ -187,15 +187,6 @@ folders=(
   taxonomy
   output
   tmp
-  "bin/fas/CAST"
-  "bin/fas/COILS2"
-  "bin/fas/Pfam"
-  "bin/fas/Pfam/Pfam-hmms"
-  "bin/fas/Pfam/output_files"
-  "bin/fas/SEG"
-  "bin/fas/SignalP"
-  "bin/fas/SMART"
-  "bin/fas/TMHMM"
   "bin/aligner"
 )
 
@@ -226,24 +217,38 @@ if [ -z "$(which fasta36)" ]; then
 	  elif [ $sys=="Darwin" ]; then
 	    make -f ../make/Makefile.os_x86_64 all
 	  fi
-  else
-	  if [ -z "$(grep PATH=$CURRENT/bin/aligner/bin ~/$bashFile)" ]; then
-	      echo "export PATH=$CURRENT/bin/aligner/bin:\$PATH" >> ~/$bashFile
-	  fi
+  fi
+  if [ -z "$(grep PATH=$CURRENT/bin/aligner/bin ~/$bashFile)" ]; then
+	  echo "export PATH=$CURRENT/bin/aligner/bin:\$PATH" >> ~/$bashFile
   fi
 fi
 cd $CURRENT
 
 cd "taxonomy"
 if ! [ -f "nodes" ]; then
-  wget "ftp://ftp.ncbi.nih.gov/pub/taxonomy/taxdump.tar.gz"
-  tar xfv taxdump.tar.gz
-  rm taxdump.tar.gz
-  echo "Taxonomy database indexing. It can take a while, please wait..."
-  perl $CURRENT/bin/indexTaxonomy.pl $CURRENT/taxonomy
-  rm *.dmp
-  rm gc.prt
-  rm readme.txt
+    wget "ftp://ftp.ncbi.nih.gov/pub/taxonomy/taxdump.tar.gz"
+    tar xfv taxdump.tar.gz
+    rm taxdump.tar.gz
+    echo "Taxonomy database indexing. It can take a while, please wait..."
+    perl $CURRENT/bin/indexTaxonomy.pl $CURRENT/taxonomy
+    rm *.dmp
+    rm gc.prt
+    rm readme.txt
+fi
+cd $CURRENT
+echo "done!"
+
+cd "bin"
+if [ -z "$(which greedyFAS.py)" ]; then
+	if ! [ -f "fas/Pfam/Pfam-hmms/Pfam-A.hmm"]; then
+	    echo "FAS"
+	    wget https://github.com/BIONF/FAS/archive/master.tar.gz
+	    tar xfv master.tar.gz
+	    mv FAS-master fas
+	    rm master.tar.gz
+	    chmod 755 fas/config/setup.sh
+	    fas/config/setup.sh
+	fi
 fi
 cd $CURRENT
 echo "done!"
@@ -290,21 +295,21 @@ if ! [ "$(ls -A $CURRENT/genome_dir)" ]; then
 		rsync -rva data_HaMStR/weight_dir/* $CURRENT/weight_dir
 		# printf "\nMoving Taxonomy ...\n-------------------\n"
 		# rsync -rva data_HaMStR/taxonomy/* $CURRENT/taxonomy
-		printf "\nMoving Pfam ...\n---------------\n"
-		rsync -rva data_HaMStR/Pfam/* $CURRENT/bin/fas/Pfam
-		printf "\nMoving SMART ...\n----------------\n"
-		rsync -rva data_HaMStR/SMART/* $CURRENT/bin/fas/SMART
-		printf "\nMoving CAST ...\n---------------\n"
-		rsync -rva data_HaMStR/CAST/* $CURRENT/bin/fas/CAST
-		printf "\nMoving COILS ...\n----------------\n"
-		rsync -rva data_HaMStR/COILS2/* $CURRENT/bin/fas/COILS2
-		printf "\nMoving SEG ...\n--------------\n"
-		rsync -rva data_HaMStR/SEG/* $CURRENT/bin/fas/SEG
-		printf "\nMoving SignalP ...\n------------------\n"
-		rsync -rva data_HaMStR/SignalP/* $CURRENT/bin/fas/SignalP
-		printf "\nMoving TMHMM ...\n----------------\n"
-		rsync -rva data_HaMStR/TMHMM/* $CURRENT/bin/fas/TMHMM
-		rsync -rva data_HaMStR/README* $CURRENT/
+		# printf "\nMoving Pfam ...\n---------------\n"
+		# rsync -rva data_HaMStR/Pfam/* $CURRENT/bin/fas/Pfam
+		# printf "\nMoving SMART ...\n----------------\n"
+		# rsync -rva data_HaMStR/SMART/* $CURRENT/bin/fas/SMART
+		# printf "\nMoving CAST ...\n---------------\n"
+		# rsync -rva data_HaMStR/CAST/* $CURRENT/bin/fas/CAST
+		# printf "\nMoving COILS ...\n----------------\n"
+		# rsync -rva data_HaMStR/COILS2/* $CURRENT/bin/fas/COILS2
+		# printf "\nMoving SEG ...\n--------------\n"
+		# rsync -rva data_HaMStR/SEG/* $CURRENT/bin/fas/SEG
+		# printf "\nMoving SignalP ...\n------------------\n"
+		# rsync -rva data_HaMStR/SignalP/* $CURRENT/bin/fas/SignalP
+		# printf "\nMoving TMHMM ...\n----------------\n"
+		# rsync -rva data_HaMStR/TMHMM/* $CURRENT/bin/fas/TMHMM
+		# rsync -rva data_HaMStR/README* $CURRENT/
 		printf "\nRemoving duplicated data. Please wait.\n------------------------------------\n"
 		rm -rf $CURRENT/data_HaMStR
 		printf "\nDone! Data should be in place to run HaMStR.\n"
@@ -322,7 +327,7 @@ fi
 echo "-------------------------------------"
 echo "Adding paths to ~/$bashFile"
 
-if [ -z "$(grep PATH=$CURRENT/bin ~/$bashFile)" ]; then
+if [ -z "$(grep PATH=$CURRENT/bin:\$PATH ~/$bashFile)" ]; then
 	echo "export PATH=$CURRENT/bin:\$PATH" >> ~/$bashFile
 fi
 
@@ -397,7 +402,7 @@ if [ "$fasta36" == "no" ]; then
         flag=1
     fi
 fi
-if [ -z "$(grep PATH=$CURRENT/bin ~/$bashFile)" ]; then
+if [ -z "$(grep PATH=$CURRENT/bin:\$PATH ~/$bashFile)" ]; then
 	echo "$CURRENT/bin was not added into ~/$bashFile"
 fi
 
