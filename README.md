@@ -113,7 +113,7 @@ The resulting file `combined.phyloprofile`, `combined_0.matrix` and `combined_1.
 
 ## Pre-calculated data set
 
-Within the data package (https://fasta.bioch.virginia.edu/fasta_www2/fasta_list2.shtml) we provide a set of 78 reference taxa (gene sets in genome_dir, annotations in weight_dir, blast databases in blast_dir). They can be automatically downloaded with the `setup.sh` script. This data comes "ready to use" with the HaMStR-OneSeq framework. Species data must be present in the three directories listed below. For each species/taxon there is a sub-directory named in accordance to the naming schema ([Species acronym]@[NCBI ID]@[Proteome version]).:
+Within the data package (https://fasta.bioch.virginia.edu/fasta_www2/fasta_list2.shtml) we provide a set of 78 reference taxa (gene sets in genome_dir, annotations in weight_dir, blast databases in blast_dir). They can be automatically downloaded during the setup. This data comes "ready to use" with the HaMStR-OneSeq framework. Species data must be present in the three directories listed below. For each species/taxon there is a sub-directory named in accordance to the naming schema ([Species acronym]@[NCBI ID]@[Proteome version]).:
 
 * genome_dir (Contains sub-directories for proteome fasta files for each species)
 * blast_dir (Contains sub-directories for BLAST databases made with makeblastdb out of your proteomes)
@@ -127,40 +127,32 @@ However, if needed the user can manually add further gene sets (multifasta forma
 2) Rename the file in accordance to the naming schema of hamstr:     SPECIES@12345@1.fa ([Species acronym]@[NCBI ID]@[Proteome version])
 
 3) Fasta header must be whitespace free and unique within the gene set (short header make your life easier for downstream analysis).
-     - the following bash command uses sed to cut the header at the first whitespace: sed -i "s/ .*//" SPECIES@12345@1.fa
+     - the following bash command uses sed to cut the header at the first whitespace: `sed -i "s/ .*//" SPECIES@12345@1.fa`
      - example:
 
 before:
 
 	>EXR66326.1 biofilm-associated domain protein, partial [Acinetobacter baumannii 339786]
 	MTGEGPVAIHAEAVDAQGNVDVADADVTLTIDTTPQDLITAITVPEDLNGDGILNAAELGTDGSFNAQVALGPDAVDGTV
-	VNVNGTNYTVTAADLANGYITATLDATAADPVTGQIVIHAEAVDAQGNVD
 	>EXR66351.1 hypothetical protein J700_4015, partial [Acinetobacter baumannii 339786]
 	NRRLLITTQPTATDSNYKTPIYINAPNGELYFANQDETSVSSVVFKRVIGATAANAPYVASDSWTKKIRKWNTYNHEVSK
-	VGRFIAPMMLTYDVTFTTQQNNAGWSISKESTGVYRLQRDSGVTTELANPHIEVSGIFAGTGLGSGDVILPPTLQAIEAY
-	>EXR66376.1 bacterial Ig-like domain family protein, partial [Acinetobacter baumannii 339786]
-	DGVDYPAVNNGDGTWTLADNTLPTLADGPHTITVTATDAAGNVGNDTAVVTIDTVAPNAPVLDPINATDPVSGQAEPGST
-	VTVTYPDGTTATVVAGTDGSWSVPNPGNLVDGDTVTATAT
 	...
 after (this is how your sequence data should look like):
 
 	>EXR66326.1
 	MTGEGPVAIHAEAVDAQGNVDVADADVTLTIDTTPQDLITAITVPEDLNGDGILNAAELGTDGSFNAQVALGPDAVDGTV
-	VNVNGTNYTVTAADLANGYITATLDATAADPVTGQIVIHAEAVDAQGNVD
 	>EXR66351.1
 	NRRLLITTQPTATDSNYKTPIYINAPNGELYFANQDETSVSSVVFKRVIGATAANAPYVASDSWTKKIRKWNTYNHEVSK
-	VGRFIAPMMLTYDVTFTTQQNNAGWSISKESTGVYRLQRDSGVTTELANPHIEVSGIFAGTGLGSGDVILPPTLQAIEAY
-	>EXR66376.1
-	DGVDYPAVNNGDGTWTLADNTLPTLADGPHTITVTATDAAGNVGNDTAVVTIDTVAPNAPVLDPINATDPVSGQAEPGST
-	VTVTYPDGTTATVVAGTDGSWSVPNPGNLVDGDTVTATAT
+	...
 
 4) After your gene set (proteomic data) is prepared and placed into the respective sub-directory in the genome_dir directory you can conduct the following instructions:
 
-5.1) Create a Blast DB for the species within the blast_dir
+5) Create a Blast DB for the species within the blast_dir
+	a) Create a Blast DB using makeblastdb
 
 	makeblastdb -dbtype prot -in genome_dir/SPECI@00001@1/SPECI@00001@1.fa -out blast_dir/SPECI@00001@1/SPECI@00001@1
 
-5.2) Create a symbolic link with the blast_dir (change into the respective sub-directory in the blast_dir)
+	b) Create a symbolic link with the blast_dir (change into the respective sub-directory in the blast_dir)
 
 	cd blast_dir/SPECI@00001@1
 	ln -s ../../genome_dir/SPECI@00001@1/SPECI@00001@1.fa SPECI@00001@1.fa
