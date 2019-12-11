@@ -185,7 +185,8 @@ _**Note: After having all these dependencies installed, you still need to run th
 * locales
 * lib32ncurses5
 * lib32z1
-*In parentheses are Mac's alternative tools*
+
+*(In parentheses are Mac's alternative tools)*
 
 ### Bioinformatics tools
 * wise (brewsci/bio/genewise)
@@ -195,6 +196,8 @@ _**Note: After having all these dependencies installed, you still need to run th
 * clustalw (brewsci/bio/clustal-w)
 * mafft (mafft)
 * muscle (brewsci/bio/muscle)
+
+*(In parentheses are Mac's alternative tools)*
 
 ### Perl modules
 * libdbi-perl
