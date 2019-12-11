@@ -172,8 +172,6 @@ my $currDir = getcwd;
 my $weightPath = "$path/weight_dir/";
 my $fasPath = "$path/bin/fas/";
 my $visualsPath = "$path/bin/visuals/";
-# my $alignerVersion = "fasta-36.3.8e"; #Baustelle: check and set
-# my $alignerPath = "$path/bin/aligner/$alignerVersion/bin";
 
 my @defaultRanks = ('superkingdom', 'kingdom',
         'superphylum', 'phylum', 'subphylum',

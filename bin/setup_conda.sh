@@ -152,7 +152,7 @@ done
 
 echo "done!"
 
-### prepare folder
+### prepare folders
 echo "-------------------------------------"
 echo "Preparing folders..."
 DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
@@ -175,7 +175,7 @@ folders=(
   "bin/fas/Pfam/output_files"
   "bin/fas/SEG"
   "bin/fas/SignalP"
-  "bin/fas/SMARublastT"
+  "bin/fas/SMART"
   "bin/fas/TMHMM"
   "bin/aligner"
 )
@@ -227,35 +227,6 @@ if ! [ -f "nodes" ]; then
   rm readme.txt
 fi
 cd $CURRENT
-
-# seg="yes"
-# if [ -z "$(which seg)" ]; then
-#   seg="no"
-#   echo "SEG"
-#   cd "bin/fas/SEG"
-#   wget -r -l 2 -np ftp://ftp.ncbi.nih.gov/pub/seg/seg
-#   mv ftp.ncbi.nih.gov/pub/seg/seg/* $(pwd)
-#   rm -rf ftp.ncbi.nih.gov
-#   rm -rf archive
-#   make
-#   segPath=$(pwd)
-#   if [ -z "$(grep PATH=${segPath} ~/$bashFile)" ]; then
-#       echo "export PATH=${segPath}:\$PATH" >> ~/$bashFile
-#   fi
-# fi
-# cd $CURRENT
-#
-# cd "bin/fas/Pfam/Pfam-hmms"
-# if ! [ -f Pfam-A.hmm ]; then
-#   echo "pfam-A.hmm"
-#   wget ftp://ftp.ebi.ac.uk/pub/databases/Pfam/current_release//Pfam-A.hmm.gz
-#   wget ftp://ftp.ebi.ac.uk/pub/databases/Pfam/current_release/Pfam-A.hmm.dat.gz
-#   gunzip Pfam-A.hmm.gz
-#   gunzip Pfam-A.hmm.dat.gz
-#   hmmpress Pfam-A.hmm
-#   mv $CURRENT/bin/pfam_scan.pl $CURRENT/bin/fas/Pfam/
-# fi
-# cd $CURRENT
 
 ### download data
 echo "-------------------------------------"
@@ -330,10 +301,6 @@ fi
 ### add paths to bash profile file
 echo "-------------------------------------"
 echo "Adding paths to ~/$bashFile"
-
-# if [ -z "$(grep ONESEQDIR=$CURRENT ~/$bashFile)" ]; then
-#   echo "export ONESEQDIR=${CURRENT}" >> ~/$bashFile
-# fi
 
 if [ -z "$(grep PATH=$CURRENT/bin ~/$bashFile)" ]; then
 	echo "export PATH=$CURRENT/bin:\$PATH" >> ~/$bashFile
@@ -433,12 +400,6 @@ if [ -z "$(grep PATH=$CURRENT/bin ~/$bashFile)" ]; then
 	echo "$CURRENT/bin was not added into ~/$bashFile"
 fi
 
-# if [ "$seg" == "no" ]; then
-#     if [ -z "$(grep PATH=$CURRENT/bin/fas/SEG ~/$bashFile)" ]; then
-#         echo "$CURRENT/bin/fas/SEG was not added into ~/$bashFile"
-#         flag=1
-#     fi
-# fi
 echo "done!"
 
 if [ "$flag" == 1 ]; then
