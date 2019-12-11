@@ -1,5 +1,22 @@
 # HaMStR-OneSeq
 
+Table of Contents
+=================
+      * [Installation](#installation)
+         * [0. Basic system tools requirement](#0-basic-system-tools-requirement)
+         * [1a. Install in Ubuntu/MacOS](#1a-install-in-ubuntumacos)
+         * [1b. Install using Anaconda](#1b-install-using-anaconda)
+      * [Usage](#usage)
+      * [HaMStR and the utilisation of FAS](#hamstr-and-the-utilisation-of-fas)
+      * [Phylogenetic profile visualization](#phylogenetic-profile-visualization)
+      * [Gene sets, Annotations, Blast DBs](#gene-sets-annotations-blast-dbs)
+      * [Dependencies](#dependencies)
+         * [System tools/libraries](#system-toolslibraries)
+         * [Bioinformatics tools](#bioinformatics-tools)
+         * [Perl modules](#perl-modules)
+      * [How to cite](#how-to-cite)
+      * [Contact](#contact)
+
 ## Installation
 
 ### 0. Basic system tools requirement
