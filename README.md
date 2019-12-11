@@ -60,7 +60,7 @@ The output orthologous group for the query gene consist of these text files
 1) `seqname.extended.fa`: a multiple FASTA file containing ortholog sequences and the query gene
 2) `seqname.extended.profile`: a tab-delimited file containing list of orthologous sequences and their correspoding similarity scores by comparing their feature architectures with the one of the query gene (for more info about this score, please read [this document](https://bionf.github.io/FAS))
 3) `seqname.phyloprofile`: an input file for visualisation the phylogenetic profile of the query gene using [PhyloProfile tool](https://github.com/BIONF/phyloprofile)
-4) `seqname.domains` (and optional, `seqname.domains`): a protein domain annotation file for all the sequences present in the orthologous group
+4) `seqname_1.domains` (and optional, `seqname_0.domains`): a protein domain annotation file for all the sequences present in the orthologous group. The `_0` or `_1` suffix indicates the direction of the feature architecture comparison, in which `_1` (forward) means that the query gene is used as *seed* and it orthologs as *target* for the comparison, while `_0` (backward) is vice versa.
 
 ## HaMStR and the utilisation of FAS
 HaMStR integrates the prediction of orthologs and the calculation of the Feature Architecture Similarty (FAS) scores. FAS scores are computed pairwise between the query gene and it's predicted orthologous genes using [FAS tool](https://github.com/BIONF/FAS), which will be automatically installed during the setup of HaMStR.
@@ -88,7 +88,10 @@ To prepare the additional input file (*.domains) you just need to concatenate th
 
 ```
 cat seqname1_1.domains seqname2_1.domains seqname3_1.domains > combined_1.domains
-```
+``
+
+The resulting file combined_1.matrix and combined_1.domains can be plugged into the Phyloprofile tool (R shiny) for further investigation.
+
 
 ## Gene sets, Annotations, Blast DBs
 
