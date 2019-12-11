@@ -48,48 +48,47 @@ After the setup run successfully, you can start using HaMStR (in some cases you 
 *For debugging the installation, please create a log file by running the setup as e.g. `bin/setup.sh | tee log.txt` for Linux/MacOS or `setup_hamstr | tee log.txt` for Anaconda and send us that log file, so that we can trouble shoot the issues. Most of the problems can be solved by just re-running the setup.*
 
 ## Usage
-HaMStR will run smoothly with the provided sample file if everything is set correctly:
+HaMStR will run smoothly with the provided sample input file in 'HaMStR/data/infile.fa' if everything is set correctly.
+```
+perl oneSeq.pl -seqFile=infile.fa -seqid=P83876 -refspec=HUMAN@9606@1 -minDist=genus -maxDist=kingdom -coreOrth=5 -cleanup -global
+```
+You can have an overview about the available options with the command
+```
+perl oneSeq.pl -h
+```
+The output orthologous group for the query gene consist of these text files
+1) `seqname.extended.fa`: a multiple FASTA file containing ortholog sequences and the query gene
+2) `seqname.extended.profile`: a tab-delimited file containing list of orthologous sequences and their correspoding similarity scores by comparing their feature architectures with the one of the query gene (for more info about this score, please read [this document](https://bionf.github.io/FAS))
+3) `seqname.phyloprofile`: an input file for visualisation the phylogenetic profile of the query gene using [PhyloProfile tool](https://github.com/BIONF/phyloprofile)
+4) `seqname.domains` (and optional, `seqname.domains`): a protein domain annotation file for all the sequences present in the orthologous group
 
-* hamstr/data/infile.fa (your input files should be placed here)
-* running oneSeq.pl for the first time may take a while due to indexing steps of the NCBI taxonomy files.
+## HaMStR and the utilisation of FAS
+HaMStR integrates the prediction of orthologs and the calculation of the Feature Architecture Similarty (FAS) scores. FAS scores are computed pairwise between the query gene and it's predicted orthologous genes using [FAS tool](https://github.com/BIONF/FAS), which will be automatically installed during the setup of HaMStR.
 
-	1. `oneSeq.pl -h` (gives you an overview about available options)
-	2. `oneSeq.pl -sequence_file=infile.fa -seqid=P83876 -refspec=HUMAN@9606@1 -minDist=genus -maxDist=kingdom -coreOrth=5 -cleanup -global`
+## Phylogenetic profile visualization
+For a rich visualisation of the provided information from the HaMStR outputs, you can plug them into the [Phyloprofile tool](https://github.com/BIONF/phyloprofile).
 
-HaMStR-OneSeq integrates the prediction of orthologs and the comparison of their Feature Architecture Similarity score (FAS). The provided output file seqname.extended.profile contains the ID’s and the FAS scores for the orthologs in a TAB-separated file format (FAS scores are computed pairwise between the seeding input gene and it’s predicted orthologous genes).
+The main input file for *PhyloProfile* is `seqname.phyloprofile`, which contains list of all orthologous gene names and the taxonomy IDs of their taxa together with the FAS scores (if available). For analysing more information such as the FASTA sequences or the domain annotations, you can optionally input `seqname.extended.fa` and `seqname_1.domains` (or `seqname_0.domains`) to *PhyloProfile*.
 
+You can combine multiple HaMStR runs into a single phylogenetic profile input for data visualisation and data exploration. Each run is identified by the given seqname (opt -seqname=<>). This is either given by the user or randomly assigned. The following steps are necessary:
 
-## Visualization
-HaMStR provides you with a set of output files in plain text format. For a rich visualisation of the provided information you can plug them into the Phyloprofile tool (https://github.com/BIONF/phyloprofile)
+```
+# concatenate all desired profile files (*.profile) into one combined profile:
 
-* seqname.extended.profile  (Profile with FAS score for ortholgs)
-* seqname.extended.fa  (Orthologs file in Fasta format)
-* seqname_1.matrix  (Input file for Phyloprofile tool)
-* seqname_1.domains  (Additional input file for Phyloprofile tool)
-* seqname_0.matrix  (Input file for Phyloprofile, if opt -countercheck is set)
-* seqname_0.matrix  (Additional input file for Phyloprofile, if opt -countercheck is set)
+cat seqname1.extended.profile seqname2.extended.profile seqname3.extended.profile > combined.extended.profile
 
-You can combine multiple HaMStR-OneSeq runs into a single Matrix/phylogenetic profile for data visualisation and data exploration. Each run is identified by the given seqname (opt -seqname=<>). This is either given by the user or randomly assigned. The following steps are necessary:
+# re-run the parsing script provided in HaMStR/bin/visuals/parseOneSeq.pl from your current data directory with the combined profile.
 
-Concatenate all desired profile files (*.profile) into one combined profile:
+perl /path/to/HaMStR/bin/visuals/parseOneSeq.pl -i combined.extended.profile -o combined.phyloprofile
+```
 
-	1. cat seqname1.extended.profile seqname2.extended.profile seqname3.extended.profile > combined.profile
+This provides you with an input file `combined.phyloprofile` for Phyloprofile.
 
-Re-run the parsing script provided in HaMStR/bin/visuals/parseOneSeq.pl from your current data directory with the combined profile.
+To prepare the additional input file (*.domains) you just need to concatenate them with each other (please mind the distinction between forward (1) and backward (0) FAS comparisons and do not mix them up).
 
-	2. perl /path/to/HaMStR/bin/visuals/parseOneSeq.pl -i combined.profile -o combined
-
-This provides you with a combined matrix file (combined_1.matrix), which is suitable as input for Phyloprofile. If you have a two-way profile containing the forward (1) and the backward (0) FAS scores you get a combined matrix for both directions.
-
-* combined_1.matrix
-* combined_0.matrix (optionally, trigged in your oneSeq.pl command with the option -countercheck)
-
-To prepare the additional input file (*.domains) you just need to concatenate them with each other (please mind the distinction between forward (1) and backward (0) comparisons and do not mix them up).
-
-	3. cat seqname1_1.domains seqname2_1.domains seqname3_1.domains > combined_1.domains
-
-The resulting file combined_1.matrix and combined_1.domains can be plugged into the Phyloprofile tool (R shiny) for further investigation.
-
+```
+cat seqname1_1.domains seqname2_1.domains seqname3_1.domains > combined_1.domains
+```
 
 ## Gene sets, Annotations, Blast DBs
 
@@ -234,7 +233,7 @@ _**Note: After having all these dependencies installed, you still need to run th
 * Bio::Tools::Run::StandAloneBlast
 
 ## Cite
-Ebersberger, I., Strauss, S. & von Haeseler, A. HaMStR: Profile hidden markov model based search for orthologs in ESTs. BMC Evol Biol 9, 157 (2009) doi:10.1186/1471-2148-9-157
+Ebersberger, I., Strauss, S. & von Haeseler, A. HaMStR: Profile hidden markov model based search for orthologs in ESTs. BMC Evol Biol 9, 157 (2009), [doi:10.1186/1471-2148-9-157](https://doi.org/10.1186/1471-2148-9-157)
 
 ## Contact
 For further support or bug reports please contact: ebersberger@bio.uni-frankfurt.de
