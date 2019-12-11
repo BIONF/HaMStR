@@ -2,8 +2,6 @@
 use strict;
 use warnings;
 use File::Copy qw(move);
-
-# use Env qw(ONESEQDIR);
 use lib '..//lib';
 use Parallel::ForkManager;
 use IO::Handle;
