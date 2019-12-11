@@ -89,7 +89,7 @@ cat *_0.domains > combined_0.domains
 cat *_1.domains > combined_1.domains
 ```
 
-The resulting file `combined.phyloprofile`, `combined_0.matrix` and `combined_1.domains` can be then plugged into the Phyloprofile tool (R shiny) for further investigation.
+The resulting file `combined.phyloprofile`, `combined_0.matrix` and `combined_1.domains` can be then plugged into the *Phyloprofile tool* for further investigation.
 
 
 ## Gene sets, Annotations, Blast DBs
