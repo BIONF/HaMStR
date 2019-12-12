@@ -4,6 +4,7 @@ sys="$(uname)" # Linux for Linux or Darwin for MacOS
 echo "Current OS system: $sys"
 
 flag=0
+root=1
 ### check grep, sed and wget availability
 echo "-------------------------------------"
 echo "Checking .bash_profile/.bashrc, grep, sed/gsed and wget availability..."
@@ -26,11 +27,13 @@ if [ "$sys" == "Darwin" ]; then
 		bashFile='.bash_profile'
 	fi
 else
-  echo "$(whoami)"
-  [ "$UID" -eq 0 ] || exec sudo "$0" "$@"
+    if [ "$EUID" -ne 0 ]; then
+        echo "You are not running this setup as root."
+        read -p "Press enter to continue, but some missing tools/libraries will not be installed!"
+        root=0
+    fi
 fi
 
-# NOTE: install only available for Linux!
 if [ -z "$(which $sedprog)" ]; then
     if [ "$sys" == "Darwin" ]; then
         brew install gnu-sed
@@ -96,11 +99,13 @@ if [ "$sys" == "Darwin" ]; then
       echo "alias clustalw='clustalw2'" >> ~/$bashFile
   fi
 else
-  sudo apt-get update -y
-  for i in "${dependenciesUbuntu[@]}"; do
-  	echo $i
-  	sudo apt-get install -y -qq $i > /dev/null
-  done
+    if [ $root == 1 ]; then
+        sudo apt-get update -y
+        for i in "${dependenciesUbuntu[@]}"; do
+        	echo $i
+        	sudo apt-get install -y -qq $i > /dev/null
+        done
+    fi
 fi
 
 dependencies=(
@@ -158,17 +163,31 @@ perlModules=(
   Bio::Tools::Run::StandAloneBlast
 )
 
-if [ -z "$(which cpanm)" ]; then
-  curl -L http://cpanmin.us | perl - --sudo App::cpanminus
+if [ "$sys" == "Darwin" ]; then
+    if [ -z "$(which cpanm)" ]; then
+      curl -L http://cpanmin.us | perl - --sudo App::cpanminus
+    fi
+
+    for i in "${perlModules[@]}"; do
+      msg=$((perldoc -l $i) 2>&1)
+      if [[ "$(echo $msg)" == *"No documentation"* ]]; then
+        sudo cpanm ${i} --quiet --force
+      fi
+    done
+else
+    if [ $root == 1 ]; then
+        if [ -z "$(which cpanm)" ]; then
+          curl -L http://cpanmin.us | perl - --sudo App::cpanminus
+        fi
+
+        for i in "${perlModules[@]}"; do
+          msg=$((perldoc -l $i) 2>&1)
+          if [[ "$(echo $msg)" == *"No documentation"* ]]; then
+            sudo cpanm ${i} --quiet --force
+          fi
+        done
+    fi
 fi
-
-for i in "${perlModules[@]}"; do
-  msg=$((perldoc -l $i) 2>&1)
-  if [[ "$(echo $msg)" == *"No documentation"* ]]; then
-    sudo cpanm ${i} --quiet --force
-  fi
-done
-
 echo "done!"
 
 ### prepare folders
