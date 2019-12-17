@@ -1264,6 +1264,9 @@ if (!$coreOnly) {
 		#Extracting annotations from xml files in $weightPath/$cand_geneset
 		# chdir($fasPath);
 		# my $annotationCommand = "perl $fasPath/$annotation_prog -path=" . $weightPath . $cand_geneset . " -name=" . $gene_id . " -extract=" . $coreOrthologsPath . $seqName . "/fas_dir" . "/annotation_dir/" . $cand_geneset . "_" . $gene_id;
+		unless (-d $coreOrthologsPath . $seqName . "/fas_dir" . "/annotation_dir/" . $cand_geneset . "_" . $gene_id) {
+			mkdir($coreOrthologsPath . $seqName . "/fas_dir" . "/annotation_dir/" . $cand_geneset . "_" . $gene_id);
+		}
 		my $annotationCommand = "$annotation_prog --fasta=" . $candseqFile . " --path=" . $weightPath . $cand_geneset . " --name=" . $gene_id . " --extract=" . $coreOrthologsPath . $seqName . "/fas_dir" . "/annotation_dir/" . $cand_geneset . "_" . $gene_id;
 		system($annotationCommand);
 

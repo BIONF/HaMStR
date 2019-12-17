@@ -280,13 +280,21 @@ if [ -z "$(which greedyFAS)" ]; then
     else
         annoFAS --fasta test.fa --path $CURRENT --name q --prepare 1 --annoPath $CURRENT/bin/fas
     fi
+else
+    fasPath="$(pip show greedyFAS | grep Location | sed 's/Location: //')"
+    annoFile="$fasPath/greedyFAS/annoFAS.pl"
+    tmp="$(grep "my \$config" $annoFile | sed 's/my \$config = //' | sed 's/;//')"
+    if [ $tmp == "1" ]; then
+        annoPath="$(grep "my \$annotationPath" $annoFile | sed 's/my \$annotationPath = "//' | sed 's/";//')"
+        echo $annoPath
+        if ! [ -f "$annoPath/Pfam/Pfam-hmms/Pfam-A.hmm" ]; then
+            annoFAS --fasta test.fa --path $CURRENT --name q --prepare 1 --annoPath $annoPath
+        fi
+    else
+        annoFAS --fasta test.fa --path $CURRENT --name q --prepare 1 --annoPath $CURRENT/bin/fas
+    fi
 fi
 cd $CURRENT
-if ! [ -f "$CURRENT/bin/fas/Pfam/Pfam-hmms/Pfam-A.hmm" ]; then
-	echo "Annotation tools are missing! Please install them again using"
-    echo "annoFAS --fasta pseudo.fa --path pseudo.path --name q --prepare 1 --annoPath $CURRENT/fas"
-    exit
-fi
 echo "done!"
 
 ### download data
