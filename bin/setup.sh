@@ -268,23 +268,18 @@ fi
 
 cd "bin"
 if [ -z "$(which greedyFAS)" ]; then
-# 	# if ! [ -f "fas/Pfam/Pfam-hmms/Pfam-A.hmm"]; then
-	    echo "FAS"
-	    wget https://github.com/BIONF/FAS/archive/master.tar.gz
-	    tar xfv master.tar.gz
-# 		rm -rf fas
-	    mv FAS-master fas
-	    rm master.tar.gz
-        pip install $CURRENT/bin/fas
-        if [ -z "$(which annoFAS)" ]; then
-            echo "Installation of FAS failed! Please try again!"
-            exit
-        else
-            annoFAS --fasta test.fa --path $CURRENT --name q --prepare 1 --annoPath $CURRENT/bin/fas
-        fi
-# 	    # chmod 755 fas/config/setup.sh
-# 	    # fas/config/setup.sh
-# 	# fi
+    echo "FAS"
+    wget https://github.com/BIONF/FAS/archive/master.tar.gz
+    tar xfv master.tar.gz
+    mv FAS-master fas
+    rm master.tar.gz
+    pip install $CURRENT/bin/fas
+    if [ -z "$(which annoFAS)" ]; then
+        echo "Installation of FAS failed! Please try again!"
+        exit
+    else
+        annoFAS --fasta test.fa --path $CURRENT --name q --prepare 1 --annoPath $CURRENT/bin/fas
+    fi
 fi
 cd $CURRENT
 if ! [ -f "$CURRENT/bin/fas/Pfam/Pfam-hmms/Pfam-A.hmm" ]; then

@@ -137,8 +137,8 @@ my $blast_prog = 'blastp';
 my $outputfmt = 'blastxml';
 my $eval_blast_query = 0.0001;
 my $filter = 'T';
-my $annotation_prog = 'annotation.pl';
-my $fas_prog = 'greedyFAS.py'; ## Baustelle set via configure
+my $annotation_prog = 'annoFAS'; # 'annotation.pl';
+my $fas_prog = 'greedyFAS'; # 'greedyFAS.py'; ## Baustelle set via configure
 my $profile_prog = 'parseOneSeq_single.pl';
 my $architecture_prog = 'parseArchitecture.pl';
 ##### ublast Baustelle: not implemented yet
@@ -168,7 +168,7 @@ my $tmpdir = "$outputPath"; ## Baustelle
 my $dataDir = $path . '/data';
 my $currDir = getcwd;
 my $weightPath = "$path/weight_dir/";
-my $fasPath = "$path/bin/fas/";
+# my $fasPath = "$path/bin/fas/";
 my $visualsPath = "$path/bin/visuals/";
 
 my @defaultRanks = ('superkingdom', 'kingdom',
@@ -1237,8 +1237,9 @@ if (!$coreOnly) {
 	sub getAnnotation {
 	    my ($seedseqFile) = ($_[0]);
 
-	    chdir($fasPath);
-	    my $annotationCommand = "perl $fasPath/$annotation_prog -fasta=" . $seedseqFile . " -path=" . $coreOrthologsPath . $seqName . "/fas_dir" . "/annotation_dir" . " -name=" . $seqName . "_seed";
+	    # chdir($fasPath);
+	    # my $annotationCommand = "perl $fasPath/$annotation_prog -fasta=" . $seedseqFile . " -path=" . $coreOrthologsPath . $seqName . "/fas_dir" . "/annotation_dir" . " -name=" . $seqName . "_seed";
+		my $annotationCommand = "$annotation_prog --fasta=" . $seedseqFile . " --path=" . $coreOrthologsPath . $seqName . "/fas_dir" . "/annotation_dir" . " --name=" . $seqName . "_seed";
 	    system($annotationCommand);
 	}
 	## starting annotation_prog for candidate ortholog
@@ -1261,8 +1262,9 @@ if (!$coreOnly) {
 	    }elsif(-d "$weightPath/$cand_geneset"){
 		# annotations for $cand_geneset already exist
 		#Extracting annotations from xml files in $weightPath/$cand_geneset
-		chdir($fasPath);
-		my $annotationCommand = "perl $fasPath/$annotation_prog -path=" . $weightPath . $cand_geneset . " -name=" . $gene_id . " -extract=" . $coreOrthologsPath . $seqName . "/fas_dir" . "/annotation_dir/" . $cand_geneset . "_" . $gene_id;
+		# chdir($fasPath);
+		# my $annotationCommand = "perl $fasPath/$annotation_prog -path=" . $weightPath . $cand_geneset . " -name=" . $gene_id . " -extract=" . $coreOrthologsPath . $seqName . "/fas_dir" . "/annotation_dir/" . $cand_geneset . "_" . $gene_id;
+		my $annotationCommand = "$annotation_prog --fasta=" . $candseqFile . " --path=" . $weightPath . $cand_geneset . " --name=" . $gene_id . " --extract=" . $coreOrthologsPath . $seqName . "/fas_dir" . "/annotation_dir/" . $cand_geneset . "_" . $gene_id;
 		system($annotationCommand);
 
 		$location = $coreOrthologsPath . $seqName . "/fas_dir" . "/annotation_dir/" . $cand_geneset . "_" . $gene_id;
@@ -1271,8 +1273,9 @@ if (!$coreOnly) {
 		# no annotations exist
 		print "No annotations found.\n";
 		print "--> Starting to annotate gene $gene_id from species $cand_geneset.\n";
-		chdir($fasPath);
-		my $annotationCommand = "perl $fasPath/$annotation_prog -fasta=" . $candseqFile . " -path=" . $coreOrthologsPath . $seqName . "/fas_dir" . "/annotation_dir/" . " -name=" . $cand_geneset . "_" . $gene_id;
+		# chdir($fasPath);
+		# my $annotationCommand = "perl $fasPath/$annotation_prog -fasta=" . $candseqFile . " -path=" . $coreOrthologsPath . $seqName . "/fas_dir" . "/annotation_dir/" . " -name=" . $cand_geneset . "_" . $gene_id;
+		my $annotationCommand = "$annotation_prog --fasta=" . $candseqFile . " --path=" . $coreOrthologsPath . $seqName . "/fas_dir" . "/annotation_dir/" . " --name=" . $cand_geneset . "_" . $gene_id;
 		system($annotationCommand);
 
 		$location = $coreOrthologsPath . $seqName . "/fas_dir" . "/annotation_dir/" . $cand_geneset . "_" . $gene_id;
@@ -1286,12 +1289,13 @@ if (!$coreOnly) {
 	## sub getAnnotation_Set will be called if a candidate ortholog is identified
 	sub getAnnotation_Set{
 	    my ($geneset) = ($_[0]);
-	    chdir($fasPath);
+	    # chdir($fasPath);
 
 	    # check for existing annotations in weights_dir
 	    # if annotations already exist the script will skip them/no requery
 	    # print "Annotations for ".$geneset." will be made. This may take a while ...\n";
-	    my $annotationCommand = "perl $fasPath/$annotation_prog -fasta=" . $taxaPath . $geneset ."/". $geneset . ".fa -path=" . $weightPath . " -name=" . $geneset;
+	    # my $annotationCommand = "perl $fasPath/$annotation_prog -fasta=" . $taxaPath . $geneset ."/". $geneset . ".fa -path=" . $weightPath . " -name=" . $geneset;
+		my $annotationCommand = "$annotation_prog --fasta=" . $taxaPath . $geneset ."/". $geneset . ".fa --path=" . $weightPath . " --name=" . $geneset;
 	    system($annotationCommand);
 
 	}
@@ -1306,11 +1310,11 @@ if (!$coreOnly) {
 	# $mode: invocation mode (single --vs--> set or set --vs--> single)
 	sub runFAS{
 	    my ($single, $ortholog, $name, $group, $outdir, $weight, $mode, $priThreshold) = ($_[0], $_[1], $_[2], $_[3], $_[4], $_[5], $_[6], $_[7]);
-	    chdir($fasPath);
+	    # chdir($fasPath);
 
 	    my @cmd;
-	    my $py 	= "python";
-	    my $fas	= "$fasPath/$fas_prog";
+	    # my $py 	= "python";
+	    my $fas	= "$fas_prog"; #"$fasPath/$fas_prog";
 	    my $s	= "--seed=$single/";
 	    my $p	= "--query=$ortholog/";
 	    my $r	= "--ref_proteome=" . $weight;
@@ -1338,7 +1342,7 @@ if (!$coreOnly) {
 	    my ($in, $score, $err);
 	    $score = "NAN";
 	    eval {
-	    @cmd = ($py,$fas,$s,$p,$r,$j,$a,$f,$i,$si,$m,$priThreshold);
+	    @cmd = ($fas,$s,$p,$r,$j,$a,$f,$i,$si,$m,$priThreshold); #($py,$fas,$s,$p,$r,$j,$a,$f,$i,$si,$m,$priThreshold);
 	    if ($debug){printVariableDebug(@cmd);}
 	    print "\n##############################\n";
 	    print "Begin of FAS score calculation.\n";
