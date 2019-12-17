@@ -229,22 +229,30 @@ if ! [ -f "$CURRENT/taxonomy/nodes" ]; then
 fi
 
 cd "bin"
-if [ -z "$(which greedyFAS.py)" ]; then
-	if ! [ -f "fas/Pfam/Pfam-hmms/Pfam-A.hmm"]; then
-	    echo "FAS"
-	    wget https://github.com/BIONF/FAS/archive/master.tar.gz
-	    tar xfv master.tar.gz
-		rm -rf fas
-	    mv FAS-master fas
-	    rm master.tar.gz
-	    chmod 755 fas/config/setup.sh
-	    fas/config/setup.sh
-	fi
+if [ -z "$(which greedyFAS)" ]; then
+    echo "FAS"
+    conda install -y -c BIONF fas
+    if [ -z "$(which annoFAS)" ]; then
+        echo "Installation of FAS failed! Please try again!"
+        exit
+    else
+        annoFAS --fasta test.fa --path $CURRENT --name q --prepare 1 --annoPath $CURRENT/bin/fas
+    fi
+else
+    fasPath="$(pip show greedyFAS | grep Location | sed 's/Location: //')"
+    annoFile="$fasPath/greedyFAS/annoFAS.pl"
+    tmp="$(grep "my \$config" $annoFile | sed 's/my \$config = //' | sed 's/;//')"
+    if [ $tmp == "1" ]; then
+        annoPath="$(grep "my \$annotationPath" $annoFile | sed 's/my \$annotationPath = "//' | sed 's/";//')"
+        echo $annoPath
+        if ! [ -f "$annoPath/Pfam/Pfam-hmms/Pfam-A.hmm" ]; then
+            annoFAS --fasta test.fa --path $CURRENT --name q --prepare 1 --annoPath $annoPath
+        fi
+    else
+        annoFAS --fasta test.fa --path $CURRENT --name q --prepare 1 --annoPath $CURRENT/bin/fas
+    fi
 fi
 cd $CURRENT
-if ! [ -f "$CURRENT/bin/fas/Pfam/Pfam-hmms/Pfam-A.hmm" ]; then
-	echo "Installation of FAS failed! Please install it again if you still want to use FAS!"
-fi
 echo "done!"
 
 ### download data
