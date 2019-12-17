@@ -267,21 +267,29 @@ if ! [ -f "$CURRENT/taxonomy/nodes" ]; then
 fi
 
 cd "bin"
-if [ -z "$(which greedyFAS.py)" ]; then
-	if ! [ -f "fas/Pfam/Pfam-hmms/Pfam-A.hmm"]; then
+if [ -z "$(which greedyFAS)" ]; then
+	# if ! [ -f "fas/Pfam/Pfam-hmms/Pfam-A.hmm"]; then
 	    echo "FAS"
 	    wget https://github.com/BIONF/FAS/archive/master.tar.gz
 	    tar xfv master.tar.gz
 		rm -rf fas
 	    mv FAS-master fas
 	    rm master.tar.gz
-	    chmod 755 fas/config/setup.sh
-	    fas/config/setup.sh
-	fi
+        sudo pip install fas
+        if [ -z "$(which annoFAS)" ]; then
+            echo "Installation of FAS failed! Please try again!"
+            exit
+        else
+            annoFAS --fasta test.fa --path $CURRENT --name q --prepare 1 --annoPath $CURRENT/fas
+	    # chmod 755 fas/config/setup.sh
+	    # fas/config/setup.sh
+	# fi
 fi
 cd $CURRENT
 if ! [ -f "$CURRENT/bin/fas/Pfam/Pfam-hmms/Pfam-A.hmm" ]; then
-	echo "Installation of FAS failed! Please install it again if you still want to use FAS!"
+	echo "Annotation tools are missing! Please install them again using"
+    echo "annoFAS --fasta pseudo.fa --path pseudo.path --name q --prepare 1 --annoPath $CURRENT/fas"
+    exit
 fi
 echo "done!"
 
