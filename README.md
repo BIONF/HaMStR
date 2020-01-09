@@ -58,7 +58,7 @@ conda activate hamstr
 
 Install HaMStR
 ```
-conda install -c trvinh hamstr
+conda install -c BIONF hamstr
 setup_hamstr
 ```
 
