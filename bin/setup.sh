@@ -5,6 +5,21 @@ echo "Current OS system: $sys"
 
 flag=0
 root=1
+installFAS=1
+
+while getopts ":f" opt; do
+  case ${opt} in
+    f )
+      echo "Installing HaMStR without FAS tool..."
+      installFAS=0
+      ;;
+    \? )
+      echo "Invalid Option: -$OPTARG" 1>&2
+      exit 1
+      ;;
+  esac
+done
+
 ### check grep, sed and wget availability
 echo "-------------------------------------"
 echo "Checking .bash_profile/.bashrc, grep, sed/gsed and wget availability..."
@@ -29,8 +44,14 @@ if [ "$sys" == "Darwin" ]; then
 else
     if [ "$EUID" -ne 0 ]; then
         echo "You are not running this setup as root."
-        read -p "Press enter to continue, but some missing tools/libraries will not be installed!"
-        root=0
+        if [ $installFAS == 0 ]; then
+            read -p "Press enter to continue, but some missing tools/libraries will not be installed!"
+            root=0
+        else
+            echo "Installation of FAS requires root privileges! Please restart this setup with"
+            echo "sudo setup.sh"
+            exit
+        fi
     fi
 fi
 
@@ -266,36 +287,38 @@ if ! [ -f "$CURRENT/taxonomy/nodes" ]; then
 	exit
 fi
 
-cd "bin"
-if [ -z "$(which greedyFAS)" ]; then
-    echo "FAS"
-    wget https://github.com/BIONF/FAS/archive/master.tar.gz
-    tar xfv master.tar.gz
-    mv FAS-master fas
-    rm master.tar.gz
-    pip install $CURRENT/bin/fas
-    if [ -z "$(which annoFAS)" ]; then
-        echo "Installation of FAS failed! Please try again!"
-        exit
-    else
-        annoFAS --fasta test.fa --path $CURRENT --name q --prepare 1 --annoPath $CURRENT/bin/fas
-    fi
-else
-    fasPath="$(pip show greedyFAS | grep Location | sed 's/Location: //')"
-    annoFile="$fasPath/greedyFAS/annoFAS.pl"
-    tmp="$(grep "my \$config" $annoFile | sed 's/my \$config = //' | sed 's/;//')"
-    if [ $tmp == "1" ]; then
-        annoPath="$(grep "my \$annotationPath" $annoFile | sed 's/my \$annotationPath = "//' | sed 's/";//')"
-        echo $annoPath
-        if ! [ -f "$annoPath/Pfam/Pfam-hmms/Pfam-A.hmm" ]; then
-            annoFAS --fasta test.fa --path $CURRENT --name q --prepare 1 --annoPath $annoPath
+if [ $installFAS == 0 ]; then
+    cd "bin"
+    if [ -z "$(which greedyFAS)" ]; then
+        echo "FAS"
+        wget https://github.com/BIONF/FAS/archive/master.tar.gz
+        tar xfv master.tar.gz
+        mv FAS-master fas
+        rm master.tar.gz
+        pip install $CURRENT/bin/fas
+        if [ -z "$(which annoFAS)" ]; then
+            echo "Installation of FAS failed! Please try again!"
+            exit
+        else
+            annoFAS --fasta test.fa --path $CURRENT --name q --prepare 1 --annoPath $CURRENT/bin/fas
         fi
     else
-        annoFAS --fasta test.fa --path $CURRENT --name q --prepare 1 --annoPath $CURRENT/bin/fas
+        fasPath="$(pip show greedyFAS | grep Location | sed 's/Location: //')"
+        annoFile="$fasPath/greedyFAS/annoFAS.pl"
+        tmp="$(grep "my \$config" $annoFile | sed 's/my \$config = //' | sed 's/;//')"
+        if [ $tmp == "1" ]; then
+            annoPath="$(grep "my \$annotationPath" $annoFile | sed 's/my \$annotationPath = "//' | sed 's/";//')"
+            echo $annoPath
+            if ! [ -f "$annoPath/Pfam/Pfam-hmms/Pfam-A.hmm" ]; then
+                annoFAS --fasta test.fa --path $CURRENT --name q --prepare 1 --annoPath $annoPath
+            fi
+        else
+            annoFAS --fasta test.fa --path $CURRENT --name q --prepare 1 --annoPath $CURRENT/bin/fas
+        fi
     fi
+    cd $CURRENT
+    echo "done!"
 fi
-cd $CURRENT
-echo "done!"
 
 ### download data
 echo "-------------------------------------"
