@@ -259,50 +259,49 @@ echo "done!"
 echo "-------------------------------------"
 echo "Getting pre-calculated data"
 
+data_HaMStR_file="data_HaMStR2018b.tar.gz"
+checkSumData="2381644151 675525040 $data_HaMStR_file"
+
 if ! [ "$(ls -A $CURRENT/genome_dir)" ]; then
 	echo "Processing $CURRENT ..."
-	if [ ! -f $CURRENT/data_HaMStR.tar ]; then
-		echo "Downloading data from https://applbio.biologie.uni-frankfurt.de/download/hamstr_qfo/data_HaMStR.tar"
-		wget --no-check-certificate https://applbio.biologie.uni-frankfurt.de/download/hamstr_qfo/data_HaMStR.tar
+	if [ ! -f $CURRENT/$data_HaMStR_file ]; then
+		echo "Downloading data from https://applbio.biologie.uni-frankfurt.de/download/hamstr_qfo/$data_HaMStR_file"
+		wget --no-check-certificate https://applbio.biologie.uni-frankfurt.de/download/hamstr_qfo/$data_HaMStR_file
 	else
-		CHECKSUM=$(cksum data_HaMStR.tar)
+		CHECKSUM=$(cksum $data_HaMStR_file)
 		echo "Checksum: $CHECKSUM"
-		if ! [ "$CHECKSUM" == "4100986910 5840435200 data_HaMStR.tar" ]; then
-    		  rm $CURRENT/data_HaMStR.tar
-    		  echo "Downloading data from https://applbio.biologie.uni-frankfurt.de/download/hamstr_qfo/data_HaMStR.tar"
-      		  wget --no-check-certificate https://applbio.biologie.uni-frankfurt.de/download/hamstr_qfo/data_HaMStR.tar
+		if ! [ "$CHECKSUM" == "$checkSumData" ]; then
+    		  rm $CURRENT/$data_HaMStR_file
+    		  echo "Downloading data from https://applbio.biologie.uni-frankfurt.de/download/hamstr_qfo/$data_HaMStR_file"
+      		  wget --no-check-certificate https://applbio.biologie.uni-frankfurt.de/download/hamstr_qfo/$data_HaMStR_file
     	fi
     fi
 
-	if [ ! -f $CURRENT/data_HaMStR.tar ]; then
-	  echo "File data_HaMStR.tar not found! Please try to download again from"
+	if [ ! -f $CURRENT/$data_HaMStR_file ]; then
+	  echo "File $data_HaMStR_file not found! Please try to download again from"
 	  echo "https://applbio.biologie.uni-frankfurt.de/download/hamstr_qfo/data_HaMStR.tar"
 	  exit
 	fi
 
-	CHECKSUM=$(cksum data_HaMStR.tar)
-	if [ "$CHECKSUM" == "4100986910 5840435200 data_HaMStR.tar" ]; then
-	  echo "Extracting archive data_HaMStR.tar"
-	  tar xfv $CURRENT/data_HaMStR.tar
-	  rm $CURRENT/data_HaMStR.tar
-	  echo "Archive data_HaMStR.tar extracted into $CURRENT"
-	  if [ ! -d $CURRENT/data_HaMStR ]; then
-		echo "Directory $CURRENT/data_HaMStR not found!"
-	  else
-		printf "\nMoving gene sets ...\n--------------------\n"
-		rsync -rva data_HaMStR/genome_dir/* $CURRENT/genome_dir
-		printf "\nMoving blast databases ...\n--------------------------\n"
-		rsync -rva data_HaMStR/blast_dir/* $CURRENT/blast_dir
-		printf "\nMoving annotations ...\n----------------------\n"
-		rsync -rva data_HaMStR/weight_dir/* $CURRENT/weight_dir
-		printf "\nRemoving duplicated data. Please wait.\n------------------------------------\n"
-		rm -rf $CURRENT/data_HaMStR
-		printf "\nDone! Data should be in place to run HaMStR.\n"
-	  fi
+	CHECKSUM=$(cksum $data_HaMStR_file)
+	if [ "$CHECKSUM" == "$checkSumData" ]; then
+	  echo "Extracting archive $data_HaMStR_file..."
+	  tar xf $CURRENT/$data_HaMStR_file
+	  rm $CURRENT/$data_HaMStR_file
+
+      if [ "$(ls -A $CURRENT/blast_dir)" ]; then
+          echo "Data should be in place to run HaMStR.\n"
+      else
+          echo "Something went wrong with the download. Data folders are empty."
+    	  echo "Please try to download again from"
+    	  echo "https://applbio.biologie.uni-frankfurt.de/download/hamstr_qfo/$data_HaMStR_file"
+    	  echo "Or contact us if you think this is our issue!"
+    	  exit
+      fi
 	else
 	  echo "Something went wrong with the download. Checksum does not match."
 	  echo "Please try to download again from"
-	  echo "https://applbio.biologie.uni-frankfurt.de/download/hamstr_qfo/data_HaMStR.tar"
+	  echo "https://applbio.biologie.uni-frankfurt.de/download/hamstr_qfo/$data_HaMStR_file"
 	  echo "Please put it into $CURRENT folder and run this setup again!"
 	  exit
 	fi

@@ -5,6 +5,21 @@ echo "Current OS system: $sys"
 
 flag=0
 root=1
+fas=1
+
+while getopts ":f" opt; do
+    case ${opt} in
+        f )
+          echo "NO FAS!"
+          fas=0
+          ;;
+        \? )
+          echo "wrong option"
+          exit 1
+          ;;
+    esac
+done
+
 ### check grep, sed and wget availability
 echo "-------------------------------------"
 echo "Checking .bash_profile/.bashrc, grep, sed/gsed and wget availability..."
@@ -28,9 +43,14 @@ if [ "$sys" == "Darwin" ]; then
 	fi
 else
     if [ "$EUID" -ne 0 ]; then
-        echo "You are not running this setup as root."
-        read -p "Press enter to continue, but some missing tools/libraries will not be installed!"
-        root=0
+        if [ $fas == 0 ]; then
+            echo "You are not running this setup as root."
+            read -p "Press enter to continue, but some missing tools/libraries will not be installed!"
+            root=0
+        else
+            echo "require ROOT"
+            exit
+        fi
     fi
 fi
 
@@ -266,77 +286,86 @@ if ! [ -f "$CURRENT/taxonomy/nodes" ]; then
 	exit
 fi
 
-cd "bin"
-if [ -z "$(which greedyFAS.py)" ]; then
-	if ! [ -f "fas/Pfam/Pfam-hmms/Pfam-A.hmm"]; then
+if [ $fas == 1 ]; then
+	cd "bin"
+	if [ -z "$(which greedyFAS)" ]; then
 	    echo "FAS"
 	    wget https://github.com/BIONF/FAS/archive/master.tar.gz
 	    tar xfv master.tar.gz
-		rm -rf fas
 	    mv FAS-master fas
 	    rm master.tar.gz
-	    chmod 755 fas/config/setup.sh
-	    fas/config/setup.sh
+	    pip install $CURRENT/bin/fas
+	    if [ -z "$(which annoFAS)" ]; then
+		echo "Installation of FAS failed! Please try again!"
+		exit
+	    else
+		annoFAS --fasta test.fa --path $CURRENT --name q --prepare 1 --annoPath $CURRENT/bin/fas
+	    fi
+	else
+	    fasPath="$(pip show greedyFAS | grep Location | sed 's/Location: //')"
+	    annoFile="$fasPath/greedyFAS/annoFAS.pl"
+	    tmp="$(grep "my \$config" $annoFile | sed 's/my \$config = //' | sed 's/;//')"
+	    if [ $tmp == "1" ]; then
+		annoPath="$(grep "my \$annotationPath" $annoFile | sed 's/my \$annotationPath = "//' | sed 's/";//')"
+		echo $annoPath
+		if ! [ -f "$annoPath/Pfam/Pfam-hmms/Pfam-A.hmm" ]; then
+		    annoFAS --fasta test.fa --path $CURRENT --name q --prepare 1 --annoPath $annoPath
+		fi
+	    else
+		annoFAS --fasta test.fa --path $CURRENT --name q --prepare 1 --annoPath $CURRENT/bin/fas
+	    fi
 	fi
+	cd $CURRENT
+	echo "done!"
 fi
-cd $CURRENT
-if ! [ -f "$CURRENT/bin/fas/Pfam/Pfam-hmms/Pfam-A.hmm" ]; then
-	echo "Installation of FAS failed! Please install it again if you still want to use FAS!"
-fi
-echo "done!"
 
 ### download data
 echo "-------------------------------------"
 echo "Getting pre-calculated data"
 
 data_HaMStR_file="data_HaMStR2018b.tar.gz"
-download_address="https://applbio.biologie.uni-frankfurt.de/download/hamstr_qfo"
 checkSumData="2381644151 675525040 $data_HaMStR_file"
 
 if ! [ "$(ls -A $CURRENT/genome_dir)" ]; then
 	echo "Processing $CURRENT ..."
 	if [ ! -f $CURRENT/$data_HaMStR_file ]; then
-		echo "Downloading data from $download_address/$data_HaMStR_file"
-		wget --no-check-certificate $download_address/$data_HaMStR_file
+		echo "Downloading data from https://applbio.biologie.uni-frankfurt.de/download/hamstr_qfo/$data_HaMStR_file"
+		wget --no-check-certificate https://applbio.biologie.uni-frankfurt.de/download/hamstr_qfo/$data_HaMStR_file
 	else
 		CHECKSUM=$(cksum $data_HaMStR_file)
 		echo "Checksum: $CHECKSUM"
-		if ! [ "$CHECKSUM" == $checkSumData ]; then
+		if ! [ "$CHECKSUM" == "$checkSumData" ]; then
     		  rm $CURRENT/$data_HaMStR_file
-    		  echo "Downloading data from $download_address/$data_HaMStR_file"
-      		  wget --no-check-certificate $download_address/$data_HaMStR_file
+    		  echo "Downloading data from https://applbio.biologie.uni-frankfurt.de/download/hamstr_qfo/$data_HaMStR_file"
+      		  wget --no-check-certificate https://applbio.biologie.uni-frankfurt.de/download/hamstr_qfo/$data_HaMStR_file
     	fi
     fi
 
 	if [ ! -f $CURRENT/$data_HaMStR_file ]; then
 	  echo "File $data_HaMStR_file not found! Please try to download again from"
-	  echo "$download_address/$data_HaMStR_file"
+	  echo "https://applbio.biologie.uni-frankfurt.de/download/hamstr_qfo/data_HaMStR.tar"
 	  exit
 	fi
 
 	CHECKSUM=$(cksum $data_HaMStR_file)
-	if [ "$CHECKSUM" == $checkSumData ]; then
-	  echo "Extracting archive $data_HaMStR_file"
-	  tar xfv $CURRENT/$data_HaMStR_file -C data_HaMStR
+	if [ "$CHECKSUM" == "$checkSumData" ]; then
+	  echo "Extracting archive $data_HaMStR_file..."
+	  tar xf $CURRENT/$data_HaMStR_file
 	  rm $CURRENT/$data_HaMStR_file
-	  echo "Archive $data_HaMStR_file extracted into $CURRENT"
-	  if [ ! -d $CURRENT/data_HaMStR ]; then
-		echo "Directory $CURRENT/data_HaMStR not found!"
-	  else
-		printf "\nMoving gene sets ...\n--------------------\n"
-		rsync -rva data_HaMStR/genome_dir/* $CURRENT/genome_dir
-		printf "\nMoving blast databases ...\n--------------------------\n"
-		rsync -rva data_HaMStR/blast_dir/* $CURRENT/blast_dir
-		printf "\nMoving annotations ...\n----------------------\n"
-		rsync -rva data_HaMStR/weight_dir/* $CURRENT/weight_dir
-		printf "\nRemoving duplicated data. Please wait.\n------------------------------------\n"
-		rm -rf $CURRENT/data_HaMStR
-		printf "\nDone! Data should be in place to run HaMStR.\n"
-	  fi
+
+      if [ "$(ls -A $CURRENT/blast_dir)" ]; then
+          echo "Data should be in place to run HaMStR.\n"
+      else
+          echo "Something went wrong with the download. Data folders are empty."
+    	  echo "Please try to download again from"
+    	  echo "https://applbio.biologie.uni-frankfurt.de/download/hamstr_qfo/$data_HaMStR_file"
+    	  echo "Or contact us if you think this is our issue!"
+    	  exit
+      fi
 	else
 	  echo "Something went wrong with the download. Checksum does not match."
 	  echo "Please try to download again from"
-	  echo "https://applbio.biologie.uni-frankfurt.de/download/hamstr_qfo/data_HaMStR.tar"
+	  echo "https://applbio.biologie.uni-frankfurt.de/download/hamstr_qfo/$data_HaMStR_file"
 	  echo "Please put it into $CURRENT folder and run this setup again!"
 	  exit
 	fi
