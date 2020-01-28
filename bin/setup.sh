@@ -43,14 +43,14 @@ if [ "$sys" == "Darwin" ]; then
 	fi
 else
     if [ "$EUID" -ne 0 ]; then
-        if [ $fas == 0 ]; then
+        # if [ $fas == 0 ]; then
             echo "You are not running this setup as root."
             read -p "Press enter to continue, but some missing tools/libraries will not be installed!"
             root=0
-        else
-            echo "require ROOT"
-            exit
-        fi
+        # else
+        #     echo "require ROOT"
+        #     exit
+        # fi
     fi
 fi
 
@@ -286,37 +286,48 @@ if ! [ -f "$CURRENT/taxonomy/nodes" ]; then
 	exit
 fi
 
+fasLocal=0
 if [ $fas == 1 ]; then
-	cd "bin"
-	if [ -z "$(which greedyFAS)" ]; then
-	    echo "FAS"
-	    wget https://github.com/BIONF/FAS/archive/master.tar.gz
-	    tar xfv master.tar.gz
-	    mv FAS-master fas
-	    rm master.tar.gz
-	    pip install $CURRENT/bin/fas
-	    if [ -z "$(which annoFAS)" ]; then
-		echo "Installation of FAS failed! Please try again!"
-		exit
-	    else
-		annoFAS --fasta test.fa --path $CURRENT --name q --prepare 1 --annoPath $CURRENT/bin/fas
-	    fi
-	else
-	    fasPath="$(pip show greedyFAS | grep Location | sed 's/Location: //')"
-	    annoFile="$fasPath/greedyFAS/annoFAS.pl"
-	    tmp="$(grep "my \$config" $annoFile | sed 's/my \$config = //' | sed 's/;//')"
-	    if [ $tmp == "1" ]; then
-		annoPath="$(grep "my \$annotationPath" $annoFile | sed 's/my \$annotationPath = "//' | sed 's/";//')"
-		echo $annoPath
-		if ! [ -f "$annoPath/Pfam/Pfam-hmms/Pfam-A.hmm" ]; then
-		    annoFAS --fasta test.fa --path $CURRENT --name q --prepare 1 --annoPath $annoPath
-		fi
-	    else
-		annoFAS --fasta test.fa --path $CURRENT --name q --prepare 1 --annoPath $CURRENT/bin/fas
-	    fi
-	fi
-	cd $CURRENT
-	echo "done!"
+    cd "bin"
+    if [ -z "$(which greedyFAS)" ]; then
+        echo "FAS"
+        if ! [ -f "fas/setup.py" ]; then
+            wget https://github.com/BIONF/FAS/archive/master.tar.gz
+            tar xfv master.tar.gz
+            mv FAS-master fas
+            rm master.tar.gz
+        fi
+        if [ $root == 1 ]; then
+            pip install $CURRENT/bin/fas
+            if [ -z "$(which annoFAS)" ]; then
+                echo "Installation of FAS failed! Please try again!"
+                exit
+            else
+                annoFAS --fasta test.fa --path $CURRENT --name q --prepare 1 --annoPath $CURRENT/bin/fas
+            fi
+        else
+            pip install $CURRENT/bin/fas --user
+            if [ -z "$(grep \$HOME/.local/bin:\$PATH ~/$bashFile)" ]; then
+                echo "export PATH=\$HOME/.local/bin:\$PATH" >> ~/$bashFile
+            fi
+            fasLocal=1
+        fi
+    else
+        fasPath="$(pip show greedyFAS | grep Location | sed 's/Location: //')"
+        annoFile="$fasPath/greedyFAS/annoFAS.pl"
+        tmp="$(grep "my \$config" $annoFile | sed 's/my \$config = //' | sed 's/;//')"
+        if [ $tmp == "1" ]; then
+            annoPath="$(grep "my \$annotationPath" $annoFile | sed 's/my \$annotationPath = "//' | sed 's/";//')"
+            echo "$annoPath"
+            if ! [ -f "$annoPath/Pfam/Pfam-hmms/Pfam-A.hmm" ]; then
+                annoFAS --fasta test.fa --path $CURRENT --name q --prepare 1 --annoPath $annoPath
+            fi
+        else
+            annoFAS --fasta test.fa --path $CURRENT --name q --prepare 1 --annoPath $CURRENT/bin/fas
+        fi
+    fi
+    cd $CURRENT
+    echo "done!"
 fi
 
 ### download data
@@ -389,18 +400,18 @@ echo "done!"
 echo "-------------------------------------"
 echo "Adapting paths in hamstr scripts"
 # update the sed and grep commands
-$sedprog -i -e "s/\(my \$sedprog = '\).*/\1$sedprog';/" $CURRENT/bin/hamstr.pl;
-$sedprog -i -e "s/\(my \$grepprog = '\).*/\1$grepprog';/" $CURRENT/bin/hamstr.pl;
-$sedprog -i -e "s/\(my \$sedprog = '\).*/\1$sedprog';/" $CURRENT/bin/oneSeq.pl;
-$sedprog -i -e "s/\(my \$grepprog = '\).*/\1$grepprog';/" $CURRENT/bin/oneSeq.pl;
+$sedprog -i -e "s/\(my \$sedprog = '\).*/\1$sedprog';/" $CURRENT/bin/hamstr.pl
+$sedprog -i -e "s/\(my \$grepprog = '\).*/\1$grepprog';/" $CURRENT/bin/hamstr.pl
+$sedprog -i -e "s/\(my \$sedprog = '\).*/\1$sedprog';/" $CURRENT/bin/oneSeq.pl
+$sedprog -i -e "s/\(my \$grepprog = '\).*/\1$grepprog';/" $CURRENT/bin/oneSeq.pl
 
 # localize the perl installation
 path2perl=`which perl`
 echo "path to perl: $path2perl"
-$sedprog -i -e "s|\#\!.*|\#\!$path2perl|g" $CURRENT/bin/hamstr.pl;
-$sedprog -i -e "s|\#\!.*|\#\!$path2perl|g" $CURRENT/bin/nentferner.pl;
-$sedprog -i -e "s|\#\!.*|\#\!$path2perl|g" $CURRENT/bin/translate.pl;
-$sedprog -i -e "s|\#\!.*|\#\!$path2perl|g" $CURRENT/bin/oneSeq.pl;
+$sedprog -i -e "s|\#\!.*|\#\!$path2perl|g" $CURRENT/bin/hamstr.pl
+$sedprog -i -e "s|\#\!.*|\#\!$path2perl|g" $CURRENT/bin/nentferner.pl
+$sedprog -i -e "s|\#\!.*|\#\!$path2perl|g" $CURRENT/bin/translate.pl
+$sedprog -i -e "s|\#\!.*|\#\!$path2perl|g" $CURRENT/bin/oneSeq.pl
 
 # get lib path
 path2dir=$CURRENT
@@ -415,7 +426,7 @@ echo "default path to blast_dir and core_orthologs: $path2dir"
 $sedprog -i -e "s|\(my \$path = \).*|\1 '$path2dir';|g" $CURRENT/bin/hamstr.pl
 
 ###### CAN REMOVE THIS VAR $check_genewise in hamstr.pl ##########################
-$sedprog -i -e 's/$check_genewise = [0,1];/$check_genewise = 1;/' $CURRENT/bin/hamstr.pl;
+$sedprog -i -e 's/$check_genewise = [0,1];/$check_genewise = 1;/' $CURRENT/bin/hamstr.pl
 ###############################################
 
 ### final check
@@ -464,13 +475,17 @@ else
     ln -s -f $CURRENT/bin/hamstr.pl $CURRENT/bin/hamstr
     echo "Sourcing bash profile file"
     source ~/$bashFile
-    echo "All tests succeeded, HaMStR should be ready to run";
-    $sedprog -i -e 's/my $configure = .*/my $configure = 1;/' $CURRENT/bin/hamstr.pl;
-    $sedprog -i -e 's/my $configure = .*/my $configure = 1;/' $CURRENT/bin/oneSeq.pl;
-    echo "Restart terminal and test your HaMStR with:"
+    echo "-------------------------------------"
+    echo "All tests succeeded, HaMStR should be ready to run"
+    $sedprog -i -e 's/my $configure = .*/my $configure = 1;/' $CURRENT/bin/hamstr.pl
+    $sedprog -i -e 's/my $configure = .*/my $configure = 1;/' $CURRENT/bin/oneSeq.pl
+    echo "Test your HaMStR with:"
     echo "perl bin/oneSeq.pl -seqFile=infile.fa -seqid=P83876 -refspec=HUMAN@9606@1 -minDist=genus -maxDist=kingdom -coreOrth=5 -cleanup -global"
     echo "or"
     echo "perl bin/oneSeq.pl -h"
     echo "for more details."
+    if [ $fasLocal == 1 ]; then
+        echo "NOTE: FAS has just added into ~/$bashFile. To apply the changes and use HaMStR with FAS (which is recommended), please restart the terminal!"
+    fi
 fi
 exit 1
