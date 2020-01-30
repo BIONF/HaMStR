@@ -3,25 +3,6 @@
 [![conda-version](https://anaconda.org/bionf/hamstr/badges/version.svg)](https://anaconda.org/bionf/hamstr)
 [![GPLv3-license](https://anaconda.org/bionf/hamstr/badges/license.svg)](https://www.gnu.org/licenses/gpl-3.0.de.html)
 
-Table of Contents
-=================
-
-   * [HaMStR-OneSeq](#hamstr-oneseq)
-      * [How to install](#how-to-install)
-         * [0. Basic system tools requirement](#0-basic-system-tools-requirement)
-         * [1a. Install using Anaconda](#1a-install-using-anaconda)
-         * [1b. Install in Ubuntu/MacOS](#1b-install-in-ubuntumacos)
-      * [Usage](#usage)
-      * [HaMStR and the utilisation of FAS](#hamstr-and-the-utilisation-of-fas)
-      * [Output visualization using PhyloProfile](#output-visualization-using-phyloprofile)
-      * [Pre-calculated data set](#pre-calculated-data-set)
-      * [Dependencies](#dependencies)
-         * [System tools/libraries](#system-toolslibraries)
-         * [Bioinformatics tools](#bioinformatics-tools)
-         * [Perl modules](#perl-modules)
-      * [How to cite](#how-to-cite)
-      * [Contact](#contact)
-
 # Table of Contents
 * [How to install](#how-to-install)
      * [0. Basic system tools requirement](#0-basic-system-tools-requirement)
