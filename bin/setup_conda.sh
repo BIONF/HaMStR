@@ -390,7 +390,6 @@ echo "done!"
 
 echo "Environment paths"
 envPaths=(
-  # "ONESEQDIR=$CURRENT"
   WISECONFIGDIR
 )
 for i in "${envPaths[@]}"; do

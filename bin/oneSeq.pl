@@ -137,8 +137,8 @@ my $blast_prog = 'blastp';
 my $outputfmt = 'blastxml';
 my $eval_blast_query = 0.0001;
 my $filter = 'T';
-my $annotation_prog = 'annoFAS'; # 'annotation.pl';
-my $fas_prog = 'greedyFAS'; # 'greedyFAS.py'; ## Baustelle set via configure
+my $annotation_prog = 'annoFAS';
+my $fas_prog = 'greedyFAS';
 my $profile_prog = 'parseOneSeq_single.pl';
 my $architecture_prog = 'parseArchitecture.pl';
 ##### ublast Baustelle: not implemented yet

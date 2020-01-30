@@ -23,6 +23,7 @@ Table of Contents
 
 ### 0. Basic system tools requirement
 You need to have `wget`, `grep` and `sed` (or `gsed` for **MacOS**) to install HaMStR. So please install them if they are missing. For MacOS users, we recommend using [Homebrew](https://brew.sh) to install those command line tools.
+To use [FAS tool](https://github.com/BIONF/FAS) (a dependency of HaMStR), you also need [Python 3](https://www.python.org/downloads/).
 
 ### 1a. Install in Ubuntu/MacOS
 

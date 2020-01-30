@@ -43,14 +43,9 @@ if [ "$sys" == "Darwin" ]; then
 	fi
 else
     if [ "$EUID" -ne 0 ]; then
-        # if [ $fas == 0 ]; then
-            echo "You are not running this setup as root."
-            read -p "Press enter to continue, but some missing tools/libraries will not be installed!"
-            root=0
-        # else
-        #     echo "require ROOT"
-        #     exit
-        # fi
+        echo "You are not running this setup as root."
+        read -p "Press enter to continue, but some missing tools/libraries will not be installed!"
+        root=0
     fi
 fi
 
@@ -286,7 +281,6 @@ if ! [ -f "$CURRENT/taxonomy/nodes" ]; then
 	exit
 fi
 
-fasLocal=0
 if [ $fas == 1 ]; then
     cd "bin"
     if [ -z "$(which greedyFAS)" ]; then
@@ -310,7 +304,13 @@ if [ $fas == 1 ]; then
             if [ -z "$(grep \$HOME/.local/bin:\$PATH ~/$bashFile)" ]; then
                 echo "export PATH=\$HOME/.local/bin:\$PATH" >> ~/$bashFile
             fi
-            fasLocal=1
+            # change path to annoFAS.py and greeyFAS.py in oneSeq.pl (to not require for restarting the terminal)
+            annoprog="python \$path\/bin\/fas\/greedyFAS\/annoFAS.py"
+            $sedprog -i -e "s/\(my \$annotation_prog = \).*/\1\"$annoprog\";/" $CURRENT/bin/oneSeq.pl
+            fasprog="python \$path\/bin\/fas\/greedyFAS\/greedyFAS.py"
+            $sedprog -i -e "s/\(my \$fas_prog = \).*/\1\"$fasprog\";/" $CURRENT/bin/oneSeq.pl
+            # get FAS annotation tools and pre-calculated data
+            python $CURRENT/bin/fas/greedyFAS/annoFAS.py --fasta $CURRENT/data/infile.fa --path $CURRENT --name q --prepare 1 --annoPath $CURRENT/bin/fas
         fi
     else
         fasPath="$(pip show greedyFAS | grep Location | sed 's/Location: //')"
@@ -320,12 +320,13 @@ if [ $fas == 1 ]; then
             annoPath="$(grep "my \$annotationPath" $annoFile | sed 's/my \$annotationPath = "//' | sed 's/";//')"
             echo "$annoPath"
             if ! [ -f "$annoPath/Pfam/Pfam-hmms/Pfam-A.hmm" ]; then
-                annoFAS --fasta test.fa --path $CURRENT --name q --prepare 1 --annoPath $annoPath
+                annoFAS --fasta $CURRENT/data/infile.fa --path $CURRENT --name q --prepare 1 --annoPath $annoPath
             fi
         else
-            annoFAS --fasta test.fa --path $CURRENT --name q --prepare 1 --annoPath $CURRENT/bin/fas
+            annoFAS --fasta $CURRENT/data/infile.fa --path $CURRENT --name q --prepare 1 --annoPath $CURRENT/bin/fas
         fi
     fi
+
     cd $CURRENT
     echo "done!"
 fi
@@ -446,7 +447,6 @@ echo "done!"
 
 echo "Environment paths"
 envPaths=(
-  # "ONESEQDIR=$CURRENT"
   WISECONFIGDIR
 )
 for i in "${envPaths[@]}"; do
@@ -484,8 +484,5 @@ else
     echo "or"
     echo "perl bin/oneSeq.pl -h"
     echo "for more details."
-    if [ $fasLocal == 1 ]; then
-        echo "NOTE: FAS has just added into ~/$bashFile. To apply the changes and use HaMStR with FAS (which is recommended), please restart the terminal!"
-    fi
 fi
 exit 1
