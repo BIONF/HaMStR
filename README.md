@@ -17,6 +17,7 @@
   * [Bioinformatics tools](#bioinformatics-tools)
   * [Perl modules](#perl-modules)
 * [How to cite](#how-to-cite)
+* [Contributors](#contributors)
 * [Contact](#contact)
 
 ## How to install
@@ -253,6 +254,11 @@ _**Note: After having all these dependencies installed, you still need to run th
 
 ## How to cite
 Ebersberger, I., Strauss, S. & von Haeseler, A. HaMStR: Profile hidden markov model based search for orthologs in ESTs. BMC Evol Biol 9, 157 (2009), [doi:10.1186/1471-2148-9-157](https://doi.org/10.1186/1471-2148-9-157)
+
+# Contributors
+- [Ingo Ebersberger](https://github.com/ebersber)
+- [Holger Bergmann](https://github.com/holgerbgm)
+- [Vinh Tran](https://github.com/trvinh)
 
 ## Contact
 For further support or bug reports please contact: ebersberger@bio.uni-frankfurt.de
