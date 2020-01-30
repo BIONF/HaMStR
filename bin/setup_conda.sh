@@ -81,6 +81,7 @@ dependencies=(
   clustalw
   mafft # for linsi
   muscle
+  fasta36
 )
 
 for i in "${dependencies[@]}"; do
@@ -97,6 +98,8 @@ for i in "${dependencies[@]}"; do
       if [ -z "$(grep WISECONFIGDIR=$wisePath ~/$bashFile)" ]; then
           echo "export WISECONFIGDIR=${wisePath}" >> ~/$bashFile
       fi
+    elif [ "$tool" = "fasta36" ]; then
+        conda install -y -c bioconda fasta3
     else
       conda install -y -c bioconda $i
     fi
@@ -168,7 +171,6 @@ folders=(
   taxonomy
   output
   tmp
-  "bin/aligner"
 )
 
 for i in "${folders[@]}"; do
@@ -180,36 +182,6 @@ echo "done!"
 ### download tools
 echo "-------------------------------------"
 echo "Downloading and installing annotation tools/databases:"
-
-fasta36="yes"
-if [ -z "$(which fasta36)" ]; then
-  fasta36="no"
-  fasta36v="fasta-36.3.8h"
-  if ! [ -f "bin/aligner/bin/fasta36" ]; then
-	  echo "fasta-36"
-	  wget "http://faculty.virginia.edu/wrpearson/fasta/fasta36/${fasta36v}.tar.gz"
-	  tar xfv $fasta36v.tar.gz
-	  rm "${fasta36v}.tar.gz"
-	  mv $fasta36v/* bin/aligner/
-	  rm -rf $fasta36v
-	  cd "bin/aligner/src"
-	  if [ $sys=="Linux" ]; then
-	    make -f ../make/Makefile.linux64_sse2 all
-	  elif [ $sys=="Darwin" ]; then
-	    make -f ../make/Makefile.os_x86_64 all
-	  fi
-  fi
-  if [ -z "$(grep PATH=$CURRENT/bin/aligner/bin ~/$bashFile)" ]; then
-	  echo "export PATH=$CURRENT/bin/aligner/bin:\$PATH" >> ~/$bashFile
-  fi
-fi
-cd $CURRENT
-if [ -z "$(which fasta36)" ]; then
-	if ! [ -f "$CURRENT/bin/aligner/bin/fasta36" ]; then
-		echo "fasta36 tool could not be found in $CURRENT/bin/aligner/. Please check again!"
-		exit
-	fi
-fi
 
 cd "taxonomy"
 if ! [ -f "nodes" ]; then
@@ -369,11 +341,24 @@ condaPkgs=(
   clustalw
   mafft
   muscle
+  fasta3
 )
 for i in "${condaPkgs[@]}"; do
     if [[ -z $(conda list | grep "$i ") ]]; then
-        echo "$i could not be installed"
-        flag=1
+        progname=$i
+        if [ "$i" == "blast" ]; then
+            progname="blastp"
+        elif [ "$i" == "wise2" ]; then
+            progname="genewise"
+        elif [ "$i" == "hmmer" ]; then
+            progname="hmmsearch"
+        elif [ "$i" == "fasta3" ]; then
+            progname="fasta36"
+        fi
+        if [ -z "$(which $progname)" ]; then
+            echo "$i could not be installed"
+            flag=1
+        fi
     fi
 done
 echo "done!"
@@ -398,12 +383,7 @@ for i in "${envPaths[@]}"; do
         flag=1
     fi
 done
-if [ "$fasta36" == "no" ]; then
-    if [ -z "$(grep PATH=$CURRENT/bin/aligner/bin ~/$bashFile)" ]; then
-        echo "$CURRENT/bin/aligner/bin was not added into ~/$bashFile"
-        flag=1
-    fi
-fi
+
 if [ -z "$(grep PATH=$CURRENT/bin:\$PATH ~/$bashFile)" ]; then
 	echo "$CURRENT/bin was not added into ~/$bashFile"
 fi
