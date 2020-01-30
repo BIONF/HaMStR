@@ -1,4 +1,7 @@
 # HaMStR-OneSeq
+[![conda-install](https://anaconda.org/bionf/hamstr/badges/installer/conda.svg)](https://anaconda.org/bionf/hamstr)
+[![conda-version](https://anaconda.org/bionf/hamstr/badges/version.svg)](https://anaconda.org/bionf/hamstr)
+[![GPLv3-license](https://anaconda.org/bionf/hamstr/badges/license.svg)](https://www.gnu.org/licenses/gpl-3.0.de.html)
 
 Table of Contents
 =================
@@ -6,8 +9,8 @@ Table of Contents
    * [HaMStR-OneSeq](#hamstr-oneseq)
       * [How to install](#how-to-install)
          * [0. Basic system tools requirement](#0-basic-system-tools-requirement)
-         * [1a. Install in Ubuntu/MacOS](#1a-install-in-ubuntumacos)
-         * [1b. Install using Anaconda](#1b-install-using-anaconda)
+         * [1a. Install using Anaconda](#1a-install-using-anaconda)
+         * [1b. Install in Ubuntu/MacOS](#1b-install-in-ubuntumacos)
       * [Usage](#usage)
       * [HaMStR and the utilisation of FAS](#hamstr-and-the-utilisation-of-fas)
       * [Output visualization using PhyloProfile](#output-visualization-using-phyloprofile)
@@ -25,23 +28,7 @@ Table of Contents
 You need to have `wget`, `grep` and `sed` (or `gsed` for **MacOS**) to install HaMStR. So please install them if they are missing. For MacOS users, we recommend using [Homebrew](https://brew.sh) to install those command line tools.
 To use [FAS tool](https://github.com/BIONF/FAS) (a dependency of HaMStR), you also need [Python 3](https://www.python.org/downloads/).
 
-### 1a. Install in Ubuntu/MacOS
-
-Get HaMStR source code from GitHub
-```
-git clone --depth=1 https://github.com/BIONF/HaMStR
-```
-
-Run `setup.sh` script in the HaMStR/bin folder to install HaMStR and its dependencies
-```
-cd HaMStR
-bin/setup.sh
-```
-*Enter root password if required (some dependencies need root privileges to be installed. See [dependency list](#dependencies) for more info.)*
-
-After the setup run successfully, you can start using HaMStR (in some cases you should restart the terminal).
-
-### 1b. Install using Anaconda
+### 1a. Install using Anaconda
 
 Follow [this link](https://docs.conda.io/projects/conda/en/latest/user-guide/install/index.html) to install conda (anaconda or miniconda) to your system.
 
@@ -62,6 +49,22 @@ Install HaMStR
 conda install -c BIONF hamstr
 setup_hamstr
 ```
+
+After the setup run successfully, you can start using HaMStR (in some cases you should restart the terminal).
+
+### 1b. Install in Ubuntu/MacOS
+
+Get HaMStR source code from GitHub
+```
+git clone --depth=1 https://github.com/BIONF/HaMStR
+```
+
+Run `setup.sh` script in the HaMStR/bin folder to install HaMStR and its dependencies
+```
+cd HaMStR
+bin/setup.sh
+```
+*Enter root password if required (some dependencies need root privileges to be installed. See [dependency list](#dependencies) for more info.)*
 
 After the setup run successfully, you can start using HaMStR (in some cases you should restart the terminal).
 
