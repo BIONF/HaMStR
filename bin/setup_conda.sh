@@ -232,7 +232,7 @@ echo "-------------------------------------"
 echo "Getting pre-calculated data"
 
 data_HaMStR_file="data_HaMStR2018b.tar.gz"
-checkSumData="2381644151 675525040 $data_HaMStR_file"
+checkSumData="979235026 675298057 $data_HaMStR_file"
 
 if ! [ "$(ls -A $CURRENT/genome_dir)" ]; then
 	echo "Processing $CURRENT ..."
@@ -402,7 +402,7 @@ else
     echo "All tests succeeded, HaMStR should be ready to run";
     $sedprog -i -e 's/my $configure = .*/my $configure = 1;/' $CURRENT/bin/hamstr.pl
     $sedprog -i -e 's/my $configure = .*/my $configure = 1;/' $CURRENT/bin/oneSeq.pl
-    echo "Restart terminal and test your HaMStR with:"
+    echo "Test your HaMStR with:"
     echo "perl bin/oneSeq.pl -seqFile=infile.fa -seqid=P83876 -refspec=HUMAN@9606@1 -minDist=genus -maxDist=kingdom -coreOrth=5 -cleanup -global"
     echo "or"
     echo "perl bin/oneSeq.pl -h"
