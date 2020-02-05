@@ -17,22 +17,11 @@ use Env qw(ONESEQDIR);
 # DESCRIPTION:  parsing output of oneSeq.pl and FAS to create input to phyloprofile app
 # DATE:         16.12.2016
 # Last Modified:	19.11.2019
+#######################
 
-#######
-#SETUP
-#######
 my $version = 1.4;
-my $configure = 1;
 my $useIDasis = 1;
-if ($configure == 0){
-	die "\n\n$version\n\nPLEASE RUN THE CONFIGURE OR CONFIGURE_MAC SCRIPT BEFORE USING parseOneSep.pl\n\n";
-}
 ####################
-my $path=$ONESEQDIR;
-if (!(defined $path) or !(-e $path)) {
-	die "Please set the environmental variabel ONESEQDIR\n";
-}
-$path =~ s/\/$//;
 
 ## global variables
 my $inFile;

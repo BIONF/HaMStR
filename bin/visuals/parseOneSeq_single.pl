@@ -16,21 +16,9 @@ use Env qw(ONESEQDIR);
 # DATE:         28.11.2018
 # SUPPORT:      sge,qsub
 # STATUS:       devo
+#######################
 
-#######
-#SETUP
-#######
 my $version = 1.0;
-my $configure = 1;
-if ($configure == 0){
-	die "\n\n$version\n\nPLEASE RUN THE CONFIGURE OR CONFIGURE_MAC SCRIPT BEFORE USING parseOneSep.pl\n\n";
-}
-####################
-my $path=$ONESEQDIR;
-if (!(defined $path) or !(-e $path)) {
-	die "Please set the environmental variabel ONESEQDIR\n";
-}  
-$path =~ s/\/$//;
 
 sub usage {
     my $msg = shift;
