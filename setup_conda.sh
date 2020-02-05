@@ -158,9 +158,7 @@ echo "done!"
 ### prepare folders
 echo "-------------------------------------"
 echo "Preparing folders..."
-DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
-cd $DIR/..
-CURRENT=$(pwd)
+CURRENT="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
 
 # create required folders
 folders=(
@@ -174,8 +172,7 @@ folders=(
 )
 
 for i in "${folders[@]}"; do
-  echo "$i"
-  if [ ! -d $i ]; then mkdir $i; fi
+    if [ ! -d "$CURRENT/$i" ]; then mkdir "$CURRENT/$i"; fi
 done
 echo "done!"
 
@@ -310,22 +307,6 @@ $sedprog -i -e "s|\#\!.*|\#\!$path2perl|g" $CURRENT/bin/nentferner.pl
 $sedprog -i -e "s|\#\!.*|\#\!$path2perl|g" $CURRENT/bin/translate.pl
 $sedprog -i -e "s|\#\!.*|\#\!$path2perl|g" $CURRENT/bin/oneSeq.pl
 
-# get lib path
-path2dir=$CURRENT
-echo "path to lib: $path2dir/lib"
-$sedprog -i -e "s|use lib.*lib\(.*\)|use lib '$path2dir/lib\1|" $CURRENT/bin/hamstr.pl
-$sedprog -i -e "s|use lib.*|use lib '$path2dir/lib';|" $CURRENT/bin/nentferner.pl
-$sedprog -i -e "s|use lib.*|use lib '$path2dir/lib';|g" $CURRENT/bin/translate.pl
-$sedprog -i -e "s|use lib.*|use lib '$path2dir/lib';|g" $CURRENT/bin/oneSeq.pl
-
-# paths to core_ortholog and blast_dir
-echo "default path to blast_dir and core_orthologs: $path2dir"
-$sedprog -i -e "s|\(my \$path = \).*|\1 '$path2dir';|g" $CURRENT/bin/hamstr.pl
-
-###### CAN REMOVE THIS VAR $check_genewise in hamstr.pl ##########################
-$sedprog -i -e 's/$check_genewise = [0,1];/$check_genewise = 1;/' $CURRENT/bin/hamstr.pl
-###############################################
-
 ### final check
 echo "-------------------------------------"
 echo "Final check..."
@@ -403,7 +384,7 @@ else
     echo "All tests succeeded, HaMStR should be ready to run"
     $sedprog -i -e 's/my $configure = .*/my $configure = 1;/' $CURRENT/bin/hamstr.pl
     $sedprog -i -e 's/my $configure = .*/my $configure = 1;/' $CURRENT/bin/oneSeq.pl
-    echo "Test your HaMStR with:"
+    echo "Go to HaMStR folder and test it with:"
     echo -e "\033[1mperl bin/oneSeq.pl -seqFile=infile.fa -seqid=P83876 -refspec=HUMAN@9606@1 -minDist=genus -maxDist=kingdom -coreOrth=5 -cleanup -global\033[0m"
     echo "or"
     echo -e "\033[1mperl bin/oneSeq.pl -h\033[0m"

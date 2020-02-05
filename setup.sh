@@ -3,9 +3,7 @@
 sys="$(uname)" # Linux for Linux or Darwin for MacOS
 echo "Current OS system: $sys"
 
-DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
-cd $DIR/..
-CURRENT=$(pwd)
+CURRENT="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
 
 flag=0
 root=1
@@ -32,7 +30,7 @@ fi
 
 ### install dependencies
 if [ $root == 1 ]; then
-    sudo bash $CURRENT/bin/install_lib.sh
+    sudo bash $CURRENT/install_lib.sh
 fi
 
 ### check grep, sed and wget availability
@@ -99,7 +97,7 @@ folders=(
 )
 
 for i in "${folders[@]}"; do
-    if [ ! -d $i ]; then mkdir $i; fi
+    if [ ! -d "$CURRENT/$i" ]; then mkdir "$CURRENT/$i"; fi
 done
 echo "done!"
 

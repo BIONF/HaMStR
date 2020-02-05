@@ -167,7 +167,5 @@ done
 echo "done!"
 
 echo "-------------------------------------"
-DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
-cd $DIR/..
-CURRENT=$(pwd)
-echo "Please run $CURRENT/bin/setup.sh to continue installing HaMStR!"
+CURRENT="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
+echo "Please run $CURRENT/setup.sh to continue installing HaMStR!"
