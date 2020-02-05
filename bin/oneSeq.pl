@@ -110,16 +110,12 @@ my ($norm, $under, $bold) = map { $t->Tputs($_,1) } qw/me md us/;
 #### Paths
 my $path = abs_path(dirname(__FILE__));
 $path =~ s/\/bin//;
-# my $path=$ONESEQDIR;
-# if (!(defined $path) or !(-e $path)) {
-# 	die "Please set the environmental variabel ONESEQDIR\n";
-# }
 $path =~ s/\/$//;
 printDebug("Path is $path");
 
 #### Programs and output
-my $sedprog = 'sed';
-my $grepprog = 'grep';
+my $sedprog = 'gsed';
+my $grepprog = 'ggrep';
 
 my $globalaligner = 'ggsearch36';
 my $glocalaligner = 'glsearch36';
@@ -130,6 +126,9 @@ if ( !(defined $fasta36Path) || $fasta36Path eq "") {
 	$globalaligner = $path.'/bin/aligner/bin/'.'ggsearch36';
 	$glocalaligner = $path.'/bin/aligner/bin/'.'glsearch36';
 	$localaligner = $path.'/bin/aligner/bin/'.'ssearch36';
+	unless (-e $globalaligner) {
+		exit("fasta36 not found! Please install it before using HaMStR!");
+	}
 }
 
 # my $blast_prog = 'blastall';
@@ -138,8 +137,8 @@ my $blast_prog = 'blastp';
 my $outputfmt = 'blastxml';
 my $eval_blast_query = 0.0001;
 my $filter = 'T';
-my $annotation_prog = 'annoFAS';
-my $fas_prog = 'greedyFAS';
+my $annotation_prog = "python $path/bin/fas/greedyFAS/annoFAS.py";
+my $fas_prog = "python $path/bin/fas/greedyFAS/greedyFAS.py";
 my $profile_prog = 'parseOneSeq_single.pl';
 my $architecture_prog = 'parseArchitecture.pl';
 ##### ublast Baustelle: not implemented yet
@@ -1336,12 +1335,12 @@ if (!$coreOnly) {
 	    if ($mode == 1){
 	       ## this is the standard search, features of the seed protein, which are absent in the
 	       ## ortholog will be penalized
-	       $si      = "--seed_id=$seqName|$refSpec|$seqId";
+	       $si      = "--seed_id=\"$seqName|$refSpec|$seqId\"";
 	    }
 	    else {
 	      ## This is the reverse scoring, features of the ortholog, which are absent in the seed
 	      ## will be penalized
-	       $si      = "--query_id=$seqName|$refSpec|$seqId";
+	       $si      = "--query_id=\"$seqName|$refSpec|$seqId\"";
 	    }
 	    my ($in, $score, $err);
 	    $score = "NAN";
@@ -1353,7 +1352,6 @@ if (!$coreOnly) {
 	    print "--> Running ". $fas_prog ."\n";
 	    run \@cmd, \$in, \$score, \$err, timeout( 10000 ) or die "$fas_prog killed.\n";
 	    chomp($score);
-	    print "SCORE: $score\n";
 	    };
 	    #could become debug output:
 	    if($err){

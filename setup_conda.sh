@@ -385,9 +385,9 @@ else
     $sedprog -i -e 's/my $configure = .*/my $configure = 1;/' $CURRENT/bin/hamstr.pl
     $sedprog -i -e 's/my $configure = .*/my $configure = 1;/' $CURRENT/bin/oneSeq.pl
     echo "Go to HaMStR folder and test it with:"
-    echo -e "\033[1mperl bin/oneSeq.pl -seqFile=infile.fa -seqid=P83876 -refspec=HUMAN@9606@1 -minDist=genus -maxDist=kingdom -coreOrth=5 -cleanup -global\033[0m"
+    echo -e "\033[1mbin/oneSeq -seqFile=infile.fa -seqid=P83876 -refspec=HUMAN@9606@1 -minDist=genus -maxDist=kingdom -coreOrth=5 -cleanup -global\033[0m"
     echo "or"
-    echo -e "\033[1mperl bin/oneSeq.pl -h\033[0m"
+    echo -e "\033[1mbin/oneSeq -h\033[0m"
     echo "for more details."
 fi
 exit 1

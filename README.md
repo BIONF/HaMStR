@@ -57,12 +57,12 @@ Get HaMStR source code from GitHub
 git clone --depth=1 https://github.com/BIONF/HaMStR
 ```
 
-Run `setup.sh` script in the HaMStR/bin folder to install HaMStR and its dependencies
+Run `setup.sh` script in the HaMStR folder to install HaMStR and its dependencies
 ```
 cd HaMStR
-bin/setup.sh
+sudo setup.sh
 ```
-*Enter root password if required (some dependencies need root privileges to be installed. See [dependency list](#dependencies) for more info.)*
+*We recommend running the setup with root account, otherwise some missing dependencies cannot be installed. See [dependency list](#dependencies) for more info. If you do not have root privileges, ask your admin to install those dependencies using `install_lib.sh` script.*
 
 After the setup run successfully, you can start using HaMStR (in some cases you should restart the terminal).
 
@@ -71,12 +71,15 @@ After the setup run successfully, you can start using HaMStR (in some cases you 
 ## Usage
 HaMStR will run smoothly with the provided sample input file in 'HaMStR/data/infile.fa' if everything is set correctly.
 ```
-perl oneSeq.pl -seqFile=infile.fa -seqid=P83876 -refspec=HUMAN@9606@1 -minDist=genus -maxDist=kingdom -coreOrth=5 -cleanup -global
+oneSeq -seqFile=infile.fa -seqid=P83876 -refspec=HUMAN@9606@1 -minDist=genus -maxDist=kingdom -coreOrth=5 -cleanup -global
 ```
 You can have an overview about the available options with the command
 ```
-perl oneSeq.pl -h
+oneSeq -h
 ```
+
+*If you get the error message that `oneSeq command not found`, you should restart the terminal, or replace `oneSeq` by `perl bin/oneSeq`*
+
 The output orthologous group for the query gene consist of these text files
 1) `seqname.extended.fa`: a multiple FASTA file containing ortholog sequences and the query gene
 2) `seqname.extended.profile`: a tab-delimited file containing list of orthologous sequences and their correspoding similarity scores by comparing their feature architectures with the one of the query gene (for more info about this score, please read [this document](https://bionf.github.io/FAS))
@@ -191,6 +194,13 @@ In both operation systems, you can install Perl modules using `cpanm`.
 curl -L http://cpanmin.us | perl - --sudo App::cpanminus
 # then, install perl module using cpanm
 sudo cpanm perl_module_name
+```
+
+If you do not have root privileges, ask your admin to install these dependencies using the `install_lib.sh` script.
+
+```
+cd HaMStR
+sudo ./install_lib.sh
 ```
 
 _**Note: After having all these dependencies installed, you still need to run the setup script to configure HaMStR!!!**_
