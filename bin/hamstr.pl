@@ -1,11 +1,9 @@
 #!/usr/bin/perl
 use strict;
 use Getopt::Long;
-use lib '../lib';
 use Parallel::ForkManager;
 use Bio::SearchIO;
 use Bio::Search::Hit::BlastHit;
-use run_genewise_hamstr;
 use Bio::SeqIO;
 use Bio::Align::ProteinStatistics;
 use Bio::AlignIO;
@@ -14,8 +12,9 @@ use POSIX;
 use Cwd;
 use Cwd 'abs_path';
 use Statistics::R;
-
-
+use File::Basename;
+use lib dirname(__FILE__);
+use run_genewise_hamstr;
 
 # PROGRAMNAME: hamstr.pl
 
@@ -189,14 +188,13 @@ use Statistics::R;
 ######################## start main ###########################################
 my $version = "HaMStR v.13.2.10";
 ######################## checking whether the configure script has been run ###
-my $configure = 0;
+my $configure = 1;
 if ($configure == 0){
 	die "\n\n$version\n\nPLEASE RUN Setup.sh FILE BEFORE USING HAMSTR\n\n";
 }
 ########## EDIT THE FOLLOWING LINES TO CUSTOMIZE YOUR SCRIPT ##################
 my $prog = 'hmmsearch'; #program for the hmm search
 my $eval = 1; # default evalue cutoff for the hmm search
-my $path =  '/home/vinh/programs/test/HaMStR';
 my $sedprog = 'sed';
 my $grepprog = 'grep';
 my $alignmentprog = 'clustalw';
@@ -207,7 +205,8 @@ my $blast_prog = 'blastp';
 my $filter = 'F'; # low complexity filter switch. Default 'on'. Set of 'F' to turn off permanently.
 my $eval_blast = 10; # default evalue cutoff for the blast search
 ########## EDIT THE FOLLOWING LINES TO MODIFY DEFAULT PATHS ###################
-
+my $path = abs_path(dirname(__FILE__));
+$path =~ s/\/bin//;
 my $hmmpath = "$path/core_orthologs"; #path where the hmms are located
 my $blastpath = "$path/blast_dir"; #path to the blast-dbs
 my $outpath = '.';

@@ -25,7 +25,7 @@ fi
 # NOTE: install only available for Linux!
 if [ -z "$(which $sedprog)" ]; then
     if [ "$sys" == "Darwin" ]; then
-        echo "$sedprog not found. Please install it first (e.g. using brew)!"
+        echo -e "\e[31m$sedprog not found. Please install it first (e.g. using brew)!\e[0m"
         flag=1
     fi
 	conda install -c conda-forge sed
@@ -33,7 +33,7 @@ fi
 
 if [ -z "$(which $grepprog)" ]; then
     if [ "$sys" == "Darwin" ]; then
-        echo "$grepprog not found. Please install it first (e.g. using brew)!"
+        echo -e "\e[31m$grepprog not found. Please install it first (e.g. using brew)!\e[0m"
         flag=1
     fi
 	conda install -c bioconda grep
@@ -41,7 +41,7 @@ fi
 
 if [ -z "$(which $wgetprog)" ]; then
     if [ "$sys" == "Darwin" ]; then
-        echo "$wgetprog not found. Please install it first (e.g. using brew)!"
+        echo -e "\e[31m$wgetprog not found. Please install it first (e.g. using brew)!\e[0m"
         flag=1
     fi
 	conda install -c anaconda wget
@@ -108,7 +108,7 @@ done
 
 for i in "${dependencies[@]}"; do
   if [ -z "$(which $i)" ]; then
-    echo "$i not found. Please install it to use HaMStR!"
+    echo -e "\e[31m$i not found. Please install it to use HaMStR!\e[0m"
     flag=1
   fi
 done
@@ -196,7 +196,7 @@ if ! [ -f "nodes" ]; then
 fi
 cd $CURRENT
 if ! [ -f "$CURRENT/taxonomy/nodes" ]; then
-	echo "Error while indexing NCBI taxonomy database! Please check $CURRENT/taxonomy/ folder and run this setup again!"
+	echo -e "\e[31mError while indexing NCBI taxonomy database! Please check $CURRENT/taxonomy/ folder and run this setup again!\e[0m"
 	exit
 fi
 
@@ -205,7 +205,7 @@ if [ -z "$(which greedyFAS)" ]; then
     echo "FAS"
     conda install -y -c BIONF fas
     if [ -z "$(which annoFAS)" ]; then
-        echo "Installation of FAS failed! Please try again!"
+        echo -e "\e[31mInstallation of FAS failed! Please try again!\e[0m"
         exit
     else
         annoFAS --fasta test.fa --path $CURRENT --name q --prepare 1 --annoPath $CURRENT/bin/fas
@@ -264,14 +264,14 @@ if ! [ "$(ls -A $CURRENT/genome_dir)" ]; then
       if [ "$(ls -A $CURRENT/blast_dir)" ]; then
           echo "Data should be in place to run HaMStR.\n"
       else
-          echo "Something went wrong with the download. Data folders are empty."
+          echo -e "\e[31mSomething went wrong with the download. Data folders are empty.\e[0m"
     	  echo "Please try to download again from"
     	  echo "https://applbio.biologie.uni-frankfurt.de/download/hamstr_qfo/$data_HaMStR_file"
     	  echo "Or contact us if you think this is our issue!"
     	  exit
       fi
 	else
-	  echo "Something went wrong with the download. Checksum does not match."
+	  echo -e "\e[31mSomething went wrong with the download. Checksum does not match.\e[0m"
 	  echo "Please try to download again from"
 	  echo "https://applbio.biologie.uni-frankfurt.de/download/hamstr_qfo/$data_HaMStR_file"
 	  echo "Please put it into $CURRENT folder and run this setup again!"
@@ -356,7 +356,7 @@ for i in "${condaPkgs[@]}"; do
             progname="fasta36"
         fi
         if [ -z "$(which $progname)" ]; then
-            echo "$i could not be installed"
+            echo -e "\t\e[31m$i could not be installed\e[0m"
             flag=1
         fi
     fi
@@ -367,7 +367,7 @@ echo "Perl modules"
 for i in "${perlModules[@]}"; do
   msg=$((perl -e "use $i") 2>&1)
   if ! [[ -z ${msg} ]]; then
-    echo "$i could not be installed"
+    echo -e "\t\e[31m$i could not be installed\e[0m"
     flag=1
   fi
 done
@@ -379,13 +379,13 @@ envPaths=(
 )
 for i in "${envPaths[@]}"; do
     if [ -z "$(grep $i ~/$bashFile)" ]; then
-        echo "$i was not added into ~/$bashFile"
+        echo -e "\t\e[31m$i was not added into ~/$bashFile\e[0m"
         flag=1
     fi
 done
 
 if [ -z "$(grep PATH=$CURRENT/bin:\$PATH ~/$bashFile)" ]; then
-	echo "$CURRENT/bin was not added into ~/$bashFile"
+	echo -e "\t\e[31m$CURRENT/bin was not added into ~/$bashFile\e[0m"
 fi
 
 echo "done!"
@@ -394,18 +394,19 @@ if [ "$flag" == 1 ]; then
     echo "Some tools were not installed correctly or paths were not added into ~/$bashFile. Please run this setup again to try one more time!"
     exit
 else
-    echo "Generating symbolic link hamstr -> hamstr.pl"
+    echo "Generating symbolic links"
     ln -s -f $CURRENT/bin/hamstr.pl $CURRENT/bin/hamstr
+    ln -s -f $CURRENT/bin/oneSeq.pl $CURRENT/bin/oneSeq
     echo "Sourcing bash profile file"
     source ~/$bashFile
     echo "-------------------------------------"
-    echo "All tests succeeded, HaMStR should be ready to run";
+    echo "All tests succeeded, HaMStR should be ready to run"
     $sedprog -i -e 's/my $configure = .*/my $configure = 1;/' $CURRENT/bin/hamstr.pl
     $sedprog -i -e 's/my $configure = .*/my $configure = 1;/' $CURRENT/bin/oneSeq.pl
     echo "Test your HaMStR with:"
-    echo "perl bin/oneSeq.pl -seqFile=infile.fa -seqid=P83876 -refspec=HUMAN@9606@1 -minDist=genus -maxDist=kingdom -coreOrth=5 -cleanup -global"
+    echo -e "\e[1mperl bin/oneSeq.pl -seqFile=infile.fa -seqid=P83876 -refspec=HUMAN@9606@1 -minDist=genus -maxDist=kingdom -coreOrth=5 -cleanup -global\e[0m"
     echo "or"
-    echo "perl bin/oneSeq.pl -h"
+    echo -e "\e[1mperl bin/oneSeq.pl -h\e[0m"
     echo "for more details."
 fi
 exit 1

@@ -1,5 +1,6 @@
 #!/usr/bin/perl
-use lib '../lib';
+use File::Basename;
+use lib dirname(__FILE__);
 use Filehandler;
 use strict;
 use Getopt::Long;

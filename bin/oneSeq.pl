@@ -2,7 +2,8 @@
 use strict;
 use warnings;
 use File::Copy qw(move);
-use lib '..//lib';
+use File::Basename;
+use lib dirname(__FILE__);
 use Parallel::ForkManager;
 use IO::Handle;
 use Getopt::Long;
@@ -94,7 +95,7 @@ my $startTime = time;
 ############ General settings
 my $version = 'oneSeq v.1.4';
 ##### configure
-my $configure = 0;
+my $configure = 1;
 if ($configure == 0){
 	die "\n\n$version\n\nPLEASE RUN Setup.sh FILE BEFORE USING oneSeq.pl\n\n";
 }
@@ -221,7 +222,7 @@ my $maxDist;
 my $minCoreOrthologs;
 my $coreTaxa;
 my $strict;
-my $force;
+my $force = 0;
 my $group;
 my $groupNode;
 my $blast;

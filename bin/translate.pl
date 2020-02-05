@@ -1,6 +1,7 @@
 #!/usr/bin/perl
 use strict;
-use lib '../lib';
+use File::Basename;
+use lib dirname(__FILE__);
 use Getopt::Long;
 use Bio::Perl;
 use File::Copy;
