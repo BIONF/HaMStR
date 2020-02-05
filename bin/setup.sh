@@ -45,17 +45,17 @@ if [ "$sys" == "Darwin" ]; then
 fi
 
 if [ -z "$(which $sedprog)" ]; then
-    echo -e "\e[31m$sedprog not found!\e[0m"
+    echo -e "\033[31m$sedprog not found!\033[0m"
     exit
 fi
 
 if [ -z "$(which $grepprog)" ]; then
-    echo -e "\e[31m$grepprog not found!\e[0m"
+    echo -e "\033[31m$grepprog not found!\033[0m"
     exit
 fi
 
 if [ -z "$(which $wgetprog)" ]; then
-    echo -e "\e[31m$wgetprog not found!\e[0m"
+    echo -e "\033[31m$wgetprog not found!\033[0m"
     exit
 fi
 
@@ -123,7 +123,7 @@ fi
 cd $CURRENT
 if [ -z "$(which fasta36)" ]; then
 	if ! [ -f "$CURRENT/bin/aligner/bin/fasta36" ]; then
-		echo -e "\e[31mfasta36 tool could not be found in $CURRENT/bin/aligner/. Please check again!\e[0m"
+		echo -e "\033[31mfasta36 tool could not be found in $CURRENT/bin/aligner/. Please check again!\033[0m"
 		exit
 	fi
 fi
@@ -141,7 +141,7 @@ if ! [ -f "nodes" ]; then
 fi
 cd $CURRENT
 if ! [ -f "$CURRENT/taxonomy/nodes" ]; then
-	echo -e "\e[31mError while indexing NCBI taxonomy database! Please check $CURRENT/taxonomy/ folder and run this setup again!\e[0m"
+	echo -e "\033[31mError while indexing NCBI taxonomy database! Please check $CURRENT/taxonomy/ folder and run this setup again!\033[0m"
 	exit
 fi
 
@@ -232,14 +232,14 @@ if ! [ "$(ls -A $CURRENT/genome_dir)" ]; then
       if [ "$(ls -A $CURRENT/blast_dir)" ]; then
           echo "Data should be in place to run HaMStR."
       else
-          echo -e "\e[31mSomething went wrong with the download. Data folders are empty.\e[0m"
+          echo -e "\033[31mSomething went wrong with the download. Data folders are empty.\033[0m"
     	  echo "Please try to download again from"
     	  echo "https://applbio.biologie.uni-frankfurt.de/download/hamstr_qfo/$data_HaMStR_file"
     	  echo "Or contact us if you think this is our issue!"
     	  exit
       fi
 	else
-	  echo -e "\e[31mSomething went wrong with the download. Checksum does not match.\e[0m"
+	  echo -e "\033[31mSomething went wrong with the download. Checksum does not match.\033[0m"
 	  echo "Please try to download again from"
 	  echo "https://applbio.biologie.uni-frankfurt.de/download/hamstr_qfo/$data_HaMStR_file"
 	  echo "Please put it into $CURRENT folder and run this setup again!"
@@ -299,7 +299,7 @@ dependencies=(
 
 for i in "${dependencies[@]}"; do
   if [ -z "$(which $i)" ]; then
-    echo -e "\t\e[31mWARNING $i not found!\e[0m"
+    echo -e "\t\033[31mWARNING $i not found!\033[0m"
     flag=1
   fi
 done
@@ -341,7 +341,7 @@ echo "Perl modules"
 for i in "${perlModules[@]}"; do
   msg=$((perl -e "use $i") 2>&1)
   if ! [[ -z ${msg} ]]; then
-    echo -e "\t\e[31mWARNING $i could not be installed\e[0m"
+    echo -e "\t\033[31mWARNING $i could not be installed\033[0m"
     flag=1
   fi
 done
@@ -353,18 +353,18 @@ envPaths=(
 )
 for i in "${envPaths[@]}"; do
     if [ -z "$(grep $i ~/$bashFile)" ]; then
-        echo -e "\t\e[31mWARNING $i was not added into ~/$bashFile\e[0m"
+        echo -e "\t\033[31mWARNING $i was not added into ~/$bashFile\033[0m"
         flag=1
     fi
 done
 if [ "$fasta36" == "no" ]; then
     if [ -z "$(grep PATH=$CURRENT/bin/aligner/bin ~/$bashFile)" ]; then
-        echo -e "\t\e[31mWARNING $CURRENT/bin/aligner/bin was not added into ~/$bashFile\e[0m"
+        echo -e "\t\033[31mWARNING $CURRENT/bin/aligner/bin was not added into ~/$bashFile\033[0m"
         flag=1
     fi
 fi
 if [ -z "$(grep PATH=$CURRENT/bin:\$PATH ~/$bashFile)" ]; then
-	echo -e "\t\e[31mWARNING $CURRENT/bin was not added into ~/$bashFile\e[0m"
+	echo -e "\t\033[31mWARNING $CURRENT/bin was not added into ~/$bashFile\033[0m"
     flag=1
 fi
 echo "done!"
@@ -385,9 +385,9 @@ else
     $sedprog -i -e 's/my $configure = .*/my $configure = 1;/' $CURRENT/bin/hamstr.pl
     $sedprog -i -e 's/my $configure = .*/my $configure = 1;/' $CURRENT/bin/oneSeq.pl
     echo "Test your HaMStR with:"
-    echo -e "\e[1mperl bin/oneSeq.pl -seqFile=infile.fa -seqid=P83876 -refspec=HUMAN@9606@1 -minDist=genus -maxDist=kingdom -coreOrth=5 -cleanup -global\e[0m"
+    echo -e "\033[1mperl bin/oneSeq.pl -seqFile=infile.fa -seqid=P83876 -refspec=HUMAN@9606@1 -minDist=genus -maxDist=kingdom -coreOrth=5 -cleanup -global\033[0m"
     echo "or"
-    echo -e "\e[1mperl bin/oneSeq.pl -h\e[0m"
+    echo -e "\033[1mperl bin/oneSeq.pl -h\033[0m"
     echo "for more details."
 fi
 exit 1

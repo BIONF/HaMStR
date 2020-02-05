@@ -188,7 +188,7 @@ use run_genewise_hamstr;
 ######################## start main ###########################################
 my $version = "HaMStR v.13.2.10";
 ######################## checking whether the configure script has been run ###
-my $configure = 1;
+my $configure = 0;
 if ($configure == 0){
 	die "\n\n$version\n\nPLEASE RUN Setup.sh FILE BEFORE USING HAMSTR\n\n";
 }

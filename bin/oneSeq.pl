@@ -95,7 +95,7 @@ my $startTime = time;
 ############ General settings
 my $version = 'oneSeq v.1.4';
 ##### configure
-my $configure = 1;
+my $configure = 0;
 if ($configure == 0){
 	die "\n\n$version\n\nPLEASE RUN Setup.sh FILE BEFORE USING oneSeq.pl\n\n";
 }
