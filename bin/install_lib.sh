@@ -155,18 +155,15 @@ perlModules=(
   Bio::Tools::Run::StandAloneBlast
 )
 
-if [ "$sys" == "Darwin" ]; then
-    if [ -z "$(which cpanm)" ]; then
-      curl -L http://cpanmin.us | perl - --sudo App::cpanminus
-    fi
-
-    for i in "${perlModules[@]}"; do
-      msg=$((perldoc -l $i) 2>&1)
-      if [[ "$(echo $msg)" == *"No documentation"* ]]; then
-        sudo cpanm ${i} --quiet --force
-      fi
-    done
+if [ -z "$(which cpanm)" ]; then
+    curl -L http://cpanmin.us | perl - --sudo App::cpanminus
 fi
+for i in "${perlModules[@]}"; do
+    msg=$((perldoc -l $i) 2>&1)
+    if [[ "$(echo $msg)" == *"No documentation"* ]]; then
+        sudo cpanm ${i} --quiet --force
+    fi
+done
 echo "done!"
 
 echo "-------------------------------------"

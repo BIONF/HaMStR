@@ -99,8 +99,7 @@ folders=(
 )
 
 for i in "${folders[@]}"; do
-  echo "$i"
-  if [ ! -d $i ]; then mkdir $i; fi
+    if [ ! -d $i ]; then mkdir $i; fi
 done
 echo "done!"
 
@@ -110,25 +109,25 @@ echo "Downloading and installing annotation tools/databases:"
 
 fasta36="yes"
 if [ -z "$(which fasta36)" ]; then
-  fasta36="no"
-  fasta36v="fasta-36.3.8h"
-  if ! [ -f "bin/aligner/bin/fasta36" ]; then
-	  echo "fasta-36"
-	  wget "http://faculty.virginia.edu/wrpearson/fasta/fasta36/${fasta36v}.tar.gz"
-	  tar xf $fasta36v.tar.gz
-	  rm "${fasta36v}.tar.gz"
-	  mv $fasta36v/* bin/aligner/
-	  rm -rf $fasta36v
-	  cd "bin/aligner/src"
-	  if [ $sys=="Linux" ]; then
-	    make -f ../make/Makefile.linux64_sse2 all
-	  elif [ $sys=="Darwin" ]; then
-	    make -f ../make/Makefile.os_x86_64 all
-	  fi
-  fi
-  if [ -z "$(grep PATH=$CURRENT/bin/aligner/bin ~/$bashFile)" ]; then
-	  echo "export PATH=$CURRENT/bin/aligner/bin:\$PATH" >> ~/$bashFile
-  fi
+    fasta36="no"
+    fasta36v="fasta-36.3.8h"
+    if ! [ -f "bin/aligner/bin/fasta36" ]; then
+        echo "fasta-36"
+    	  wget "http://faculty.virginia.edu/wrpearson/fasta/fasta36/${fasta36v}.tar.gz"
+    	  tar xf $fasta36v.tar.gz
+    	  rm "${fasta36v}.tar.gz"
+    	  mv $fasta36v/* bin/aligner/
+    	  rm -rf $fasta36v
+    	  cd "bin/aligner/src"
+    	  if [ $sys=="Linux" ]; then
+              make -f ../make/Makefile.linux64_sse2 all
+    	  elif [ $sys=="Darwin" ]; then
+              make -f ../make/Makefile.os_x86_64 all
+    	  fi
+    fi
+    if [ -z "$(grep PATH=$CURRENT/bin/aligner/bin ~/$bashFile)" ]; then
+        echo "export PATH=$CURRENT/bin/aligner/bin:\$PATH" >> ~/$bashFile
+    fi
 fi
 cd $CURRENT
 if [ -z "$(which fasta36)" ]; then
@@ -155,64 +154,63 @@ if ! [ -f "$CURRENT/taxonomy/nodes" ]; then
 	exit
 fi
 
-# if [ $fas == 1 ]; then
-#     cd "bin"
-#     if [ -z "$(which greedyFAS)" ]; then
-#         echo "FAS"
-#         if ! [ -f "fas/setup.py" ]; then
-#             wget https://github.com/BIONF/FAS/archive/master.tar.gz
-#             tar xf master.tar.gz
-#             mv FAS-master fas
-#             rm master.tar.gz
-#         fi
-#         if [ $root == 1 ]; then
-#             pip install $CURRENT/bin/fas
-#             if [ -z "$(which annoFAS)" ]; then
-#                 echo "Installation of FAS failed! Please try again!"
-#                 exit
-#             else
-#                 annoFAS --fasta test.fa --path $CURRENT --name q --prepare 1 --annoPath $CURRENT/bin/fas
-#             fi
-#         else
-#             pip install $CURRENT/bin/fas --user
-#             if [ -z "$(grep \$HOME/.local/bin:\$PATH ~/$bashFile)" ]; then
-#                 echo "export PATH=\$HOME/.local/bin:\$PATH" >> ~/$bashFile
-#             fi
-#             # change path to annoFAS.py and greeyFAS.py in oneSeq.pl (to not require for restarting the terminal)
-#             annoprog="python \$path\/bin\/fas\/greedyFAS\/annoFAS.py"
-#             $sedprog -i -e "s/\(my \$annotation_prog = \).*/\1\"$annoprog\";/" $CURRENT/bin/oneSeq.pl
-#             fasprog="python \$path\/bin\/fas\/greedyFAS\/greedyFAS.py"
-#             $sedprog -i -e "s/\(my \$fas_prog = \).*/\1\"$fasprog\";/" $CURRENT/bin/oneSeq.pl
-#             # get FAS annotation tools and pre-calculated data
-#             python $CURRENT/bin/fas/greedyFAS/annoFAS.py --fasta $CURRENT/data/infile.fa --path $CURRENT --name q --prepare 1 --annoPath $CURRENT/bin/fas
-#         fi
-#     else
-#         fasPath="$(pip show greedyFAS | grep Location | sed 's/Location: //')"
-#         annoFile="$fasPath/greedyFAS/annoFAS.pl"
-#         tmp="$(grep "my \$config" $annoFile | sed 's/my \$config = //' | sed 's/;//')"
-#         if [ $tmp == "1" ]; then
-#             annoPath="$(grep "my \$annotationPath" $annoFile | sed 's/my \$annotationPath = "//' | sed 's/";//')"
-#             echo "$annoPath"
-#             if ! [ -f "$annoPath/Pfam/Pfam-hmms/Pfam-A.hmm" ]; then
-#                 annoFAS --fasta $CURRENT/data/infile.fa --path $CURRENT --name q --prepare 1 --annoPath $annoPath
-#             fi
-#         else
-#             annoFAS --fasta $CURRENT/data/infile.fa --path $CURRENT --name q --prepare 1 --annoPath $CURRENT/bin/fas
-#         fi
-#     fi
-#
-#     cd $CURRENT
-#     echo "done!"
-# fi
+if [ $fas == 1 ]; then
+    cd "bin"
+    if [ -z "$(which greedyFAS)" ]; then
+        echo "FAS"
+        if ! [ -f "fas/setup.py" ]; then
+            wget https://github.com/BIONF/FAS/archive/master.tar.gz
+            tar xf master.tar.gz
+            mv FAS-master fas
+            rm master.tar.gz
+        fi
+        if [ $root == 1 ]; then
+            pip install $CURRENT/bin/fas
+            if [ -z "$(which annoFAS)" ]; then
+                echo "Installation of FAS failed! Please try again!"
+                exit
+            else
+                annoFAS --fasta test.fa --path $CURRENT --name q --prepare 1 --annoPath $CURRENT/bin/fas
+            fi
+        else
+            pip install $CURRENT/bin/fas --user
+            if [ -z "$(grep \$HOME/.local/bin:\$PATH ~/$bashFile)" ]; then
+                echo "export PATH=\$HOME/.local/bin:\$PATH" >> ~/$bashFile
+            fi
+            # change path to annoFAS.py and greeyFAS.py in oneSeq.pl (to not require for restarting the terminal)
+            annoprog="python \$path\/bin\/fas\/greedyFAS\/annoFAS.py"
+            $sedprog -i -e "s/\(my \$annotation_prog = \).*/\1\"$annoprog\";/" $CURRENT/bin/oneSeq.pl
+            fasprog="python \$path\/bin\/fas\/greedyFAS\/greedyFAS.py"
+            $sedprog -i -e "s/\(my \$fas_prog = \).*/\1\"$fasprog\";/" $CURRENT/bin/oneSeq.pl
+            # get FAS annotation tools and pre-calculated data
+            python $CURRENT/bin/fas/greedyFAS/annoFAS.py --fasta $CURRENT/data/infile.fa --path $CURRENT --name q --prepare 1 --annoPath $CURRENT/bin/fas
+        fi
+    else
+        fasPath="$(pip show greedyFAS | grep Location | sed 's/Location: //')"
+        annoFile="$fasPath/greedyFAS/annoFAS.pl"
+        tmp="$(grep "my \$config" $annoFile | sed 's/my \$config = //' | sed 's/;//')"
+        if [ $tmp == "1" ]; then
+            annoPath="$(grep "my \$annotationPath" $annoFile | sed 's/my \$annotationPath = "//' | sed 's/";//')"
+            if ! [ -f "$annoPath/Pfam/Pfam-hmms/Pfam-A.hmm" ]; then
+                annoFAS --fasta $CURRENT/data/infile.fa --path $CURRENT --name q --prepare 1 --annoPath $annoPath
+            fi
+        else
+            annoFAS --fasta $CURRENT/data/infile.fa --path $CURRENT --name q --prepare 1 --annoPath $CURRENT/bin/fas
+        fi
+    fi
+
+    cd $CURRENT
+    echo "done!"
+fi
 
 ### download data
-echo "-------------------------------------"
-echo "Getting pre-calculated data"
-
 data_HaMStR_file="data_HaMStR2018b.tar.gz"
 checkSumData="979235026 675298057 $data_HaMStR_file"
 
 if ! [ "$(ls -A $CURRENT/genome_dir)" ]; then
+    echo "-------------------------------------"
+    echo "Getting pre-calculated data"
+
 	echo "Processing $CURRENT ..."
 	if [ ! -f $CURRENT/$data_HaMStR_file ]; then
 		echo "Downloading data from https://applbio.biologie.uni-frankfurt.de/download/hamstr_qfo/$data_HaMStR_file"
@@ -228,32 +226,32 @@ if ! [ "$(ls -A $CURRENT/genome_dir)" ]; then
     fi
 
 	if [ ! -f $CURRENT/$data_HaMStR_file ]; then
-	  echo "File $data_HaMStR_file not found! Please try to download again from"
-	  echo "https://applbio.biologie.uni-frankfurt.de/download/hamstr_qfo/data_HaMStR.tar"
-	  exit
+        echo "File $data_HaMStR_file not found! Please try to download again from"
+        echo "https://applbio.biologie.uni-frankfurt.de/download/hamstr_qfo/data_HaMStR.tar"
+        exit
 	fi
 
 	CHECKSUM=$(cksum $data_HaMStR_file)
 	if [ "$CHECKSUM" == "$checkSumData" ]; then
-	  echo "Extracting archive $data_HaMStR_file..."
-	  tar xf $CURRENT/$data_HaMStR_file
-	  rm $CURRENT/$data_HaMStR_file
+        echo "Extracting archive $data_HaMStR_file..."
+        tar xf $CURRENT/$data_HaMStR_file
+        rm $CURRENT/$data_HaMStR_file
 
-      if [ "$(ls -A $CURRENT/blast_dir)" ]; then
-          echo "Data should be in place to run HaMStR."
-      else
-          echo -e "\033[31mSomething went wrong with the download. Data folders are empty.\033[0m"
-    	  echo "Please try to download again from"
-    	  echo "https://applbio.biologie.uni-frankfurt.de/download/hamstr_qfo/$data_HaMStR_file"
-    	  echo "Or contact us if you think this is our issue!"
-    	  exit
-      fi
+        if [ "$(ls -A $CURRENT/blast_dir)" ]; then
+            echo "Data should be in place to run HaMStR."
+        else
+            echo -e "\033[31mSomething went wrong with the download. Data folders are empty.\033[0m"
+            echo "Please try to download again from"
+            echo "https://applbio.biologie.uni-frankfurt.de/download/hamstr_qfo/$data_HaMStR_file"
+            echo "Or contact us if you think this is our issue!"
+            exit
+        fi
 	else
-	  echo -e "\033[31mSomething went wrong with the download. Checksum does not match.\033[0m"
-	  echo "Please try to download again from"
-	  echo "https://applbio.biologie.uni-frankfurt.de/download/hamstr_qfo/$data_HaMStR_file"
-	  echo "Please put it into $CURRENT folder and run this setup again!"
-	  exit
+        echo -e "\033[31mSomething went wrong with the download. Checksum does not match.\033[0m"
+        echo "Please try to download again from"
+        echo "https://applbio.biologie.uni-frankfurt.de/download/hamstr_qfo/$data_HaMStR_file"
+        echo "Please put it into $CURRENT folder and run this setup again!"
+        exit
 	fi
 fi
 
@@ -304,14 +302,20 @@ dependencies=(
   mafft
   muscle
   clustalw
-  blastn
+  blastp
 )
 
 for i in "${dependencies[@]}"; do
-  if [ -z "$(which $i)" ]; then
-    echo -e "\t\033[31mWARNING $i not found!\033[0m"
-    flag=1
-  fi
+    tool=$i
+    if [ $tool == "clustalw" ]; then
+        if [ "$sys" == "Darwin" ]; then
+            tool="clustalw2"
+        fi
+    fi
+    if [ -z "$(which $tool)" ]; then
+        echo -e "\t\033[31mWARNING $tool not found!\033[0m"
+        flag=1
+    fi
 done
 
 perlModules=(
@@ -345,7 +349,6 @@ perlModules=(
   Bio::Tree::Tree
   Bio::Tools::Run::StandAloneBlast
 )
-echo "done!"
 
 echo "Perl modules"
 for i in "${perlModules[@]}"; do
@@ -355,7 +358,6 @@ for i in "${perlModules[@]}"; do
     flag=1
   fi
 done
-echo "done!"
 
 echo "Environment paths"
 envPaths=(
@@ -377,7 +379,6 @@ if [ -z "$(grep PATH=$CURRENT/bin:\$PATH ~/$bashFile)" ]; then
 	echo -e "\t\033[31mWARNING $CURRENT/bin was not added into ~/$bashFile\033[0m"
     flag=1
 fi
-echo "done!"
 
 if [ "$flag" == 1 ]; then
     echo "Some tools/libraries could not be found or paths were not added into ~/$bashFile."
