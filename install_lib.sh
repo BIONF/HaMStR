@@ -124,6 +124,7 @@ fi
 
 echo "Installing Perl modules..."
 perlModules=(
+  Capture::Tiny
   DBI
   DB_File
   File::Copy

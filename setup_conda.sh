@@ -115,6 +115,7 @@ done
 if [ "$flag" == 1 ]; then exit 1; fi
 
 perlModules=(
+  Capture::Tiny
   DBI
   DB_File
   File::Copy

@@ -17,6 +17,7 @@ use Term::Cap;
 use POSIX;
 use File::Path;
 
+use Capture::Tiny qw/capture/;
 use IPC::Run qw( run timeout );
 use Time::HiRes;
 use File::Path;
@@ -1349,7 +1350,11 @@ if (!$coreOnly) {
 	    print "\n##############################\n";
 	    print "Begin of FAS score calculation.\n";
 	    print "--> Running ". $fas_prog ."\n";
-	    run \@cmd, \$in, \$score, \$err, timeout( 10000 ) or die "$fas_prog killed.\n";
+	    # run \@cmd, \$in, \$score, \$err, timeout( 10000 ) or die "$fas_prog killed.\n";
+		my $cmd = join(" ", @cmd);
+		($score, $err) = capture {
+		  system ($cmd);
+		};
 	    chomp($score);
 	    };
 	    #could become debug output:
