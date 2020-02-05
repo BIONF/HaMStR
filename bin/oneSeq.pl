@@ -137,8 +137,8 @@ my $blast_prog = 'blastp';
 my $outputfmt = 'blastxml';
 my $eval_blast_query = 0.0001;
 my $filter = 'T';
-my $annotation_prog = "python $path/bin/fas/greedyFAS/annoFAS.py";
-my $fas_prog = "python $path/bin/fas/greedyFAS/greedyFAS.py";
+my $annotation_prog = 'annoFAS';
+my $fas_prog = 'greedyFAS';
 my $profile_prog = 'parseOneSeq_single.pl';
 my $architecture_prog = 'parseArchitecture.pl';
 ##### ublast Baustelle: not implemented yet
@@ -168,7 +168,6 @@ my $tmpdir = "$outputPath"; ## Baustelle
 my $dataDir = $path . '/data';
 my $currDir = getcwd;
 my $weightPath = "$path/weight_dir/";
-# my $fasPath = "$path/bin/fas/";
 my $visualsPath = "$path/bin/visuals/";
 
 my @defaultRanks = ('superkingdom', 'kingdom',
