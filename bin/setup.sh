@@ -3,6 +3,10 @@
 sys="$(uname)" # Linux for Linux or Darwin for MacOS
 echo "Current OS system: $sys"
 
+DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
+cd $DIR/..
+CURRENT=$(pwd)
+
 flag=0
 root=1
 fas=1
@@ -26,6 +30,11 @@ if [ "$EUID" -ne 0 ]; then
     root=0
 fi
 
+### install dependencies
+if [ $root == 1 ]; then
+    sudo bash $CURRENT/bin/install_lib.sh
+fi
+
 ### check grep, sed and wget availability
 echo "-------------------------------------"
 echo "Checking .bash_profile/.bashrc, grep, sed/gsed and wget availability..."
@@ -46,17 +55,26 @@ fi
 
 if [ -z "$(which $sedprog)" ]; then
     echo -e "\033[31m$sedprog not found!\033[0m"
-    exit
+	if [ $root == 0 ]; then
+		echo "Please run this setup as a root user!"
+    	exit
+	fi
 fi
 
 if [ -z "$(which $grepprog)" ]; then
     echo -e "\033[31m$grepprog not found!\033[0m"
-    exit
+	if [ $root == 0 ]; then
+		echo "Please run this setup as a root user!"
+    	exit
+	fi
 fi
 
 if [ -z "$(which $wgetprog)" ]; then
     echo -e "\033[31m$wgetprog not found!\033[0m"
-    exit
+	if [ $root == 0 ]; then
+		echo "Please run this setup as a root user!"
+    	exit
+	fi
 fi
 
 if ! [ -f ~/$bashFile ]; then
@@ -67,9 +85,6 @@ echo "done!"
 ### prepare folders
 echo "-------------------------------------"
 echo "Preparing folders..."
-DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
-cd $DIR/..
-CURRENT=$(pwd)
 
 # create required folders
 folders=(
@@ -88,11 +103,6 @@ for i in "${folders[@]}"; do
   if [ ! -d $i ]; then mkdir $i; fi
 done
 echo "done!"
-
-### install dependencies
-if [ $root == 1 ]; then
-    sudo bash $CURRENT/install_lib.sh
-fi
 
 ### download tools
 echo "-------------------------------------"
@@ -145,55 +155,55 @@ if ! [ -f "$CURRENT/taxonomy/nodes" ]; then
 	exit
 fi
 
-if [ $fas == 1 ]; then
-    cd "bin"
-    if [ -z "$(which greedyFAS)" ]; then
-        echo "FAS"
-        if ! [ -f "fas/setup.py" ]; then
-            wget https://github.com/BIONF/FAS/archive/master.tar.gz
-            tar xf master.tar.gz
-            mv FAS-master fas
-            rm master.tar.gz
-        fi
-        if [ $root == 1 ]; then
-            pip install $CURRENT/bin/fas
-            if [ -z "$(which annoFAS)" ]; then
-                echo "Installation of FAS failed! Please try again!"
-                exit
-            else
-                annoFAS --fasta test.fa --path $CURRENT --name q --prepare 1 --annoPath $CURRENT/bin/fas
-            fi
-        else
-            pip install $CURRENT/bin/fas --user
-            if [ -z "$(grep \$HOME/.local/bin:\$PATH ~/$bashFile)" ]; then
-                echo "export PATH=\$HOME/.local/bin:\$PATH" >> ~/$bashFile
-            fi
-            # change path to annoFAS.py and greeyFAS.py in oneSeq.pl (to not require for restarting the terminal)
-            annoprog="python \$path\/bin\/fas\/greedyFAS\/annoFAS.py"
-            $sedprog -i -e "s/\(my \$annotation_prog = \).*/\1\"$annoprog\";/" $CURRENT/bin/oneSeq.pl
-            fasprog="python \$path\/bin\/fas\/greedyFAS\/greedyFAS.py"
-            $sedprog -i -e "s/\(my \$fas_prog = \).*/\1\"$fasprog\";/" $CURRENT/bin/oneSeq.pl
-            # get FAS annotation tools and pre-calculated data
-            python $CURRENT/bin/fas/greedyFAS/annoFAS.py --fasta $CURRENT/data/infile.fa --path $CURRENT --name q --prepare 1 --annoPath $CURRENT/bin/fas
-        fi
-    else
-        fasPath="$(pip show greedyFAS | grep Location | sed 's/Location: //')"
-        annoFile="$fasPath/greedyFAS/annoFAS.pl"
-        tmp="$(grep "my \$config" $annoFile | sed 's/my \$config = //' | sed 's/;//')"
-        if [ $tmp == "1" ]; then
-            annoPath="$(grep "my \$annotationPath" $annoFile | sed 's/my \$annotationPath = "//' | sed 's/";//')"
-            echo "$annoPath"
-            if ! [ -f "$annoPath/Pfam/Pfam-hmms/Pfam-A.hmm" ]; then
-                annoFAS --fasta $CURRENT/data/infile.fa --path $CURRENT --name q --prepare 1 --annoPath $annoPath
-            fi
-        else
-            annoFAS --fasta $CURRENT/data/infile.fa --path $CURRENT --name q --prepare 1 --annoPath $CURRENT/bin/fas
-        fi
-    fi
-
-    cd $CURRENT
-    echo "done!"
-fi
+# if [ $fas == 1 ]; then
+#     cd "bin"
+#     if [ -z "$(which greedyFAS)" ]; then
+#         echo "FAS"
+#         if ! [ -f "fas/setup.py" ]; then
+#             wget https://github.com/BIONF/FAS/archive/master.tar.gz
+#             tar xf master.tar.gz
+#             mv FAS-master fas
+#             rm master.tar.gz
+#         fi
+#         if [ $root == 1 ]; then
+#             pip install $CURRENT/bin/fas
+#             if [ -z "$(which annoFAS)" ]; then
+#                 echo "Installation of FAS failed! Please try again!"
+#                 exit
+#             else
+#                 annoFAS --fasta test.fa --path $CURRENT --name q --prepare 1 --annoPath $CURRENT/bin/fas
+#             fi
+#         else
+#             pip install $CURRENT/bin/fas --user
+#             if [ -z "$(grep \$HOME/.local/bin:\$PATH ~/$bashFile)" ]; then
+#                 echo "export PATH=\$HOME/.local/bin:\$PATH" >> ~/$bashFile
+#             fi
+#             # change path to annoFAS.py and greeyFAS.py in oneSeq.pl (to not require for restarting the terminal)
+#             annoprog="python \$path\/bin\/fas\/greedyFAS\/annoFAS.py"
+#             $sedprog -i -e "s/\(my \$annotation_prog = \).*/\1\"$annoprog\";/" $CURRENT/bin/oneSeq.pl
+#             fasprog="python \$path\/bin\/fas\/greedyFAS\/greedyFAS.py"
+#             $sedprog -i -e "s/\(my \$fas_prog = \).*/\1\"$fasprog\";/" $CURRENT/bin/oneSeq.pl
+#             # get FAS annotation tools and pre-calculated data
+#             python $CURRENT/bin/fas/greedyFAS/annoFAS.py --fasta $CURRENT/data/infile.fa --path $CURRENT --name q --prepare 1 --annoPath $CURRENT/bin/fas
+#         fi
+#     else
+#         fasPath="$(pip show greedyFAS | grep Location | sed 's/Location: //')"
+#         annoFile="$fasPath/greedyFAS/annoFAS.pl"
+#         tmp="$(grep "my \$config" $annoFile | sed 's/my \$config = //' | sed 's/;//')"
+#         if [ $tmp == "1" ]; then
+#             annoPath="$(grep "my \$annotationPath" $annoFile | sed 's/my \$annotationPath = "//' | sed 's/";//')"
+#             echo "$annoPath"
+#             if ! [ -f "$annoPath/Pfam/Pfam-hmms/Pfam-A.hmm" ]; then
+#                 annoFAS --fasta $CURRENT/data/infile.fa --path $CURRENT --name q --prepare 1 --annoPath $annoPath
+#             fi
+#         else
+#             annoFAS --fasta $CURRENT/data/infile.fa --path $CURRENT --name q --prepare 1 --annoPath $CURRENT/bin/fas
+#         fi
+#     fi
+#
+#     cd $CURRENT
+#     echo "done!"
+# fi
 
 ### download data
 echo "-------------------------------------"

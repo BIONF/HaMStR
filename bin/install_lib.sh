@@ -23,11 +23,11 @@ if [ "$sys" == "Darwin" ]; then
 	else
 		bashFile='.bash_profile'
 	fi
-fi
-
-if [ "$EUID" -ne 0 ]; then
-    echo "You must run this setup as a root user!"
-    exit
+else
+	if [ "$EUID" -ne 0 ]; then
+	    echo "You must run this setup as a root user!"
+	    exit
+	fi
 fi
 
 if [ -z "$(which $sedprog)" ]; then
