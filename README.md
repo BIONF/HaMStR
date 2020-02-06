@@ -169,13 +169,14 @@ ln -s ../../genome_dir/SPECI@00001@1/SPECI@00001@1.fa SPECI@00001@1.fa
 ```
 6) Create the annotation files for your taxon with the provided perl script
 ```
-perl /path/to/your/hamstr/bin/fas/annotation.pl -fasta=/path/to/your/hamstr/genome_dir/SPECI@00001@1/SPECI@00001@1.fa -path=/path/to/your/hamstr/weight_dir -name=SPECI@00001@1
+annoFAS -fasta=/path/to/your/hamstr/genome_dir/SPECI@00001@1/SPECI@00001@1.fa -path=/path/to/your/hamstr/weight_dir -name=SPECI@00001@1
 ```
 Please take care that all parameter paths are provided as absolute paths. This action takes considerably longer than the BLAST database creation with makeblastdb (it takes about one hour to annotate a gene set with 5000 sequences).
 
 To prove if your manually added species is integrated into the HaMStR framework your can run:
-
-	perl bin/oneSeq.pl -showTaxa
+```
+oneSeq -showTaxa
+```
 This command simply prints a list of all available taxa.
 
 ## Dependencies
