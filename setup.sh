@@ -142,7 +142,11 @@ if ! [ -f "nodes" ]; then
     rm taxdump.tar.gz
     echo "Taxonomy database indexing. It can take a while, please wait..."
     perl $CURRENT/bin/indexTaxonomy.pl $CURRENT/taxonomy
-    rm *.dmp
+    rm citations.dmp
+    rm delnodes.dmp
+    rm division.dmp
+    rm gencode.dmp
+    rm merged.dmp
     rm gc.prt
     rm readme.txt
 fi
