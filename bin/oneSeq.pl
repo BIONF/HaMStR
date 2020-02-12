@@ -181,10 +181,12 @@ my @defaultRanks = ('superkingdom', 'kingdom',
         'species group', 'species subgroup', 'species');
 #switched from online version to flatfile because it is much faster
 #taxon files can be downloaded from: ftp://ftp.ncbi.nih.gov/pub/taxonomy/
+print "Please wait why the taxonomy database is indexing...\n";
 my $db = Bio::DB::Taxonomy->new(-source    => 'flatfile',
                                 -nodesfile => $idx_dir . 'nodes.dmp',
                                 -namesfile => $idx_dir . 'names.dmp',
                                 -directory => $idx_dir);
+print "indexing done!\n"
 ################## some variables
 my $dbHandle;
 my $core_hitlimit = 3; # number of hmm hits in the hamstrsearch to consider for reblast during core set generation
@@ -964,7 +966,7 @@ if (!$coreOnly) {
 	sub getFilteredRankScore{
 		my $alnScore = $_[0];
 		my $fasScore = $_[1];
-		my $rankscore;
+		my $rankscore = 0;
 		# $rankscore: keeps alignment and fas score, decider about $bestTaxon
 		if ($core_filter_mode){
 			if ($core_filter_mode eq "strict"){
@@ -1003,10 +1005,12 @@ if (!$coreOnly) {
 			}
 		}else{
 			# case 3: no filter
-			if ($alnScore){
-				$rankscore = $fasScore + $alnScore;
-			}else{
-				$rankscore = $fasScore;
+			if($fasScore) {
+				if ($alnScore){
+					$rankscore = $fasScore + $alnScore;
+				}else{
+					$rankscore = $fasScore;
+				}
 			}
 		}
 		return $rankscore;
