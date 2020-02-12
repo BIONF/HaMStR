@@ -186,7 +186,7 @@ my $db = Bio::DB::Taxonomy->new(-source    => 'flatfile',
                                 -nodesfile => $idx_dir . 'nodes.dmp',
                                 -namesfile => $idx_dir . 'names.dmp',
                                 -directory => $idx_dir);
-print "indexing done!\n"
+print "indexing done!\n";
 ################## some variables
 my $dbHandle;
 my $core_hitlimit = 3; # number of hmm hits in the hamstrsearch to consider for reblast during core set generation
@@ -1244,6 +1244,7 @@ if (!$coreOnly) {
 	    # chdir($fasPath);
 	    # my $annotationCommand = "perl $fasPath/$annotation_prog -fasta=" . $seedseqFile . " -path=" . $coreOrthologsPath . $seqName . "/fas_dir" . "/annotation_dir" . " -name=" . $seqName . "_seed";
 		my $annotationCommand = "$annotation_prog --fasta=" . $seedseqFile . " --path=" . $coreOrthologsPath . $seqName . "/fas_dir" . "/annotation_dir" . " --name=" . $seqName . "_seed";
+		print $annotationCommand,"\n";
 	    system($annotationCommand);
 	}
 	## starting annotation_prog for candidate ortholog
@@ -1272,6 +1273,7 @@ if (!$coreOnly) {
 			mkdir($coreOrthologsPath . $seqName . "/fas_dir" . "/annotation_dir/" . $cand_geneset . "_" . $gene_id);
 		}
 		my $annotationCommand = "$annotation_prog --fasta=" . $candseqFile . " --path=" . $weightPath . $cand_geneset . " --name=" . $gene_id . " --extract=" . $coreOrthologsPath . $seqName . "/fas_dir" . "/annotation_dir/" . $cand_geneset . "_" . $gene_id;
+		print $annotationCommand,"\n";
 		system($annotationCommand);
 
 		$location = $coreOrthologsPath . $seqName . "/fas_dir" . "/annotation_dir/" . $cand_geneset . "_" . $gene_id;
@@ -1283,6 +1285,7 @@ if (!$coreOnly) {
 		# chdir($fasPath);
 		# my $annotationCommand = "perl $fasPath/$annotation_prog -fasta=" . $candseqFile . " -path=" . $coreOrthologsPath . $seqName . "/fas_dir" . "/annotation_dir/" . " -name=" . $cand_geneset . "_" . $gene_id;
 		my $annotationCommand = "$annotation_prog --fasta=" . $candseqFile . " --path=" . $coreOrthologsPath . $seqName . "/fas_dir" . "/annotation_dir/" . " --name=" . $cand_geneset . "_" . $gene_id;
+		print $annotationCommand,"\n";
 		system($annotationCommand);
 
 		$location = $coreOrthologsPath . $seqName . "/fas_dir" . "/annotation_dir/" . $cand_geneset . "_" . $gene_id;
