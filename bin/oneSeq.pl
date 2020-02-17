@@ -235,7 +235,7 @@ my $debug;
 my $corestrict;
 my $inputSeq = "";
 my $rbh;
-my $append;
+my $append = 0;
 # Note, the evalue defaults ($eval_blast, $eval_hmmer) will be relaxed for final hamstr run by $eval_relaxfac
 my $eval_blast = 0.00001; #1E-5
 my $eval_hmmer = 0.00001; #1E-5
