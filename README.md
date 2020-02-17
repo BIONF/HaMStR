@@ -47,7 +47,7 @@ Install HaMStR
 conda install -c BIONF hamstr
 setup_hamstr
 ```
-
+HaMStR will be installed under the subfolder **HaMStR** in side your current working directory.
 After the setup run successfully, you can start using HaMStR (in some cases you should restart the terminal).
 
 ### 1b. Install in Ubuntu/MacOS
@@ -70,7 +70,9 @@ After the setup run successfully, you can start using HaMStR (in some cases you 
 
 ## Usage
 HaMStR will run smoothly with the provided sample input file in 'HaMStR/data/infile.fa' if everything is set correctly.
+
 ```
+cd path/to/HaMStR
 oneSeq -seqFile=infile.fa -seqid=P83876 -refspec=HUMAN@9606@1 -minDist=genus -maxDist=kingdom -coreOrth=5 -cleanup -global
 ```
 You can have an overview about the available options with the command
@@ -169,7 +171,7 @@ ln -s ../../genome_dir/SPECI@00001@1/SPECI@00001@1.fa SPECI@00001@1.fa
 ```
 6) Create the annotation files for your taxon with the provided perl script
 ```
-annoFAS -fasta=/path/to/your/hamstr/genome_dir/SPECI@00001@1/SPECI@00001@1.fa -path=/path/to/your/hamstr/weight_dir -name=SPECI@00001@1
+annoFAS --fasta=/path/to/your/hamstr/genome_dir/SPECI@00001@1/SPECI@00001@1.fa --path=/path/to/your/hamstr/weight_dir --name=SPECI@00001@1
 ```
 Please take care that all parameter paths are provided as absolute paths. This action takes considerably longer than the BLAST database creation with makeblastdb (it takes about one hour to annotate a gene set with 5000 sequences).
 
