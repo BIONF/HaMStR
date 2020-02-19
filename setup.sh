@@ -29,8 +29,12 @@ if [ "$EUID" -ne 0 ]; then
 fi
 
 ### install dependencies
-if [ $root == 1 ]; then
-    sudo bash $CURRENT/install_lib.sh
+if [ "$sys" == "Darwin" ]; then
+    bash $CURRENT/install_lib.sh
+else
+    if [ $root == 1 ]; then
+        sudo bash $CURRENT/install_lib.sh
+    fi
 fi
 
 ### check grep, sed and wget availability
