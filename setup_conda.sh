@@ -11,6 +11,8 @@ grepprog='grep'
 sedprog='sed'
 wgetprog='wget'
 bashFile='.bashrc'
+rprofile='.Rprofile'
+
 if [ "$sys" == "Darwin" ]; then
     sedprog='gsed'
 	grepprog='ggrep'
@@ -49,6 +51,9 @@ fi
 
 if ! [ -f ~/$bashFile ]; then
     touch ~/$bashFile
+fi
+if ! [ -f ~/$rprofile ]; then
+    touch ~/$rprofile
 fi
 if [ "$flag" == 1 ]; then exit 1; fi
 echo "done!"
@@ -293,6 +298,12 @@ wisePath=$(which "genewise")
 if [ -z "$(grep WISECONFIGDIR=$wisePath ~/$bashFile)" ]; then
     echo "export WISECONFIGDIR=${wisePath}" >> ~/$bashFile
 fi
+
+echo "Adding paths to ~/$rprofile"
+if [ -z "$(grep $CURRENT/bin ~/$rprofile)" ]; then
+    echo "Sys.setenv(PATH = paste(\"$CURRENT/bin\", Sys.getenv(\"PATH\"), sep=\":\"))" >> ~/$rprofile
+fi
+
 echo "done!"
 
 ### adapt paths in hamstr scripts
@@ -373,11 +384,17 @@ done
 if [ -z "$(grep PATH=$CURRENT/bin:\$PATH ~/$bashFile)" ]; then
 	echo -e "\t\033[31m$CURRENT/bin was not added into ~/$bashFile\033[0m"
 fi
+if [ -z "$(grep $CURRENT/bin ~/$rprofile)" ]; then
+	echo -e "\t\033[31mWARNING $CURRENT/bin was not added into ~/$rprofile\033[0m"
+    flag=1
+fi
 
 echo "done!"
 
 if [ "$flag" == 1 ]; then
-    echo "Some tools were not installed correctly or paths were not added into ~/$bashFile. Please run this setup again to try one more time!"
+    echo "Some tools were not installed correctly or paths were not added into ~/$bashFile or ~/$rprofile."
+    echo "Please install the missing dependencies using $CURRENT/install_lib.sh script (or ask your admin if you don't have root privileges)."
+    echo "Then run this setup again to try one more time!"
     exit
 else
     echo "Generating symbolic links"

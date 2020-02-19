@@ -78,7 +78,6 @@ my @direction = split(/_/,$in_base);
 
 if (defined $append) {
 	open(OUT,">>".$outFile."_".$direction[1].".domains") || die "Cannot create $outFile!\n";
-	print "I am now here\n";
 }
 else {
 	open(OUT,">".$outFile."_".$direction[1].".domains") || die "Cannot create $outFile!\n";
