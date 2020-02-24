@@ -403,13 +403,12 @@ else
     echo "Sourcing bash profile file"
     source ~/$bashFile
     echo "-------------------------------------"
-    echo "All tests succeeded, HaMStR should be ready to run"
     $sedprog -i -e 's/my $configure = .*/my $configure = 1;/' $CURRENT/bin/hamstr.pl
     $sedprog -i -e 's/my $configure = .*/my $configure = 1;/' $CURRENT/bin/oneSeq.pl
-    echo "Go to HaMStR folder and test it with:"
-    echo -e "\033[1mbin/oneSeq -seqFile=infile.fa -seqid=P83876 -refspec=HUMAN@9606@1 -minDist=genus -maxDist=kingdom -coreOrth=5 -cleanup -global\033[0m"
-    echo "or"
-    echo -e "\033[1mbin/oneSeq -h\033[0m"
-    echo "for more details."
+    echo "All tests succeeded, HaMStR should be ready to run. You can test it with:"
+    echo -e "\033[1moneSeq -seqFile=infile.fa -seqName=test -refspec=HUMAN@9606@1 -minDist=genus -maxDist=kingdom -coreOrth=5 -cleanup -global\033[0m"
+    echo "Output files with prefix \"test\" will be found at your current working directory!"
+    echo "For more details, use"
+    echo -e "\033[1moneSeq -h\033[0m"
 fi
 exit 1
