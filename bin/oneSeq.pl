@@ -115,8 +115,8 @@ $path =~ s/\/$//;
 printDebug("Path is $path");
 
 #### Programs and output
-my $sedprog = 'gsed';
-my $grepprog = 'ggrep';
+my $sedprog = 'sed';
+my $grepprog = 'grep';
 
 my $globalaligner = 'ggsearch36';
 my $glocalaligner = 'glsearch36';
@@ -138,8 +138,8 @@ my $blast_prog = 'blastp';
 my $outputfmt = 'blastxml';
 my $eval_blast_query = 0.0001;
 my $filter = 'T';
-my $annotation_prog = 'annoFAS';
-my $fas_prog = 'greedyFAS';
+my $annotation_prog = "annoFAS";
+my $fas_prog = "greedyFAS";
 my $profile_prog = 'parseOneSeq_single.pl';
 my $architecture_prog = 'parseArchitecture.pl';
 ##### ublast Baustelle: not implemented yet
@@ -520,58 +520,65 @@ if (!$coreOnly) {
 	}
 
 	## Evaluation of all orthologs that are predicted by the final hamstr run
-	if(!$coreOnly and $fas_support){
+	if(!$coreOnly){ #} and $fas_support){
 	    print "Evaluation of predicted HaMStR orthologs.\n";
 	    my $processID = $$;
 
 	    ## finalOutput to hash
 	    open (FINORTH, "<".$finalOutput) or die "Error: Could not find $finalOutput\n";
-	    my $head;
+		if ($fas_support) {
+		    my $head;
 
-	    while(<FINORTH>){
-		my $line = $_;
-		chomp($line);
-		if ($line =~ m/^>/){
-		    $line =~ s/>//; # clip '>' character
-		    $head = $line;
-		}else{
-		    $finalcontent{$head} = $line;
+		    while(<FINORTH>){
+				my $line = $_;
+				chomp($line);
+				if ($line =~ m/^>/){
+				    $line =~ s/>//; # clip '>' character
+				    $head = $line;
+				}else{
+				    $finalcontent{$head} = $line;
+				}
+		    }
+		    close (FINORTH);
+
+		    ## create array of keys
+		    my @k_ary;
+		    foreach my $k (sort keys(%finalcontent)){
+			push(@k_ary, $k);
+		    }
+
+		    ## define chunk size for forking (Parallel::ForkManager)
+		    my $size = ceil(scalar(@k_ary) / $cpu); # floor(scalar(@k_ary) / $cpu);
+
+		    ## create tmp folder
+			## modfied by Ingo 2019-11-19
+		    # my $evaluationDir = $dataDir."/".$seqName."_".$processID."/fas_dir/fasscore_dir/";
+	        my $evaluationDir = $dataDir."/".$seqName."/fas_dir/fasscore_dir/";
+		    mkpath($evaluationDir);
+
+		    ## handle finalcontent (final hamstr orthologs)
+		    ## evaluate final hamstr orthologs with FAS score
+		    ## $size: declares the chunk size
+		    ## $evaluationDir: FAS output
+		    ## @k_ary: contains all identifier (header, keys) from finalcontent (used to distribute workload to cpus)
+		    nFAS_score_final($size, $evaluationDir, @k_ary);
+			if($autoclean){
+				runAutoCleanUp($processID);
+		    }
+		    removeMetaOrthologFiles($processID);
+
+			printDebug("Output files and directories:\nName: ".$seqName."\nFAS-Scores: ".$evaluationDir."scores_1/0_fas.collection\nFinal Orthologs: ".$finalOutput."\n");
+			parseProfile($finalOutput, $seqName);
+			parseArchitecture($evaluationDir."scores_1_fas.collection",$finalOutput, $seqName, $dataDir."/".$seqName);
+		    if ($countercheck){
+				parseArchitecture($evaluationDir."scores_0_fas.collection",$finalOutput, $seqName, $dataDir."/".$seqName);
+		    }
+		} else {
+			if($autoclean){
+				runAutoCleanUp($processID);
+		    }
+			fasta2profile($finalOutput, $seqName)
 		}
-	    }
-	    close (FINORTH);
-
-	    ## create array of keys
-	    my @k_ary;
-	    foreach my $k (sort keys(%finalcontent)){
-		push(@k_ary, $k);
-	    }
-
-	    ## define chunk size for forking (Parallel::ForkManager)
-	    my $size = floor(scalar(@k_ary) / $cpu);
-
-	    ## create tmp folder
-## modfied by Ingo 2019-11-19
-#	    my $evaluationDir = $dataDir."/".$seqName."_".$processID."/fas_dir/fasscore_dir/";
-           my $evaluationDir = $dataDir."/".$seqName."/fas_dir/fasscore_dir/";
-	    mkpath($evaluationDir);
-
-	    ## handle finalcontent (final hamstr orthologs)
-	    ## evaluate final hamstr orthologs with FAS score
-	    ## $size: declares the chunk size
-	    ## $evaluationDir: FAS output
-	    ## @k_ary: contains all identifier (header, keys) from finalcontent (used to distribute workload to cpus)
-	    nFAS_score_final($size, $evaluationDir, @k_ary);
-
-	    if($autoclean){
-		runAutoCleanUp($processID);
-	    }
-	    removeMetaOrthologFiles($processID);
-	    printDebug("Output files and directories:\nName: ".$seqName."\nFAS-Scores: ".$evaluationDir."scores_1/0_fas.collection\nFinal Orthologs: ".$finalOutput."\n");
-	    parseProfile($finalOutput, $seqName);
-	    parseArchitecture($evaluationDir."scores_1_fas.collection",$finalOutput, $seqName, $dataDir."/".$seqName);
-	    if ($countercheck){
-		parseArchitecture($evaluationDir."scores_0_fas.collection",$finalOutput, $seqName, $dataDir."/".$seqName);
-	    }
 	}
 
 	## clean up the mess...
@@ -932,7 +939,7 @@ if (!$coreOnly) {
 			}
 
 			## define chunk size for forking (Parallel::ForkManager)
-			my $size = floor(scalar(@k_ary) / $corecpu);
+			my $size = ceil(scalar(@k_ary) / $cpu); # floor(scalar(@k_ary) / $corecpu);
 
 			## create tmp folder
 			my $evaluationDir = $coreOrthologsPath.$seqName."/fas_dir/fasscore_dir/";
@@ -1044,6 +1051,29 @@ if (!$coreOnly) {
 		return ($header, $bestSequence);
 	}
 
+	## create profile from extended.fa
+	sub fasta2profile{
+		my ($file, $out) = ($_[0], $_[1]);
+		my ($fO_base, $fO_path, $fO_suffix) = fileparse( $file, qr/\.[^.]*/ );
+		my $outFile = $fO_path.$out.".phyloprofile";
+		open(FA, $file);
+		open(PPOUT, ">$outFile");
+		print PPOUT "geneID\tncbiID\torthoID\n";
+		foreach my $line(<FA>) {
+			if ($line =~ /^>/) {
+				chomp($line);	# test|ANOGA@7165@1|Q7Q3C2|1
+				$line =~ s/>//;
+				my @lineTMP = split(/\|/, $line);
+				my $geneID = $lineTMP[0];
+				my @orthoTMP = split(/@/, $lineTMP[1]);
+				my $ncbiID = "ncbi".$orthoTMP[1];
+				print PPOUT $geneID, "\t", $ncbiID, "\t", $line,"\n";
+			}
+		}
+		close(FA);
+		close(PPOUT);
+	}
+
 	## parse profile
 	sub parseProfile{
 	    my ($file, $out) = ($_[0], $_[1]);
@@ -1093,7 +1123,6 @@ if (!$coreOnly) {
 	    my ($in, $stdout, $err);
 	    eval {
 	    @cmd = ($pl,$viz,$i,$p,$g,$o,$ap);
-
 	    if ($debug){ printVariableDebug(@cmd);}
 	    print "\n##############################\n";
 	    print "Writing of Visualisation file for feature architecture.\n";
