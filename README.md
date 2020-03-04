@@ -60,7 +60,7 @@ git clone --depth=1 https://github.com/BIONF/HaMStR
 Run `setup.sh` script in the HaMStR folder to install HaMStR and its dependencies
 ```
 cd HaMStR
-sudo setup.sh
+sudo ./setup.sh
 ```
 *We recommend running the setup with root account, otherwise some missing dependencies cannot be installed. See [dependency list](#dependencies) for more info. If you do not have root privileges, ask your admin to install those dependencies using `install_lib.sh` script.*
 
