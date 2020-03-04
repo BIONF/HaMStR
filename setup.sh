@@ -6,7 +6,7 @@ echo "Current OS system: $sys"
 CURRENT="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
 
 flag=0
-root=1
+root=0
 fas=1
 homedir="$(echo $HOME)"
 
@@ -23,10 +23,17 @@ while getopts ":f" opt; do
     esac
 done
 
-if [ "$EUID" -ne 0 ]; then
-    echo "You are not running this setup as root."
-    read -p "Press enter to continue, but some missing tools/libraries will not be installed!"
-    root=0
+if [ "$EUID" -eq 0 ]; then
+    echo "Please DO NOT run this script as root!"
+    # read -p "Press enter to continue, but some missing tools/libraries will not be installed!"
+    exit
+    # root=0
+else
+    read -p "Do you have sudo password? [y/n]" -n 1 -r
+    echo
+    if [[ $REPLY =~ ^[Yy]$ ]]; then
+        root=1
+    fi
 fi
 
 ### install dependencies
@@ -61,7 +68,7 @@ fi
 if [ -z "$(which $sedprog)" ]; then
     echo -e "\033[31m$sedprog not found!\033[0m"
 	if [ $root == 0 ]; then
-		echo "Please run this setup as a root user!"
+		echo "Please run $CURRENT/install_lib.sh first!"
     	exit
 	fi
 fi
@@ -69,7 +76,7 @@ fi
 if [ -z "$(which $grepprog)" ]; then
     echo -e "\033[31m$grepprog not found!\033[0m"
 	if [ $root == 0 ]; then
-		echo "Please run this setup as a root user!"
+		echo "Please run $CURRENT/install_lib.sh first!"
     	exit
 	fi
 fi
@@ -77,7 +84,7 @@ fi
 if [ -z "$(which $wgetprog)" ]; then
     echo -e "\033[31m$wgetprog not found!\033[0m"
 	if [ $root == 0 ]; then
-		echo "Please run this setup as a root user!"
+		echo "Please run $CURRENT/install_lib.sh first!"
     	exit
 	fi
 fi
