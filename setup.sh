@@ -41,6 +41,7 @@ if [ "$sys" == "Darwin" ]; then
     bash $CURRENT/install_lib.sh
 else
     if [ $root == 1 ]; then
+        echo "Enter sudo password to install required libraries..."
         sudo bash $CURRENT/install_lib.sh
     fi
 fi
@@ -426,7 +427,7 @@ else
     $sedprog -i -e 's/my $configure = .*/my $configure = 1;/' $CURRENT/bin/hamstr.pl
     $sedprog -i -e 's/my $configure = .*/my $configure = 1;/' $CURRENT/bin/oneSeq.pl
     echo "All tests succeeded, HaMStR should be ready to run. You can test it with:"
-    echo -e "\033[1moneSeq -seqFile=infile.fa -seqName=test -refspec=HUMAN@9606@1 -minDist=genus -maxDist=kingdom -coreOrth=5 -cleanup -global\033[0m"
+    echo -e "\033[1moneSeq -seqFile=infile.fa -seqName=test -refspec=HUMAN@9606@1 -minDist=genus -maxDist=kingdom -coreOrth=5 -cleanup -global -cpu=4\033[0m"
     echo "Output files with prefix \"test\" will be found at your current working directory!"
     echo "For more details, use"
     echo -e "\033[1moneSeq -h\033[0m"
