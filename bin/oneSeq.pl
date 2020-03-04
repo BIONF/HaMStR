@@ -210,6 +210,7 @@ my %fas_score_keeper = ();
 my $eval_filter = 0.001;
 my $inst_eval_filter = 0.01;
 my $weight_seed = 0;
+my $annoCores = 2;
 
 my $help;
 my @profile = qw();
@@ -329,6 +330,7 @@ GetOptions ("h"                 => \$help,
 			"reuseCore"        => \$coreex,
 			"ignoreDistance"	=> \$ignoreDistance,
 			"distDeviation=s"	=> \$distDeviation,
+			"annoCores=s" => \$annoCores,
 		"aligner=s"	=> \$aln);
 
 ############# connect to the database
@@ -1272,7 +1274,7 @@ if (!$coreOnly) {
 
 	    # chdir($fasPath);
 	    # my $annotationCommand = "perl $fasPath/$annotation_prog -fasta=" . $seedseqFile . " -path=" . $coreOrthologsPath . $seqName . "/fas_dir" . "/annotation_dir" . " -name=" . $seqName . "_seed";
-		my $annotationCommand = "$annotation_prog --fasta=" . $seedseqFile . " --path=" . $coreOrthologsPath . $seqName . "/fas_dir" . "/annotation_dir" . " --name=" . $seqName . "_seed";
+		my $annotationCommand = "$annotation_prog --fasta=" . $seedseqFile . " --path=" . $coreOrthologsPath . $seqName . "/fas_dir" . "/annotation_dir" . " --name=" . $seqName . "_seed" . " --annoCores=". $annoCores;
 	    system($annotationCommand);
 	}
 	## starting annotation_prog for candidate ortholog
@@ -1311,7 +1313,7 @@ if (!$coreOnly) {
 		print "--> Starting to annotate gene $gene_id from species $cand_geneset.\n";
 		# chdir($fasPath);
 		# my $annotationCommand = "perl $fasPath/$annotation_prog -fasta=" . $candseqFile . " -path=" . $coreOrthologsPath . $seqName . "/fas_dir" . "/annotation_dir/" . " -name=" . $cand_geneset . "_" . $gene_id;
-		my $annotationCommand = "$annotation_prog --fasta=" . $candseqFile . " --path=" . $coreOrthologsPath . $seqName . "/fas_dir" . "/annotation_dir/" . " --name=" . $cand_geneset . "_" . $gene_id;
+		my $annotationCommand = "$annotation_prog --fasta=" . $candseqFile . " --path=" . $coreOrthologsPath . $seqName . "/fas_dir" . "/annotation_dir/" . " --name=" . $cand_geneset . "_" . $gene_id  . " --annoCores=". $annoCores;
 		system($annotationCommand);
 
 		$location = $coreOrthologsPath . $seqName . "/fas_dir" . "/annotation_dir/" . $cand_geneset . "_" . $gene_id;
@@ -1331,7 +1333,7 @@ if (!$coreOnly) {
 	    # if annotations already exist the script will skip them/no requery
 	    # print "Annotations for ".$geneset." will be made. This may take a while ...\n";
 	    # my $annotationCommand = "perl $fasPath/$annotation_prog -fasta=" . $taxaPath . $geneset ."/". $geneset . ".fa -path=" . $weightPath . " -name=" . $geneset;
-		my $annotationCommand = "$annotation_prog --fasta=" . $taxaPath . $geneset ."/". $geneset . ".fa --path=" . $weightPath . " --name=" . $geneset;
+		my $annotationCommand = "$annotation_prog --fasta=" . $taxaPath . $geneset ."/". $geneset . ".fa --path=" . $weightPath . " --name=" . $geneset . " --annoCores=". $annoCores;
 	    system($annotationCommand);
 
 	}
@@ -2942,10 +2944,11 @@ ${bold}SPECIFYING FAS SUPPORT OPTIONS$norm
         Specify the alignment strategy during core ortholog compilation. Default is local.
 -glocal
         Set the alignment strategy during core ortholog compilation to glocal.
--global
-        Set the alignment strategy during core ortholog compilation to global.
+c
 -countercheck
         Set this flag to counter-check your final profile. The FAS score will be computed in two ways (seed vs. hit and hit vs. seed).
+-annoCores
+		Set number of CPUs used for annotating proteins. By default 2 CPUs will be used.
 
 ${bold}SPECIFYING EXTENT OF OUTPUT TO SCREEN$norm
 
