@@ -47,7 +47,7 @@ Install HaMStR
 conda install -c BIONF hamstr
 setup_hamstr
 ```
-
+HaMStR will be installed under the subfolder **HaMStR** in side your current working directory.
 After the setup run successfully, you can start using HaMStR (in some cases you should restart the terminal).
 
 ### 1b. Install in Ubuntu/MacOS
@@ -57,12 +57,12 @@ Get HaMStR source code from GitHub
 git clone --depth=1 https://github.com/BIONF/HaMStR
 ```
 
-Run `setup.sh` script in the HaMStR/bin folder to install HaMStR and its dependencies
+Run `setup.sh` script in the HaMStR folder to install HaMStR and its dependencies
 ```
 cd HaMStR
-bin/setup.sh
+./setup.sh
 ```
-*Enter root password if required (some dependencies need root privileges to be installed. See [dependency list](#dependencies) for more info.)*
+*You should have the sudo password ready, otherwise some missing dependencies cannot be installed. See [dependency list](#dependencies) for more info. If you do not have root privileges, ask your admin to install those dependencies using `install_lib.sh` script.*
 
 After the setup run successfully, you can start using HaMStR (in some cases you should restart the terminal).
 
@@ -70,18 +70,23 @@ After the setup run successfully, you can start using HaMStR (in some cases you 
 
 ## Usage
 HaMStR will run smoothly with the provided sample input file in 'HaMStR/data/infile.fa' if everything is set correctly.
+
 ```
-perl oneSeq.pl -seqFile=infile.fa -seqid=P83876 -refspec=HUMAN@9606@1 -minDist=genus -maxDist=kingdom -coreOrth=5 -cleanup -global
+oneSeq -seqFile=infile.fa -seqName=test -refspec=HUMAN@9606@1 -minDist=genus -maxDist=kingdom -coreOrth=5 -cleanup -global -cpu=8
 ```
+The output files with the prefix `test` will be saved at your current working directory.
 You can have an overview about the available options with the command
 ```
-perl oneSeq.pl -h
+oneSeq -h
 ```
-The output orthologous group for the query gene consist of these text files
-1) `seqname.extended.fa`: a multiple FASTA file containing ortholog sequences and the query gene
-2) `seqname.extended.profile`: a tab-delimited file containing list of orthologous sequences and their correspoding similarity scores by comparing their feature architectures with the one of the query gene (for more info about this score, please read [this document](https://bionf.github.io/FAS))
-3) `seqname.phyloprofile`: an input file for visualisation the phylogenetic profile of the query gene using [PhyloProfile tool](https://github.com/BIONF/phyloprofile)
-4) `seqname_1.domains` (and optional, `seqname_0.domains`): a protein domain annotation file for all the sequences present in the orthologous group. The `_0` or `_1` suffix indicates the direction of the feature architecture comparison, in which `_1` (forward) means that the query gene is used as *seed* and it orthologs as *target* for the comparison, while `_0` (backward) is vice versa.
+
+*If you get the error message that `oneSeq command not found`, you should restart the terminal, or replace `oneSeq` by `perl bin/oneSeq`*
+
+The output consist of these text files (*note: `test` is your defined -seqName parameter*)
+1) `test.extended.fa`: a multiple FASTA file containing ortholog sequences and the query gene
+2) `test.extended.profile`: a tab-delimited file containing list of orthologous sequences and their correspoding similarity scores by comparing their feature architectures with the one of the query gene (for more info about this score, please read [this document](https://bionf.github.io/FAS))
+3) `test.phyloprofile`: an input file for visualisation the phylogenetic profile of the query gene using [PhyloProfile tool](https://github.com/BIONF/phyloprofile)
+4) `test_1.domains` (and optional, `test_0.domains`): a protein domain annotation file for all the sequences present in the orthologous group. The `_0` or `_1` suffix indicates the direction of the feature architecture comparison, in which `_1` (forward) means that the query gene is used as *seed* and it orthologs as *target* for the comparison, while `_0` (backward) is vice versa.
 
 ## HaMStR and the utilisation of FAS
 HaMStR integrates the prediction of orthologs and the calculation of the Feature Architecture Similarty (FAS) scores. FAS scores are computed pairwise between the query gene and it's predicted orthologous genes using [FAS tool](https://github.com/BIONF/FAS), which will be automatically installed during the setup of HaMStR.
@@ -166,13 +171,14 @@ ln -s ../../genome_dir/SPECI@00001@1/SPECI@00001@1.fa SPECI@00001@1.fa
 ```
 6) Create the annotation files for your taxon with the provided perl script
 ```
-perl /path/to/your/hamstr/bin/fas/annotation.pl -fasta=/path/to/your/hamstr/genome_dir/SPECI@00001@1/SPECI@00001@1.fa -path=/path/to/your/hamstr/weight_dir -name=SPECI@00001@1
+annoFAS --fasta=/path/to/your/hamstr/genome_dir/SPECI@00001@1/SPECI@00001@1.fa --path=/path/to/your/hamstr/weight_dir --name=SPECI@00001@1
 ```
 Please take care that all parameter paths are provided as absolute paths. This action takes considerably longer than the BLAST database creation with makeblastdb (it takes about one hour to annotate a gene set with 5000 sequences).
 
 To prove if your manually added species is integrated into the HaMStR framework your can run:
-
-	perl bin/oneSeq.pl -showTaxa
+```
+oneSeq -showTaxa
+```
 This command simply prints a list of all available taxa.
 
 ## Dependencies
@@ -191,6 +197,13 @@ In both operation systems, you can install Perl modules using `cpanm`.
 curl -L http://cpanmin.us | perl - --sudo App::cpanminus
 # then, install perl module using cpanm
 sudo cpanm perl_module_name
+```
+
+If you do not have root privileges, ask your admin to install these dependencies using the `install_lib.sh` script.
+
+```
+cd HaMStR
+sudo ./install_lib.sh
 ```
 
 _**Note: After having all these dependencies installed, you still need to run the setup script to configure HaMStR!!!**_
