@@ -60,9 +60,9 @@ git clone --depth=1 https://github.com/BIONF/HaMStR
 Run `setup.sh` script in the HaMStR folder to install HaMStR and its dependencies
 ```
 cd HaMStR
-sudo ./setup.sh
+./setup.sh
 ```
-*We recommend running the setup with root account, otherwise some missing dependencies cannot be installed. See [dependency list](#dependencies) for more info. If you do not have root privileges, ask your admin to install those dependencies using `install_lib.sh` script.*
+*You should have the sudo password ready, otherwise some missing dependencies cannot be installed. See [dependency list](#dependencies) for more info. If you do not have root privileges, ask your admin to install those dependencies using `install_lib.sh` script.*
 
 After the setup run successfully, you can start using HaMStR (in some cases you should restart the terminal).
 
@@ -72,7 +72,7 @@ After the setup run successfully, you can start using HaMStR (in some cases you 
 HaMStR will run smoothly with the provided sample input file in 'HaMStR/data/infile.fa' if everything is set correctly.
 
 ```
-oneSeq -seqFile=infile.fa -seqName=test -refspec=HUMAN@9606@1 -minDist=genus -maxDist=kingdom -coreOrth=5 -cleanup -global
+oneSeq -seqFile=infile.fa -seqName=test -refspec=HUMAN@9606@1 -minDist=genus -maxDist=kingdom -coreOrth=5 -cleanup -global -cpu=8
 ```
 The output files with the prefix `test` will be saved at your current working directory.
 You can have an overview about the available options with the command
