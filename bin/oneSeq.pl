@@ -115,8 +115,8 @@ $path =~ s/\/$//;
 printDebug("Path is $path");
 
 #### Programs and output
-my $sedprog = 'sed';
-my $grepprog = 'grep';
+my $sedprog = 'gsed';
+my $grepprog = 'ggrep';
 
 my $globalaligner = 'ggsearch36';
 my $glocalaligner = 'glsearch36';
@@ -1274,7 +1274,7 @@ if (!$coreOnly) {
 
 	    # chdir($fasPath);
 	    # my $annotationCommand = "perl $fasPath/$annotation_prog -fasta=" . $seedseqFile . " -path=" . $coreOrthologsPath . $seqName . "/fas_dir" . "/annotation_dir" . " -name=" . $seqName . "_seed";
-		my $annotationCommand = "$annotation_prog --fasta=" . $seedseqFile . " --path=" . $coreOrthologsPath . $seqName . "/fas_dir" . "/annotation_dir" . " --name=" . $seqName . "_seed" . " --annoCores=". $annoCores;
+		my $annotationCommand = "$annotation_prog --fasta=" . $seedseqFile . " --path=" . $coreOrthologsPath . $seqName . "/fas_dir" . "/annotation_dir" . " --name=" . $seqName . "_seed" . " --cores=". $annoCores;
 	    system($annotationCommand);
 	}
 	## starting annotation_prog for candidate ortholog
@@ -1313,7 +1313,7 @@ if (!$coreOnly) {
 		print "--> Starting to annotate gene $gene_id from species $cand_geneset.\n";
 		# chdir($fasPath);
 		# my $annotationCommand = "perl $fasPath/$annotation_prog -fasta=" . $candseqFile . " -path=" . $coreOrthologsPath . $seqName . "/fas_dir" . "/annotation_dir/" . " -name=" . $cand_geneset . "_" . $gene_id;
-		my $annotationCommand = "$annotation_prog --fasta=" . $candseqFile . " --path=" . $coreOrthologsPath . $seqName . "/fas_dir" . "/annotation_dir/" . " --name=" . $cand_geneset . "_" . $gene_id  . " --annoCores=". $annoCores;
+		my $annotationCommand = "$annotation_prog --fasta=" . $candseqFile . " --path=" . $coreOrthologsPath . $seqName . "/fas_dir" . "/annotation_dir/" . " --name=" . $cand_geneset . "_" . $gene_id  . " --cores=". $annoCores;
 		system($annotationCommand);
 
 		$location = $coreOrthologsPath . $seqName . "/fas_dir" . "/annotation_dir/" . $cand_geneset . "_" . $gene_id;
@@ -1333,7 +1333,7 @@ if (!$coreOnly) {
 	    # if annotations already exist the script will skip them/no requery
 	    # print "Annotations for ".$geneset." will be made. This may take a while ...\n";
 	    # my $annotationCommand = "perl $fasPath/$annotation_prog -fasta=" . $taxaPath . $geneset ."/". $geneset . ".fa -path=" . $weightPath . " -name=" . $geneset;
-		my $annotationCommand = "$annotation_prog --fasta=" . $taxaPath . $geneset ."/". $geneset . ".fa --path=" . $weightPath . " --name=" . $geneset . " --annoCores=". $annoCores;
+		my $annotationCommand = "$annotation_prog --fasta=" . $taxaPath . $geneset ."/". $geneset . ".fa --path=" . $weightPath . " --name=" . $geneset . " --cores=". $annoCores;
 	    system($annotationCommand);
 
 	}
