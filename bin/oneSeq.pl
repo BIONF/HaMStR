@@ -93,8 +93,13 @@ my $startTime = time;
 ## Modified 2. Dec. 2019
 ## Bug Fix: Check for taxa with invalid NCBI Taxonomy Id runs now properly and crashes are avoided
 ## Implemented cleanup of the core ortholog directory to avoid accumulation of feature annotations
+
+## Modified 05. Feb. 2020 (Vinh):   - added option to set number of CPUs for FAS annotation
+##									- input faste file must not be present in data folder or working directory
+##									- output files will be stored either in user defined directory set via -outpath option, or in HaMStR/output folder by default
+
 ############ General settings
-my $version = 'oneSeq v.1.4';
+my $version = 'oneSeq v.1.5';
 ##### configure
 my $configure = 0;
 if ($configure == 0){
@@ -115,8 +120,8 @@ $path =~ s/\/$//;
 printDebug("Path is $path");
 
 #### Programs and output
-my $sedprog = 'gsed';
-my $grepprog = 'ggrep';
+my $sedprog = 'sed';
+my $grepprog = 'grep';
 
 my $globalaligner = 'ggsearch36';
 my $glocalaligner = 'glsearch36';
@@ -165,7 +170,7 @@ my $genome_dir = "genome_dir";
 my $taxaPath = "$path/$genome_dir/";
 my $blastPath = "$path/blast_dir/";
 my $idx_dir = "$path/taxonomy/";
-my $tmpdir = "$outputPath"; ## Baustelle
+my $tmpdir = "$path/tmp"; #"$outputPath"; ## Baustelle
 my $dataDir = $path . '/data';
 my $currDir = getcwd;
 my $weightPath = "$path/weight_dir/";
@@ -333,6 +338,8 @@ GetOptions ("h"                 => \$help,
 			"annoCores=s" => \$annoCores,
 		"aligner=s"	=> \$aln);
 
+$outputPath = abs_path($outputPath);
+
 ############# connect to the database
 if ($dbmode) {
 	$dbHandle = DBI->connect($database, $username, $pw)
@@ -361,7 +368,6 @@ checkOptions();
 
 my $outputFa =  $coreOrthologsPath . $seqName . "/" . $seqName . ".fa";
 my $outputAln = $coreOrthologsPath . $seqName . "/" . $seqName . ".aln";
-my $finalOutput = $dataDir . '/' . $seqName . '.extended.fa';
 $tmpdir = $tmpdir . '/' . $seqName . '/tmp';
 createFoldersAndFiles($outputFa, $seqName, $inputSeq, $refSpec, $tmpdir);
 
@@ -495,6 +501,7 @@ if (!$coreex) {
 }
 #after having calculated the core orthologous set,
 #start hamstr to find all orthologs
+my $finalOutput = $outputPath . '/' . $seqName . '.extended.fa'; #$dataDir . '/' . $seqName . '.extended.fa';
 if (!$coreOnly) {
     $coremode = 0;
     print "Performing the final HaMStR search on all taxa\n";
@@ -555,7 +562,7 @@ if (!$coreOnly) {
 		    ## create tmp folder
 			## modfied by Ingo 2019-11-19
 		    # my $evaluationDir = $dataDir."/".$seqName."_".$processID."/fas_dir/fasscore_dir/";
-	        my $evaluationDir = $dataDir."/".$seqName."/fas_dir/fasscore_dir/";
+	        my $evaluationDir = $outputPath."/fas_dir/fasscore_dir/"; # $dataDir."/".$seqName."/fas_dir/fasscore_dir/";
 		    mkpath($evaluationDir);
 
 		    ## handle finalcontent (final hamstr orthologs)
@@ -567,13 +574,13 @@ if (!$coreOnly) {
 			if($autoclean){
 				runAutoCleanUp($processID);
 		    }
-		    removeMetaOrthologFiles($processID);
+		    removeMetaOrthologFiles($processID, $evaluationDir);
 
 			printDebug("Output files and directories:\nName: ".$seqName."\nFAS-Scores: ".$evaluationDir."scores_1/0_fas.collection\nFinal Orthologs: ".$finalOutput."\n");
 			parseProfile($finalOutput, $seqName);
-			parseArchitecture($evaluationDir."scores_1_fas.collection",$finalOutput, $seqName, $dataDir."/".$seqName);
+			parseArchitecture($evaluationDir."scores_1_fas.collection",$finalOutput, $seqName, $outputPath."/".$seqName);
 		    if ($countercheck){
-				parseArchitecture($evaluationDir."scores_0_fas.collection",$finalOutput, $seqName, $dataDir."/".$seqName);
+				parseArchitecture($evaluationDir."scores_0_fas.collection",$finalOutput, $seqName, $outputPath."/".$seqName);
 		    }
 		} else {
 			if($autoclean){
@@ -1169,7 +1176,7 @@ if (!$coreOnly) {
 	## removing single fasta files of predicted orthologs - meta files that are pooled in multifastas as results
 	# $processID: given process ID
 	sub removeMetaOrthologFiles{
-	    my $processID = $_[0];
+	    my ($processID, $evaluationDir) = @_; #$_[0];
 	    print "\nCompressing meta files...\n\n";
 
 	    my $delCommandCandi = "rm -f ".$coreOrthologsPath.$seqName."/fas_dir/*.candidate";
@@ -1177,9 +1184,9 @@ if (!$coreOnly) {
 	    print "--> ".$coreOrthologsPath.$seqName."/fas_dir/*.candidate\n";
 
 ## modfified by Ingo 2019-11-19
-	    my $delCommandOrth = "rm -f ".$dataDir."/".$seqName."/fas_dir/fasscore_dir/*.ortholog";
+	    my $delCommandOrth = "rm -f ".$evaluationDir."*.ortholog";# $dataDir."/".$seqName."/fas_dir/fasscore_dir/*.ortholog";
 	    system ($delCommandOrth) == 0 or die "Error deleting single sequence files of orthologs\n";
-	    print "--> ".$dataDir."/".$seqName."/fas_dir/fasscore_dir/*.ortholog\n";
+	    print "--> ".$evaluationDir."*.ortholog\n"; #$dataDir."/".$seqName."/fas_dir/fasscore_dir/*.ortholog\n";
 
 	    ## compress *_fas.xml files in coreOrthologs
 	    opendir(COREFAS,$coreOrthologsPath.$seqName . "/fas_dir/fasscore_dir");
@@ -1189,20 +1196,20 @@ if (!$coreOnly) {
 	    print "--> ".$coreOrthologsPath.$seqName."/fas_dir/fasscore_dir/*_fas.xml\n";
 
 	    ## compress *_1_fas.xml files in results
-	    opendir(COREFAS,$dataDir."/".$seqName."/fas_dir/fasscore_dir");
+	    opendir(COREFAS, $evaluationDir); #$dataDir."/".$seqName."/fas_dir/fasscore_dir");
 	    @fasscores = grep(/_1_fas\.xml/,sort { $a cmp $b } readdir(COREFAS));
 	    closedir(COREFAS);
-	    compressScoreCollections($dataDir."/".$seqName."/fas_dir/fasscore_dir/", \@fasscores, "1");
+	    compressScoreCollections($evaluationDir, \@fasscores, "1"); #$dataDir."/".$seqName."/fas_dir/fasscore_dir/", \@fasscores, "1");
 
 	    if ($countercheck){
-		# compress *_0_fas.xml files: M.countercheck (cc) FAS out
-		opendir(COREFAS,$dataDir."/".$seqName."/fas_dir/fasscore_dir");
-		my @fasscores_cc = grep(/_0_fas\.xml/,sort { $a cmp $b } readdir(COREFAS));
-		closedir(COREFAS);
-		compressScoreCollections($dataDir."/".$seqName."/fas_dir/fasscore_dir/", \@fasscores_cc, "0");
+			# compress *_0_fas.xml files: M.countercheck (cc) FAS out
+			opendir(COREFAS, $evaluationDir); #$dataDir."/".$seqName."/fas_dir/fasscore_dir");
+			my @fasscores_cc = grep(/_0_fas\.xml/,sort { $a cmp $b } readdir(COREFAS));
+			closedir(COREFAS);
+			compressScoreCollections($evaluationDir, \@fasscores_cc, "0"); #$dataDir."/".$seqName."/fas_dir/fasscore_dir/", \@fasscores_cc, "0");
 	    }
 
-	    print "--> ".$dataDir."/".$seqName."/fas_dir/fasscore_dir/*_fas.xml\n";
+	    print "--> ".$evaluationDir. "*_fas.xml\n"; #$dataDir."/".$seqName."/fas_dir/fasscore_dir/*_fas.xml\n";
 	}
 	## keep FAS score results (including feature information) as *scores.collection files
 	## param: $cur_path - path to fas score files
@@ -1528,62 +1535,68 @@ if (!$coreOnly) {
 ### end move up
 ### adding new routine to generate the input sequence if -reuse_core has been set
 	    if ($coreex) {
-		my @refseq=`$grepprog -A 1 ">$seqName|$refSpec" $coreOrthologsPath/$seqName/$seqName.fa`;
-		chomp @refseq;
-		print "$refseq[0]\n";
-		(my $tmp1, my $tmp2, $seqId) = split '\|', $refseq[0];
-		if (length($seqId) == 0){
-			die "error in retrieving sequence while using -reuse_core\n";
-		}
-		print "overruling the provided seed sequence since you used the option -reuse_core. Setting seed id to $seqId\n";
-		open OUT, (">$currDir/$seqName.fa") or die "could not open $currDir/$seqFile for writing in retrieve refseq\n";
-		print OUT join "\n", @refseq;
-		close OUT;
-		$seqFile = "$seqName.fa";
+			my @refseq=`$grepprog -A 1 ">$seqName|$refSpec" $coreOrthologsPath/$seqName/$seqName.fa`;
+			chomp @refseq;
+			print "$refseq[0]\n";
+			(my $tmp1, my $tmp2, $seqId) = split '\|', $refseq[0];
+			if (length($seqId) == 0){
+				die "error in retrieving sequence while using -reuse_core\n";
+			}
+			print "overruling the provided seed sequence since you used the option -reuse_core. Setting seed id to $seqId\n";
+			open OUT, (">$currDir/$seqName.fa") or die "could not open $currDir/$seqFile for writing in retrieve refseq\n";
+			print OUT join "\n", @refseq;
+			close OUT;
+			$seqFile = "$seqName.fa";
 	    }
 ### end mod
 	    ### check input file
-	     $optbreaker = 0;
+	    $optbreaker = 0;
 	    while ((length $seqFile == 0) or ((! -e "$currDir/$seqFile") and (! -e "$dataDir/$seqFile"))) {
-		if ($optbreaker >= 3){
-		    print "No proper file given ... exiting.\n";
-		    exit;
-		}
-		if (length $seqFile > 0){
-			printOut("\nThe specified file $seqFile does neither exist in current dir: $currDir or in the specified working dir $dataDir\n",1);
-		}
-		$seqFile = getInput("Please specify a valid file name for the seed sequence", 1);
-		$optbreaker ++;
-		if ($seqFile =~ /\//){
-		    ## user has provided a path
-		    $seqFile =~ /(.*)\/(.+)/;
-		    if ($1) {
-			## the user has provided a relativ path
-			my $relpath = $1;
-			if ($relpath =~ /^\//){
-			    #user has provided an absolute path
-			    $dataDir = $relpath;
+			if ($optbreaker >= 3){
+			    print "No proper file given ... exiting.\n";
+			    exit;
 			}
-			elsif($relpath =~ /^\.\//){
-			    $dataDir = $currDir;
+			if (length $seqFile > 0){
+				if (-e $seqFile) {
+					my @seqFileTMP = split(/\//, $seqFile);
+					system("ln -fs $seqFile $currDir/$seqFileTMP[@seqFileTMP-1]");
+					$seqFile = $seqFileTMP[@seqFileTMP-1];
+				} else {
+					printOut("\nThe specified file $seqFile does not exist!\n",1);
+				}
 			}
-			elsif($relpath =~ /^\.\.\//){
-			    my $dataDirTmp = $currDir;
-			    while ($relpath =~ /^\.\./){
-				$relpath =~ s/^\.\.\///;
-				$dataDirTmp =~ s/(.*)\/.+$/$1/;
+			$seqFile = getInput("Please specify a valid file name for the seed sequence", 1);
+			$optbreaker ++;
+			if ($seqFile =~ /\//){
+			    ## user has provided a path
+			    $seqFile =~ /(.*)\/(.+)/;
+			    if ($1) {
+				## the user has provided a relativ path
+				my $relpath = $1;
+				if ($relpath =~ /^\//){
+				    #user has provided an absolute path
+				    $dataDir = $relpath;
+				}
+				elsif($relpath =~ /^\.\//){
+				    $dataDir = $currDir;
+				}
+				elsif($relpath =~ /^\.\.\//){
+				    my $dataDirTmp = $currDir;
+				    while ($relpath =~ /^\.\./){
+					$relpath =~ s/^\.\.\///;
+					$dataDirTmp =~ s/(.*)\/.+$/$1/;
+				    }
+				    $dataDir = $dataDirTmp . '/' . $relpath;
+				}
+				printDebug("setting dataDir to $dataDir");
 			    }
-			    $dataDir = $dataDirTmp . '/' . $relpath;
+			    $seqFile = $2;
+			    printDebug("Setting infile to $seqFile in sub checkOptions");
 			}
-			printDebug("setting dataDir to $dataDir");
-		    }
-		    $seqFile = $2;
-		    printDebug("Setting infile to $seqFile in sub checkOptions");
-		}
 	    }
 	    if (-e "$currDir/$seqFile"){
-		$dataDir = $currDir;
-		printDebug("Setting datadir to $currDir in sub checkOptions");
+			$dataDir = $currDir;
+			printDebug("Setting datadir to $currDir in sub checkOptions");
 	    }
 
 	    ### checking the number of core orthologs. Omit this check if the option -reuse_core has been selected
@@ -1599,8 +1612,8 @@ if (!$coreOnly) {
 	    }
 	    ## check for blast filter
 	    if ($blast_prog ne 'blastall'){
-		$filter = 'yes' if $filter eq 'T';
-		$filter = 'no' if $filter eq 'F';
+			$filter = 'yes' if $filter eq 'T';
+			$filter = 'no' if $filter eq 'F';
 	    }
 
 	    $inputSeq = fetchSequence($seqFile, $dataDir);
@@ -1658,42 +1671,42 @@ if (!$coreOnly) {
 	    }
 	    $outputPath = $outputPath . "/$seqName";
 	    if (! -d "$outputPath"){
-		mkdir "$outputPath", 0777  or die "could not create the output directory $outputPath";
+			mkdir "$outputPath", 0777  or die "could not create the output directory $outputPath";
 	    }
 	    ## check whether a result file already exists:
 	    ## -force flag not set
-	    if (-e "$dataDir/$seqName.extended.fa" && !$force && !$append){
+	    if ($finalOutput && -e "$finalOutput" && !$force && !$append){
 		my $input = '';
 		my $breaker = 0;
 
 		while (($input !~ /^[aor]/i) and ($breaker < 4)) {
 		    $breaker++;
-		    $input = getInput("\nAn outputfile $dataDir/$seqName.extended.fa already exists. Shall I overwrite it [o], or rename it [r], or [a] append to it?", 1);
+		    $input = getInput("\nAn outputfile $finalOutput already exists. Shall I overwrite it [o], or rename it [r], or [a] append to it?", 1);
 		    if (($breaker > 3) and ($input !~ /[aor]/i)){
 			    print "Please consider option -force or option -append.\n";
 			    die "No proper answer is given: Quitting\n";
 		    }
 		}
 		if ($input =~ /o/i){
-		    unlink "$dataDir/$seqName.extended.fa" or warn "could not remove existing output file $dataDir/$seqName\n";
-		    printOut("Removing existing output file $dataDir/$seqName.extended.fa", 1);
+		    unlink $finalOutput or warn "could not remove existing output file $dataDir/$seqName\n";
+		    printOut("Removing existing output file $finalOutput", 1);
 		    $force = 1;
 		}
 		elsif ($input =~ /a/i) {
-		    printOut("Appending output to $dataDir/$seqName.extended.fa\n", 1);
+		    printOut("Appending output to $finalOutput\n", 1);
 		    $append = 1;
 		}
 		else {
-		    move "$dataDir/$seqName.extended.fa", "$dataDir/$seqName.extended.fa.old" or warn "Could not rename existing output file $dataDir/$seqName\n";
-		    printOut("Renaming existing output file to $dataDir/$seqName.extended.fa.old", 2);
+		    move $finalOutput, "$finalOutput.old" or warn "Could not rename existing output file $dataDir/$seqName\n";
+		    printOut("Renaming existing output file to $finalOutput.old", 2);
 		}
 	    ## -force flag is set: existing file will be removed:
-	    }elsif(-e "$dataDir/$seqName.extended.fa" && $force){
-		printOut ("--> $dataDir/$seqName.extended.fa already exists but will be removed due to option -force.",1);
-		unlink "$dataDir/$seqName.extended.fa" or warn "Could not remove existing output file $dataDir/$seqName.extended.fa\n";
+		} elsif ($finalOutput && -e $finalOutput && $force){
+		printOut ("--> $finalOutput already exists but will be removed due to option -force.",1);
+		unlink $finalOutput or warn "Could not remove existing output file $finalOutput\n";
 	    }
-	    elsif (-e "$dataDir/$seqName.extended.fa" && $append){
-		printOut ("--> $dataDir/$seqName.extended.fa already exists but option -append has been chosen. Appending the output to the existing files\n", 1);
+	    elsif ($finalOutput && -e $finalOutput && $append){
+		printOut ("--> $finalOutput already exists but option -append has been chosen. Appending the output to the existing files\n", 1);
 	    }
 	    if (-e "$dataDir/$seqName.extended.profile" && !$force && !$append){
 		my $input = '';
@@ -2292,8 +2305,8 @@ sub runHamstr {
 		    	$resultFile = $outputPath . "/fa_dir_" . $taxon . '_' . $seqName . "_strict/" . $seqName . ".fa";
 		    }
 		    else {
-			push(@hamstr,  "-refspec=".$refSpec);
-			$resultFile = $outputPath . "/fa_dir_" . $taxon . '_' . $seqName . "_" . $refSpec . "/" . $seqName . ".fa";
+				push(@hamstr,  "-refspec=".$refSpec);
+				$resultFile = $outputPath . "/fa_dir_" . $taxon . '_' . $seqName . "_" . $refSpec . "/" . $seqName . ".fa";
 		    }
 		    if($rep) {
 			push(@hamstr, "-representative");
