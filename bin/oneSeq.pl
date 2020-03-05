@@ -1556,34 +1556,34 @@ sub checkOptions {
 				printOut("\nThe specified file $seqFile does not exist!\n",1);
 			}
 		}
-		$seqFile = getInput("Please specify a valid file name for the seed sequence", 1);
-		$optbreaker ++;
-		if ($seqFile =~ /\//){
-			## user has provided a path
-			$seqFile =~ /(.*)\/(.+)/;
-			if ($1) {
-				## the user has provided a relativ path
-				my $relpath = $1;
-				if ($relpath =~ /^\//){
-					#user has provided an absolute path
-					$dataDir = $relpath;
-				}
-				elsif($relpath =~ /^\.\//){
-					$dataDir = $currDir;
-				}
-				elsif($relpath =~ /^\.\.\//){
-					my $dataDirTmp = $currDir;
-					while ($relpath =~ /^\.\./){
-						$relpath =~ s/^\.\.\///;
-						$dataDirTmp =~ s/(.*)\/.+$/$1/;
-					}
-					$dataDir = $dataDirTmp . '/' . $relpath;
-				}
-				printDebug("setting dataDir to $dataDir");
-			}
-			$seqFile = $2;
-			printDebug("Setting infile to $seqFile in sub checkOptions");
-		}
+		# $seqFile = getInput("Please specify a valid file name for the seed sequence", 1);
+		# $optbreaker ++;
+		# if ($seqFile =~ /\//){
+		# 	## user has provided a path
+		# 	$seqFile =~ /(.*)\/(.+)/;
+		# 	if ($1) {
+		# 		## the user has provided a relativ path
+		# 		my $relpath = $1;
+		# 		if ($relpath =~ /^\//){
+		# 			#user has provided an absolute path
+		# 			$dataDir = $relpath;
+		# 		}
+		# 		elsif($relpath =~ /^\.\//){
+		# 			$dataDir = $currDir;
+		# 		}
+		# 		elsif($relpath =~ /^\.\.\//){
+		# 			my $dataDirTmp = $currDir;
+		# 			while ($relpath =~ /^\.\./){
+		# 				$relpath =~ s/^\.\.\///;
+		# 				$dataDirTmp =~ s/(.*)\/.+$/$1/;
+		# 			}
+		# 			$dataDir = $dataDirTmp . '/' . $relpath;
+		# 		}
+		# 		printDebug("setting dataDir to $dataDir");
+		# 	}
+		# 	$seqFile = $2;
+		# 	printDebug("Setting infile to $seqFile in sub checkOptions");
+		# }
 	}
 	if (-e "$currDir/$seqFile"){
 		$dataDir = $currDir;
@@ -2806,160 +2806,158 @@ sub printOut {
 ###########################
 sub helpMessage {
 	my $helpmessage = "
-	${bold}YOU ARE RUNNING $version on $hostname$norm
+${bold}YOU ARE RUNNING $version on $hostname$norm
 
-	This program is freely distributed under a GPL.
-	Copyright (c) GRL limited: portions of the code are from separate copyrights
+This program is freely distributed under a GPL.
+Copyright (c) GRL limited: portions of the code are from separate copyrights
 
-	\n${bold}USAGE:${norm} oneSeq.pl -sequence_file=<> -seqId=<>  -seqName=<> -refSpec=<> -minDist=<> -maxDist=<> [OPTIONS]
+\n${bold}USAGE:${norm} oneSeq.pl -sequence_file=<> -seqId=<>  -seqName=<> -refSpec=<> -minDist=<> -maxDist=<> [OPTIONS]
 
-	${bold}OPTIONS:$norm
+${bold}OPTIONS:$norm
 
-	${bold}GENERAL$norm
+${bold}GENERAL$norm
 
-	-h
+-h
 	Invoke this help method
-	-version
+-version
 	Print the program version
-	-showTaxa
+-showTaxa
 	Print availible Taxa (dependent on the on/off status of database mode)
 
-	${bold}REQUIRED$norm
+${bold}REQUIRED$norm
 
-	-seqFile=<>
+-seqFile=<>
 	Specifies the file containing the seed sequence (protein only) in fasta format.
 	If not provided the program will ask for it.
-	-seqId=<>
+-seqId=<>
 	Specifies the sequence identifier of the seed sequence in the reference protein set.
 	If not provided, the program will attempt to determin it automatically.
-	-refSpec
+-refSpec
 	Determines the reference species for the hamstr search. It should be the species the seed sequence was derived from.
 	If not provided, the program will ask for it.
-	-minDist=<>
+-minDist=<>
 	specify the minimum systematic distance of primer taxa for the core set compilation.
 	If not provided, the program will ask for it.
-	-maxDist=<>
+-maxDist=<>
 	specify the maximum systematic distance of primer taxa to be considered for core set compilation.
 	If not provided, the program will ask for it.
-	-coreOrth=<>
+-coreOrth=<>
 	Specify the number of orthologs added to the core set.
 
-	${bold}USING NON-DEFAULT PATHS$norm
+${bold}USING NON-DEFAULT PATHS$norm
 
-	-outpath=<>
+-outpath=<>
 	Specifies the path for the output directory. Default is $outputPath;
-	-hmmpath=<>
+-hmmpath=<>
 	Specifies the path for the core ortholog directory. Default is $coreOrthologsPath
 
-	${bold}ADDITIONAL OPTIONS$norm
+${bold}ADDITIONAL OPTIONS$norm
 
-	-append
+-append
 	Set this flag to append the output to existing output files
-	-seqName=<>
+-seqName=<>
 	Specifies a name for the search. If not set a random name will be set.
-	-db
+-db
 	Run oneSeq.pl in database mode. Requires a mySql database. Only for internatl use.
-	-filter=[T|F]
+-filter=[T|F]
 	Switch on or off the low complexity filter for the blast search. Default: T
-	-silent
+-silent
 	Surpress output to the command line
-	-coreTaxa=<>
+-coreTaxa=<>
 	You can provide a list of primer taxa that should exclusively be used for the compilation
 	of the core ortholog set
-	-strict
+-strict
 	Run the final HaMStR search in 'strict mode'. An ortholog is only then accepted when the reciprocity is fulfilled
 	for each sequence in the core set.
-	-force
+-force
 	Force the final HaMStR search to create output file. Existing files will be overwritten.
-	-coreStrict
+-coreStrict
 	Run the HaMStR for the compilation of the core set in strict mode.
-	-checkCoorthologsRef
+-checkCoorthologsRef
 	During the final HaMStR search, accept an ortholog also when its best hit in the reverse search is not the
 	core ortholog itself, but a co-ortholog of it.
-	-CorecheckCoorthologsRef
+-CorecheckCoorthologsRef
 	Invokes the 'checkCoorthologsRef' behavior in the course of the core set compilation.
-	-rbh
+-rbh
 	Requires a reciprocal best hit during the HaMStR search to accept a new ortholog.
-	-evalBlast=<>
+-evalBlast=<>
 	This option allows to set the e-value cut-off for the Blast search. Default: 1E-5
-	-evalHmmer=<>
+-evalHmmer=<>
 	This options allows to set the e-value cut-off for the HMM search. Default: 1E-5
-	-evalRelaxfac=<>
+-evalRelaxfac=<>
 	This options allows to set the factor to relax the e-value cut-off (Blast search and HMM search) for the final HaMStR run. Default: 10
-	-hitLimit=<>
+-hitLimit=<>
 	Provide an integer specifying the number of hits of the initial pHMM based search that should be evaluated
 	via a reverse search. Default: 10
-	-coreHitLimit=<>
+-coreHitLimit=<>
 	Provide an integer specifying the number of hits of the initial pHMM based search that should be evaluated
 	via a reverse search. Default: 3
-	-autoLimit
+-autoLimit
 	Setting this flag will invoke a lagPhase analysis on the score distribution from the hmmer search. This will determine automatically
 	a hit limit for each query. Note, when setting this flag, it will be effective for both the core ortholog compilation
 	and the final ortholog search.
-	-scoreThreshold
+-scoreThreshold
 	Instead of setting an automatic hit limit, you can specify with this flag that only candidates with an hmm score no less
 	than x percent of the hmm score of the best hit are further evaluated. Default is x = 10.
 	You can change this cutoff with the option -scoreCutoff. Note, when setting this flag, it will be effective for
 	both the core ortholog compilation and the final ortholog search.
-	-scoreCutoff=<>
+-scoreCutoff=<>
 	In combination with -scoreThreshold you can define the percent range of the hmms core of the best hit up to which a
 	candidate of the hmmsearch will be subjected for further evaluation. Default: 10%.
-	-coreOnly
+-coreOnly
 	Set this flag to compile only the core orthologs. These sets can later be used for a stand alone HaMStR search.
-	-reuse_core
+-reuse_core
 	Set this flag if the core set for your sequence is already existing. No check currently implemented.
-	-ignoreDistance
+-ignoreDistance
 	Set this flag to ignore the distance between Taxa and to choose orthologs only based on score
-	-distDeviation=<>
+-distDeviation=<>
 	Specify the deviation in score in percent (1=100%, 0=0%) allowed for two taxa to be considered similar
-	-blast
+-blast
 	Set this flag to determine sequence id and refspec automatically. Note, the chosen sequence id and reference species
 	does not necessarily reflect the species the sequence was derived from.
-	-rep
+-rep
 	Set this flag to obtain only the sequence being most similar to the corresponding sequence in the core set rather
 	than all putative co-orthologs.
-	-coreRep
+-coreRep
 	Set this flag to invoke the '-rep' behaviour for the core ortholog compilation.
-	-cpu
+-cpu
 	Determine the number of threads to be run in parallel
-	-batch=<>
+-batch=<>
 	Currently has NO functionality.
-	-group=<>
+-group=<>
 	Allows to limit the search to a certain systematic group
-	-cleanup
+-cleanup
 	Temporary output will be deleted.
-	-aligner
+-aligner
 	Choose between mafft-linsi or muscle for the multiple sequence alignment. DEFAULT: muscle
+-local
+	Specify the alignment strategy during core ortholog compilation. Default is local.
+-glocal
+	Set the alignment strategy during core ortholog compilation to glocal.
 
-	${bold}SPECIFYING FAS SUPPORT OPTIONS$norm
+${bold}SPECIFYING FAS SUPPORT OPTIONS$norm
 
-	-fasoff
+-fasoff
 	Turn OFF FAS support. Default is ON.
-	-coreFilter=[relaxed|strict]
+-coreFilter=[relaxed|strict]
 	Specifiy mode for filtering core orthologs by FAS score. In 'relaxed' mode candidates with insufficient FAS score will be disadvantaged.
 	In 'strict' mode candidates with insufficient FAS score will be deleted from the candidates list. Default is None.
 	The option '-minScore=<>' specifies the cut-off of the FAS score.
-	-minScore=<>
+-minScore=<>
 	Specify the threshold for coreFilter. Default is 0.75.
-	-weight_seed
+-weight_seed
 	Specify the gene set (either seed species or orthologs origin) which is used to determine the weight of a feature. If this flag is set the weights will be determined on the basis of the seed species. Default is the origin of the respective ortholog.
-	-local
-	Specify the alignment strategy during core ortholog compilation. Default is local.
-	-glocal
-	Set the alignment strategy during core ortholog compilation to glocal.
-	c
-	-countercheck
+-countercheck
 	Set this flag to counter-check your final profile. The FAS score will be computed in two ways (seed vs. hit and hit vs. seed).
-	-annoCores
+-annoCores
 	Set number of CPUs used for annotating proteins. By default 2 CPUs will be used.
 
-	${bold}SPECIFYING EXTENT OF OUTPUT TO SCREEN$norm
+${bold}SPECIFYING EXTENT OF OUTPUT TO SCREEN$norm
 
-	-debug
+-debug
 	Set this flag to obtain more detailed information about the programs actions
-	-silent
+-silent
 	Surpress output to screen as much as possbile
-
-	\n\n";
+\n\n";
 	return($helpmessage);
 }
