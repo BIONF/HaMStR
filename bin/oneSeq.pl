@@ -96,11 +96,11 @@ my $startTime = time;
 
 ## Modified 05. Feb. 2020 (Vinh):   - added option to set number of CPUs for FAS annotation
 ##									- input faste file must not be present in data folder or working directory
-##									- output files will be stored either in user defined directory set via -outpath option, or in HaMStR/output folder by default
+##									- output files will be stored either in user defined directory set via -outpath option, or in working directory by default
 
 ############ General settings
 my $version = 'oneSeq v.1.5';
-##### configure
+##### configure for checking if the setup.sh script already run
 my $configure = 0;
 if ($configure == 0){
 	die "\n\n$version\n\nPLEASE RUN Setup.sh FILE BEFORE USING oneSeq.pl\n\n";
@@ -162,8 +162,9 @@ my $getThemAll = 0;
 my $updateBlast_dir = 0;
 
 ############ directory paths
+my $currDir = getcwd;
 my $coreOrthologsPath = "$path/core_orthologs/";
-my $outputPath = "$path/output";
+my $outputPath = $currDir; #"$path/output"; ## DEFAULT OUTPUT PATH
 my $hamstrPath = "$path/bin/hamstr";
 my $homeDir = $path;
 my $alignmentscoreMatrix = "BP62"; ## opt given by ssearch and glsearch [codaa.mat idnaa.mat P250 P120 BL50 MD40 MD20 MD10 BL62 BL80 BP62 VT160 OPT5]
@@ -173,7 +174,6 @@ my $blastPath = "$path/blast_dir/";
 my $idx_dir = "$path/taxonomy/";
 my $tmpdir = "$path/tmp";
 my $dataDir = $path . '/data';
-my $currDir = getcwd;
 my $weightPath = "$path/weight_dir/";
 my $visualsPath = "$path/bin/visuals/";
 
@@ -474,7 +474,6 @@ if (!$coreex) {
 
 		my $addedTaxon = getBestOrtholog();
 		print "\n\nAdded TAXON: " . $addedTaxon . "\n\n\n\n";
-
 		#if a new core ortholog was found
 		if($addedTaxon ne "") {
 			$hamstrSpecies = $hamstrSpecies . "," . $addedTaxon;
@@ -1498,7 +1497,7 @@ sub checkOptions {
 	### check the presence of the pre-computed core set
 	if ($coreex) {
 		if (! -e "$coreOrthologsPath/$seqName/$seqName.fa") {
-			print "You selected the option -reuse_core, but the core ortholog group $coreOrthologsPath/$seqName/hmm_dir/$seqName.hmm does not exist\n";
+			print "You selected the option -reuseCore, but the core ortholog group $coreOrthologsPath/$seqName/hmm_dir/$seqName.hmm does not exist\n";
 			exit;
 		}
 	}
@@ -1524,16 +1523,16 @@ sub checkOptions {
 		checkBlastDb($refSpec, $refSpec);
 	}
 	### end move up
-	### adding new routine to generate the input sequence if -reuse_core has been set
+	### adding new routine to generate the input sequence if -reuseCore has been set
 	if ($coreex) {
 		my @refseq=`$grepprog -A 1 ">$seqName|$refSpec" $coreOrthologsPath/$seqName/$seqName.fa`;
 		chomp @refseq;
 		print "$refseq[0]\n";
 		(my $tmp1, my $tmp2, $seqId) = split '\|', $refseq[0];
 		if (length($seqId) == 0){
-			die "error in retrieving sequence while using -reuse_core\n";
+			die "error in retrieving sequence while using -reuseCore\n";
 		}
-		print "overruling the provided seed sequence since you used the option -reuse_core. Setting seed id to $seqId\n";
+		print "overruling the provided seed sequence since you used the option -reuseCore. Setting seed id to $seqId\n";
 		open OUT, (">$currDir/$seqName.fa") or die "could not open $currDir/$seqFile for writing in retrieve refseq\n";
 		print OUT join "\n", @refseq;
 		close OUT;
@@ -1590,7 +1589,7 @@ sub checkOptions {
 		printDebug("Setting datadir to $currDir in sub checkOptions");
 	}
 
-	### checking the number of core orthologs. Omit this check if the option -reuse_core has been selected
+	### checking the number of core orthologs. Omit this check if the option -reuseCore has been selected
 	$optbreaker = 0;
 	while(!$minCoreOrthologs and !$coreex) {
 		if ($optbreaker >= 3){
@@ -1749,7 +1748,7 @@ sub checkOptions {
 	$node->name('supplied', $refSpec);
 
 	#### checking for the min and max distance for the core set compilation
-	#### omit this check, if the option reuse_core has been selected (added 2019-02-04)
+	#### omit this check, if the option reuseCore has been selected (added 2019-02-04)
 	$optbreaker = 0;
 	if (!$coreex) {
 		if (lc($maxDist) eq "root"){
@@ -2906,7 +2905,7 @@ ${bold}ADDITIONAL OPTIONS$norm
 	candidate of the hmmsearch will be subjected for further evaluation. Default: 10%.
 -coreOnly
 	Set this flag to compile only the core orthologs. These sets can later be used for a stand alone HaMStR search.
--reuse_core
+-reuseCore
 	Set this flag if the core set for your sequence is already existing. No check currently implemented.
 -ignoreDistance
 	Set this flag to ignore the distance between Taxa and to choose orthologs only based on score
