@@ -215,7 +215,7 @@ if [ -z "$(which greedyFAS)" ]; then
         echo -e "\033[31mInstallation of FAS failed! Please try again!\033[0m"
         exit
     else
-        annoFAS --fasta test.fa --path $CURRENT --name q --prepare 1 --annoPath $CURRENT/bin/fas
+        annoFAS --fasta test.fa --path $CURRENT --name q --prepare --annoPath $CURRENT/bin/fas
     fi
 else
     fasPath="$(pip show greedyFAS | grep Location | sed 's/Location: //')"
@@ -225,10 +225,10 @@ else
         annoPath="$(grep "my \$annotationPath" $annoFile | sed 's/my \$annotationPath = "//' | sed 's/";//')"
         echo $annoPath
         if ! [ -f "$annoPath/Pfam/Pfam-hmms/Pfam-A.hmm" ]; then
-            annoFAS --fasta test.fa --path $CURRENT --name q --prepare 1 --annoPath $annoPath
+            annoFAS --fasta test.fa --path $CURRENT --name q --prepare --annoPath $annoPath
         fi
     else
-        annoFAS --fasta test.fa --path $CURRENT --name q --prepare 1 --annoPath $CURRENT/bin/fas
+        annoFAS --fasta test.fa --path $CURRENT --name q --prepare --annoPath $CURRENT/bin/fas
     fi
 fi
 cd $CURRENT
@@ -238,8 +238,8 @@ echo "done!"
 echo "-------------------------------------"
 echo "Getting pre-calculated data"
 
-data_HaMStR_file="data_HaMStR2018b.tar.gz"
-checkSumData="979235026 675298057 $data_HaMStR_file"
+data_HaMStR_file="data_HaMStR-2019.tar.gz"
+checkSumData="1303809705 685885017 $data_HaMStR_file"
 
 if ! [ "$(ls -A $CURRENT/genome_dir)" ]; then
 	echo "Processing $CURRENT ..."
@@ -267,16 +267,17 @@ if ! [ "$(ls -A $CURRENT/genome_dir)" ]; then
 	  echo "Extracting archive $data_HaMStR_file..."
 	  tar xf $CURRENT/$data_HaMStR_file
 	  rm $CURRENT/$data_HaMStR_file
+    for i in $(ls "$CURRENT/genome_dir"); do rm "$CURRENT/genome_dir/$i/$i.fa.mod"; done
 
-      if [ "$(ls -A $CURRENT/blast_dir)" ]; then
-          echo "Data should be in place to run HaMStR.\n"
-      else
-          echo -e "\033[31mSomething went wrong with the download. Data folders are empty.\033[0m"
-    	  echo "Please try to download again from"
-    	  echo "https://applbio.biologie.uni-frankfurt.de/download/hamstr_qfo/$data_HaMStR_file"
-    	  echo "Or contact us if you think this is our issue!"
-    	  exit
-      fi
+    if [ "$(ls -A $CURRENT/blast_dir)" ]; then
+        echo "Data should be in place to run HaMStR.\n"
+    else
+        echo -e "\033[31mSomething went wrong with the download. Data folders are empty.\033[0m"
+      echo "Please try to download again from"
+      echo "https://applbio.biologie.uni-frankfurt.de/download/hamstr_qfo/$data_HaMStR_file"
+      echo "Or contact us if you think this is our issue!"
+      exit
+    fi
 	else
 	  echo -e "\033[31mSomething went wrong with the download. Checksum does not match.\033[0m"
 	  echo "Please try to download again from"
@@ -406,7 +407,7 @@ else
     $sedprog -i -e 's/my $configure = .*/my $configure = 1;/' $CURRENT/bin/hamstr.pl
     $sedprog -i -e 's/my $configure = .*/my $configure = 1;/' $CURRENT/bin/oneSeq.pl
     echo "All tests succeeded, HaMStR should be ready to run. You can test it with:"
-    echo -e "\033[1moneSeq -seqFile=infile.fa -seqName=test -refspec=HUMAN@9606@1 -minDist=genus -maxDist=kingdom -coreOrth=5 -cleanup -global -cpu=4\033[0m"
+    echo -e "\033[1moneSeq -seqFile=infile.fa -seqName=test -refspec=HUMAN@9606@3 -minDist=genus -maxDist=kingdom -coreOrth=5 -cleanup -global -cpu=4\033[0m"
     echo "Output files with prefix \"test\" will be found at your current working directory!"
     echo "For more details, use"
     echo -e "\033[1moneSeq -h\033[0m"

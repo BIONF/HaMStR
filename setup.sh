@@ -190,7 +190,7 @@ if [ $fas == 1 ]; then
                 echo "Installation of FAS failed! Please try again!"
                 exit
             else
-                annoFAS --fasta test.fa --path $CURRENT --name q --prepare 1 --annoPath $CURRENT/bin/fas
+                annoFAS --fasta test.fa --path $CURRENT --name q --prepare --annoPath $CURRENT/bin/fas
             fi
         else
             pip install $CURRENT/bin/fas --user
@@ -206,7 +206,7 @@ if [ $fas == 1 ]; then
             fasprog="python \$path\/bin\/fas\/greedyFAS\/greedyFAS.py"
             $sedprog -i -e "s/\(my \$fas_prog = \).*/\1\"$fasprog\";/" $CURRENT/bin/oneSeq.pl
             # get FAS annotation tools and pre-calculated data
-            python $CURRENT/bin/fas/greedyFAS/annoFAS.py --fasta $CURRENT/data/infile.fa --path $CURRENT --name q --prepare 1 --annoPath $CURRENT/bin/fas
+            python $CURRENT/bin/fas/greedyFAS/annoFAS.py --fasta $CURRENT/data/infile.fa --path $CURRENT --name q --prepare --annoPath $CURRENT/bin/fas
         fi
     else
         fasPath="$(pip show greedyFAS | grep Location | sed 's/Location: //')"
@@ -215,10 +215,10 @@ if [ $fas == 1 ]; then
         if [ $tmp == "1" ]; then
             annoPath="$(grep "my \$annotationPath" $annoFile | sed 's/my \$annotationPath = "//' | sed 's/";//')"
             if ! [ -f "$annoPath/Pfam/Pfam-hmms/Pfam-A.hmm" ]; then
-                annoFAS --fasta $CURRENT/data/infile.fa --path $CURRENT --name q --prepare 1 --annoPath $annoPath
+                annoFAS --fasta $CURRENT/data/infile.fa --path $CURRENT --name q --prepare --annoPath $annoPath
             fi
         else
-            annoFAS --fasta $CURRENT/data/infile.fa --path $CURRENT --name q --prepare 1 --annoPath $CURRENT/bin/fas
+            annoFAS --fasta $CURRENT/data/infile.fa --path $CURRENT --name q --prepare --annoPath $CURRENT/bin/fas
         fi
     fi
 
@@ -227,8 +227,8 @@ if [ $fas == 1 ]; then
 fi
 
 ### download data
-data_HaMStR_file="data_HaMStR2018b.tar.gz"
-checkSumData="979235026 675298057 $data_HaMStR_file"
+data_HaMStR_file="data_HaMStR-2019.tar.gz"
+checkSumData="1303809705 685885017 $data_HaMStR_file"
 
 if ! [ "$(ls -A $CURRENT/genome_dir)" ]; then
     echo "-------------------------------------"
@@ -259,6 +259,7 @@ if ! [ "$(ls -A $CURRENT/genome_dir)" ]; then
         echo "Extracting archive $data_HaMStR_file..."
         tar xf $CURRENT/$data_HaMStR_file
         rm $CURRENT/$data_HaMStR_file
+        for i in $(ls "$CURRENT/genome_dir"); do rm "$CURRENT/genome_dir/$i/$i.fa.mod"; done
 
         if [ "$(ls -A $CURRENT/blast_dir)" ]; then
             echo "Data should be in place to run HaMStR."
@@ -427,7 +428,7 @@ else
     $sedprog -i -e 's/my $configure = .*/my $configure = 1;/' $CURRENT/bin/hamstr.pl
     $sedprog -i -e 's/my $configure = .*/my $configure = 1;/' $CURRENT/bin/oneSeq.pl
     echo "All tests succeeded, HaMStR should be ready to run. You can test it with:"
-    echo -e "\033[1moneSeq -seqFile=infile.fa -seqName=test -refspec=HUMAN@9606@1 -minDist=genus -maxDist=kingdom -coreOrth=5 -cleanup -global -cpu=4\033[0m"
+    echo -e "\033[1moneSeq -seqFile=infile.fa -seqName=test -refspec=HUMAN@9606@3 -minDist=genus -maxDist=kingdom -coreOrth=5 -cleanup -global -cpu=4\033[0m"
     echo "Output files with prefix \"test\" will be found at your current working directory!"
     echo "For more details, use"
     echo -e "\033[1moneSeq -h\033[0m"
