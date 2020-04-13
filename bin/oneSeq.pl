@@ -3,6 +3,7 @@ use strict;
 use warnings;
 use File::Copy qw(move);
 use File::Basename;
+use File::Path 'rmtree';
 use lib dirname(__FILE__);
 use Parallel::ForkManager;
 use IO::Handle;
@@ -260,6 +261,7 @@ my $treeDelFlag;
 my $currentNoRankDistNode;
 my $currentChildsToIgnoreNode;
 my $currentDistNode;
+my @logOUT = qw();
 ### Details about the alignment strategy
 ### Note, the alignment strategy can be local, glocal, or global
 ### Default: local
@@ -396,6 +398,7 @@ if (!$coreex) {
 	#### moved from above
 	my $starttime = time;
 	print "Building up the taxonomy tree. Start $starttime\n";
+        push @logOUT, "Building up the taxonomy tree. Start $starttime\n";
 	$tree = getTree();
 	$treeDelFlag = 0;
 	if($group) {
@@ -408,6 +411,7 @@ if (!$coreex) {
 	}
 	my $endtime = time;
 	print "Finished building the taxonomy tree: $endtime\n";
+        push @logOUT, "Finished building the taxonomy tree: $endtime\n";
 	## Tree without deletions
 	$wholeTree = getTree();
 	if($group) {
@@ -505,7 +509,9 @@ if (!$coreex) {
 # my $finalOutput = $outputPath . '/' . $seqName . '.extended.fa';
 if (!$coreOnly) {
 	$coremode = 0;
-	print "Performing the final HaMStR search on all taxa\n";
+	my $CoreEndTime = time - $startTime;
+        push @logOUT, "Core set compilation finished after $CoreEndTime sec! Performing the final HaMStR search on all taxa\n";
+        print "Core set compilation finished after $CoreEndTime! Performing the final HaMStR search on all taxa\n";
 	%taxa = getTaxa();
 	my $tree = getTree();
 	#using $eval_relaxfac to relax the evalues for final hamstr
@@ -531,7 +537,9 @@ if (!$coreOnly) {
 
 ## Evaluation of all orthologs that are predicted by the final hamstr run
 if(!$coreOnly){ #} and $fas_support){
-	print "Evaluation of predicted HaMStR orthologs.\n";
+        my $HamstrTime = time - $startTime;
+        push @logOUT, "Ortholog search completed after $HamstrTime sec!";
+        print "Ortholog search completed after $HamstrTime sec! Starting the feature architecture similarity score computation.\n";
 	my $processID = $$;
 
 	## finalOutput to hash
@@ -628,7 +636,13 @@ if (($outputPath ne './') and !$autoclean) {
 
 my $endTime = time - $startTime;
 print "OneSeq finished after $endTime seconds\n";
+        push @logOUT, "OneSeq finished after $endTime seconds\n";
 
+        #### writing the log
+        open (LOGOUT, ">$outputPath/oneSeq.log") or warn "Failed to open oneSeq.log for writing";
+        print LOGOUT join "\n", @logOUT;
+        close LOGOUT;
+        exit;
 ######################## SUBROUTINES ########################
 ## handle forked score calculations(sliced key array (k_ary))
 ## for CORE candidates
@@ -1160,17 +1174,19 @@ sub runAutoCleanUp{
 	print "--> $outputPath/tmp deleted.\n";
 	my $seedName = $seqName . '_seed';
 	my $annopath = $coreOrthologsPath.$seqName."/fas_dir/annotation_dir";
-	opendir(ANNODIR, $annopath) or warn "Could not open $annopath in sub runAutoCleanup\n";
-	my @annodirs = grep (!/$seedName/, readdir(ANNODIR));
-	print scalar(@annodirs) . " content of $annopath\n";
-	for (my $anno = 0; $anno < @annodirs; $anno++){
-		if ($annodirs[$anno] ne '..' and $annodirs[$anno] ne '.') {
-			print "Deleting $annopath/$annodirs[$anno]\n";
-			rmtree ($annopath."/".$annodirs[$anno]);
+	if (!$fasoff) {
+		opendir(ANNODIR, $annopath) or warn "Could not open $annopath in sub runAutoCleanup\n";
+		my @annodirs = grep (!/$seedName/, readdir(ANNODIR));
+		print scalar(@annodirs) . " content of $annopath\n";
+		for (my $anno = 0; $anno < @annodirs; $anno++){
+			if ($annodirs[$anno] ne '..' and $annodirs[$anno] ne '.') {
+				print "Deleting $annopath/$annodirs[$anno]\n";
+				rmtree ($annopath."/".$annodirs[$anno]);
+			}
 		}
+		closedir (ANNODIR);
+		print "--> Feature annotation files in $annopath deleted.\n";
 	}
-	closedir (ANNODIR);
-	print "--> Feature annotation files in $annopath deleted.\n";
 }
 
 ## removing single fasta files of predicted orthologs - meta files that are pooled in multifastas as results
@@ -1665,9 +1681,8 @@ sub checkOptions {
 		mkdir "$outputPath", 0777  or die "could not create the output directory $outputPath";
 	}
 	## check whether a result file already exists:
-	my $finalOutput = $outputPath . '/' . $seqName . '.extended.fa';
-        printDebug("april13 - finalOutput is $finalOutput\n" );
-        if ($outputPath && -e "$outputPath/$seqName.extended.profile"){
+	$finalOutput = $outputPath . '/' . $seqName . '.extended.fa';
+        if ($outputPath && -e "$finalOutput"){
                 ## an ouput file is already existing
                 if (!$force && !$append){
                 ## The user was not aware of an existing output file. Let's ask him
@@ -1697,8 +1712,8 @@ sub checkOptions {
                 }
                 if ($force){
                         ## the user wants to overwrite
-                        printOut("Removing existing output file $finalOutput", 1);
-                        unlink $outputPath or die "could not remove existing output directory $outputPath\n";
+                        printOut("Removing existing output directory $outputPath", 1);
+                        rmtree ([ "$outputPath" ]) or die "could not remove existing output directory $outputPath\n";
                         mkdir $outputPath or die "could not re-create the output directory $outputPath\n";
                 }
                 elsif ($append) {
@@ -1713,6 +1728,9 @@ sub checkOptions {
                                         $profile{$keys[1]} = 1;
                                 }
                         }
+			elsif ($fasoff) {
+				## no extended.profile file exists but not necessary, because user switched off FAS support -> do nothing
+			}
                         else {
                                 printOut("Option -append was selected, but the existing output was incomplete. Please restart with the -force option to overwrite the output");
                                 exit;
@@ -1720,7 +1738,7 @@ sub checkOptions {
                 }
                 else {
                         printOut("Renaming existing output file to $finalOutput.old", 2);
-                        my $bu_dir = $outputPath.'_bu';
+                        my $bu_dir = $outputPath.'_bkp';
                         !`mv $outputPath $bu_dir` or die "Could not rename existing output file $outputPath to $bu_dir\n";
 			mkdir $outputPath or die "could not recreate $outputPath after renaming the old output\n"
                 }
