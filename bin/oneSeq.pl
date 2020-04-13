@@ -97,9 +97,9 @@ my $startTime = time;
 ## Modified 05. Feb. 2020 (Vinh):   - added option to set number of CPUs for FAS annotation
 ##									- input faste file must not be present in data folder or working directory
 ##									- output files will be stored either in user defined directory set via -outpath option, or in working directory by default
-
+## Bug fix 14. April 2020 (Ingo):	- fixed bug that inactivated the -append option
 ############ General settings
-my $version = 'oneSeq v.1.5';
+my $version = 'oneSeq v.1.5.1';
 ##### configure for checking if the setup.sh script already run
 my $configure = 0;
 if ($configure == 0){
@@ -194,6 +194,7 @@ my $db = Bio::DB::Taxonomy->new(-source    => 'flatfile',
 								-directory => $idx_dir);
 print "indexing done!\n";
 ################## some variables
+my $finalOutput;
 my $dbHandle;
 my $core_hitlimit = 3; # number of hmm hits in the hamstrsearch to consider for reblast during core set generation
 # number of hmm hits in the hamstrsearch to consider for reblast during final hamstr search.
@@ -501,7 +502,7 @@ if (!$coreex) {
 }
 #after having calculated the core orthologous set,
 #start hamstr to find all orthologs
-my $finalOutput = $outputPath . '/' . $seqName . '.extended.fa';
+# my $finalOutput = $outputPath . '/' . $seqName . '.extended.fa';
 if (!$coreOnly) {
 	$coremode = 0;
 	print "Performing the final HaMStR search on all taxa\n";
@@ -1664,85 +1665,67 @@ sub checkOptions {
 		mkdir "$outputPath", 0777  or die "could not create the output directory $outputPath";
 	}
 	## check whether a result file already exists:
-	## -force flag not set
-	if ($finalOutput && -e "$finalOutput" && !$force && !$append){
-		my $input = '';
-		my $breaker = 0;
+	my $finalOutput = $outputPath . '/' . $seqName . '.extended.fa';
+        printDebug("april13 - finalOutput is $finalOutput\n" );
+        if ($outputPath && -e "$outputPath/$seqName.extended.profile"){
+                ## an ouput file is already existing
+                if (!$force && !$append){
+                ## The user was not aware of an existing output file. Let's ask him
+                        my $input = '';
+                        my $breaker = 0;
 
-		while (($input !~ /^[aor]/i) and ($breaker < 4)) {
-			$breaker++;
-			$input = getInput("\nAn outputfile $finalOutput already exists. Shall I overwrite it [o], or rename it [r], or [a] append to it?", 1);
-			if (($breaker > 3) and ($input !~ /[aor]/i)){
-				print "Please consider option -force or option -append.\n";
-				die "No proper answer is given: Quitting\n";
-			}
-		}
-		if ($input =~ /o/i){
-			unlink $finalOutput or warn "could not remove existing output file $dataDir/$seqName\n";
-			printOut("Removing existing output file $finalOutput", 1);
-			$force = 1;
-		}
-		elsif ($input =~ /a/i) {
-			printOut("Appending output to $finalOutput\n", 1);
-			$append = 1;
-		}
-		else {
-			move $finalOutput, "$finalOutput.old" or warn "Could not rename existing output file $dataDir/$seqName\n";
-			printOut("Renaming existing output file to $finalOutput.old", 2);
-		}
-		## -force flag is set: existing file will be removed:
-	} elsif ($finalOutput && -e $finalOutput && $force){
-		printOut ("--> $finalOutput already exists but will be removed due to option -force.",1);
-		unlink $finalOutput or warn "Could not remove existing output file $finalOutput\n";
-	}
-	elsif ($finalOutput && -e $finalOutput && $append){
-		printOut ("--> $finalOutput already exists but option -append has been chosen. Appending the output to the existing files\n", 1);
-	}
-	if (-e "$dataDir/$seqName.extended.profile" && !$force && !$append){
-		my $input = '';
-		my $breaker = 0;
+                        while (($input !~ /^[aor]/i) and ($breaker < 4)) {
+                                $breaker++;
+                                $input = getInput("\nAn outputfile $finalOutput already exists. Shall I overwrite it [o], or rename it [r], or [a] append to it?", 1);
+                                if (($breaker > 3) and ($input !~ /[aor]/i)){
+                                        print "Please consider option -force or option -append.\n";
+                                        die "No proper answer is given: Quitting\n";
+                                }
+                        }
+                        if ($input =~ /[aA]/) {
+                                $append = 1;
+                                $force = 0;
+                        }
+                        elsif ($input =~ /[oO]/){
+                                $append = 0;
+                                $force = 1;
+                        }
+                        else {
+                                $append = 0;
+                                $force = 0;
+                        }
+                }
+                if ($force){
+                        ## the user wants to overwrite
+                        printOut("Removing existing output file $finalOutput", 1);
+                        unlink $outputPath or die "could not remove existing output directory $outputPath\n";
+                        mkdir $outputPath or die "could not re-create the output directory $outputPath\n";
+                }
+                elsif ($append) {
+                        printOut("Appending output to $finalOutput\n", 1);
+                        if (-e "$outputPath/$seqName.extended.profile") {
+                                ## read in the content for latter appending
+                                printOut("Appending output to $outputPath/$seqName.extended.profile", 1);
+                                open (IN, "<$outputPath/$seqName.extended.profile") or die "failed to open $outputPath/$seqName.extended.profile after selection of option -append\n";
+                                while (<IN>) {
+                                        chomp $_;
+                                        my @keys = split '\|', $_;
+                                        $profile{$keys[1]} = 1;
+                                }
+                        }
+                        else {
+                                printOut("Option -append was selected, but the existing output was incomplete. Please restart with the -force option to overwrite the output");
+                                exit;
+                        }
+                }
+                else {
+                        printOut("Renaming existing output file to $finalOutput.old", 2);
+                        my $bu_dir = $outputPath.'_bu';
+                        !`mv $outputPath $bu_dir` or die "Could not rename existing output file $outputPath to $bu_dir\n";
+			mkdir $outputPath or die "could not recreate $outputPath after renaming the old output\n"
+                }
+        }
 
-		while (($input !~ /^[aor]/i) and ($breaker < 4)) {
-			$breaker++;
-			$input = getInput("\nAn outputfile $dataDir/$seqName.extended.profile already exists. Shall I overwrite it [o], or rename it [r], or [a] append to it?", 1);
-			if (($breaker > 3) and ($input !~ /[aor]/i)){
-				print "Please consider option -force.\n";
-				die "No proper answer is given: Quitting\n";
-			}
-		}
-		if ($input =~ /o/i){
-			unlink "$dataDir/$seqName.extended.profile" or warn "could not remove existing output file $dataDir/$seqName\n";
-			printOut("Removing existing output file $dataDir/$seqName.extended.profile", 1);
-		}
-		elsif ($input =~ /a/i){
-			printOut("Appending output to $dataDir/$seqName.extended.profile", 1);
-			open (IN, "<$dataDir/$seqName.extended.profile") or die "failed to open $dataDir/$seqName.extended.profile after selection of option -append\n";
-			while (<IN>) {
-				chomp $_;
-				my @keys = split '\|', $_;
-				$profile{$keys[1]} = 1;
-			}
-
-		}
-		else {
-			move "$dataDir/$seqName.extended.profile", "$dataDir/$seqName.extended.profile.old" or warn "Could not rename existing output file $dataDir/$seqName\n";
-			printOut("Renaming existing output file to $dataDir/$seqName.extended.profile.old", 2);
-		}
-		## -force flag is set: existing file will be removed:
-	}elsif(-e "$dataDir/$seqName.extended.profile" && $force){
-		printOut ("--> $dataDir/$seqName.extended.profile already exists but will be removed due to option -force.", 1);
-		unlink "$dataDir/$seqName.extended.profile" or warn "Could not remove existing output file $dataDir/$seqName.extended.profile\n";
-	}
-	elsif(-e "$dataDir/$seqName.extended.profile" && $append){
-		printOut ("--> $dataDir/$seqName.extended.profile already exist but option -append has been chosen. Appending the output to the existing files\n ", 1);
-		open (IN, "<$dataDir/$seqName.extended.profile") or die "failed to open $dataDir/$seqName.extended.profile after selection of option -append\n";
-		while (<IN>) {
-			chomp $_;
-			my @keys = split '\|', $_;
-			$profile{$keys[1]} = 1;
-		}
-
-	}
 	my $node;
 	$node = $db->get_taxon(-taxonid => $taxa{$refSpec});
 	$node->name('supplied', $refSpec);
