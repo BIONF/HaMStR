@@ -1,6 +1,7 @@
 #!/usr/bin/perl
 use strict;
-use lib '/share/project/ingo/src/HaMStR/lib';
+use File::Basename;
+use lib dirname(__FILE__);
 use Getopt::Long;
 use Bio::Perl;
 use File::Copy;
@@ -14,7 +15,7 @@ use File::Copy;
 # DATE: Tue May 12 14:03:34 CEST 2009
 
 
-# DATE LAST MODIFIED: 03.11.2010: Bug fix suggested by Todd Oakley. 
+# DATE LAST MODIFIED: 03.11.2010: Bug fix suggested by Todd Oakley.
 # BUG -- BIOPERL GUESSES PROTEIN FILE FORMAT WHEN AMBIGUITY CODES ARE PRESENT
 # CAUSING AN ERROR IN THE TRANLATE_6 FRAMES, WHICH INTERRUPTS ALL TRANSLATION -- THO
 
@@ -30,7 +31,7 @@ my $outfile = "translate_tc.out";
 my $outpath = '.';
 my $limit = 20; ## this sets the maximum length for the sequence identifier. If sequence identifier are
 ## too long, then one can run into troubles with the parsing of the hmmsearch results.
-######### 
+#########
 my $usage = "Name:\n\ttranslate.pl\n
 Synopsis:\n\ttranslate_tc5.pl [-infile=FILE] [options] [-outfile=FILE]\n
 Description:\n\tThis program takes a batch fasta-file with DNA
@@ -93,7 +94,7 @@ else {
 	rename($infile, $newname);
 	print LOG "Sequence description was needed to make seq-id unique. The original version of the infile was stored in $infile.original\n";
     }
-    for (my $j = 0; $j < @seq_object; $j++) { 
+    for (my $j = 0; $j < @seq_object; $j++) {
 	my $finalid = $seq_object[$j]->{finalid};
 	my $estseq = $seq_object[$j]->seq;
 	my $inid = $seq_object[$j]->display_id;
@@ -156,7 +157,7 @@ sub checkIds {
     if ($trunc == 1) {
 	$check = 0;
     }
-    
+
     while ($check < 3 and $cont == 1) {
 	$cont = 0;
 	for (my $i=0; $i < @seq_object; $i++) {
@@ -191,6 +192,6 @@ sub checkIds {
 	    }
 	}
     }
-    ## return the value of $cont. If this is 1, then the sequence id check has failed. 
+    ## return the value of $cont. If this is 1, then the sequence id check has failed.
     return($message, $cont, $check);
 }

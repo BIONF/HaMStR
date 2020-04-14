@@ -1,13 +1,9 @@
 #!/usr/bin/perl
 use strict;
 use Getopt::Long;
-use lib '../lib';
-use lib '..lib/Bio';
-use lib '..lib/XML';
 use Parallel::ForkManager;
 use Bio::SearchIO;
 use Bio::Search::Hit::BlastHit;
-use run_genewise_hamstr;
 use Bio::SeqIO;
 use Bio::Align::ProteinStatistics;
 use Bio::AlignIO;
@@ -16,8 +12,9 @@ use POSIX;
 use Cwd;
 use Cwd 'abs_path';
 use Statistics::R;
-
-
+use File::Basename;
+use lib dirname(__FILE__);
+use run_genewise_hamstr;
 
 # PROGRAMNAME: hamstr.pl
 
@@ -33,37 +30,37 @@ use Statistics::R;
 # General Public License for more details.
 # You should have received a copy of the GNU General Public License
 # along with this program; If not, see http://www.gnu.org/licenses
- 
+
 # PROGRAM DESCRIPTION: HaMStR is a program for targeted ortholog search in both EST/RNAseq
-# and protein sequence data. 
+# and protein sequence data.
 
 # DATE: Wed Dec 19 10:41:09 CEST 2007
 
-# PROGRAM HISTORY 
+# PROGRAM HISTORY
 	##23. 07. 2010: found a bug in the extraction of the
 	## hmm hit sequence from the sequnence_file. A end-of-line char was missing.
-	
+
 	##09.08.2010: added the option to choose the new blastp program from ncbi. Just comment
 	##out line 45 in the script and uncomment line 46. Note, in order to make this work I have
 	##to slightly modify the blast output since otherwise it will not be parsed by the Bioperl
 	##Blast parser. Currently this is a pretty dirty $sedprog hack. It will also take care of removin
         ##the string lcl| that is added in some instances to the hit id in the blast output.
-        
-        ## I added the option that one can now provide a comma-separated string of phmm names as an
-        ## argument for the option -hmm 
 
-	## 08.03.2011: 
+        ## I added the option that one can now provide a comma-separated string of phmm names as an
+        ## argument for the option -hmm
+
+	## 08.03.2011:
 	## 1) BUG-FIX: Hamstr will now remove automatically newlines from the input sequence file
 	## 2) BUG-FIX: The sequence header remains now the same whether or not the flag -representative
 	## has been chosen.
-	
+
 	## 10.04.2011
 	## 1) added some information to the log file.
 
 	## 20.05.2011
 	## 1) BUG-FIX: The grep for the EST sequence in the sub-routine predictORF received also a hit when
 	## the search pattern was only a substring of the EST sequence identifier. In some cases the wrong EST
-	## was then used to predict the ORF. This has been fixed. 
+	## was then used to predict the ORF. This has been fixed.
 
 	## 30.05.2011
 	## 1) Extension: a command line option -longhead has been added. The user can now specify that the
@@ -72,7 +69,7 @@ use Statistics::R;
 	## 2) Modification from the bug fix from 20.05.2011. In the grep for the original EST it is no longer
 	## necessary that the search string and the EST id are identical over their entire length. Instead the
 	## search string may be a prefix of the EST id ending with a whitespace.
-	
+
 	## 27.06.2011
 	## 1) Extension: I added the option to run a true reciprocal best hit search. Only the best hit from the
 	## hmmer search is used to check for reciprocity.
@@ -90,7 +87,7 @@ use Statistics::R;
 	## 1) Bug fix: -hitlimit, even if not set explicitely has been invoked resulting in a more stringent
 	## behaviour of HaMStR. This has been fixed resulting in longer run-times.
 	## 18.12.2012
-	## 1) Bug fix: There was a bug in the CDS extraction for reverse complemented 
+	## 1) Bug fix: There was a bug in the CDS extraction for reverse complemented
 	## sequences. A new line was moved to the beginning of the sequence
 	## leading to index errors.
 
@@ -99,76 +96,76 @@ use Statistics::R;
     ## 2) Extension: Hamstr is now capable of identifying co-orthologs (sub routine IdentifyCoorthologsProt)
     ## 3) The re-blast for EST sequences is now a BlastX solving the problem of duplicated output for contigs with a pHMM
     ## hit in more than one frame.
-    
+
     ## 08.01.2014
     ## Extension: check for co-orthology between ref-protein and best blast hit in cases both are not identical.
     ## Bug fix: option -rbh was disfunctional due to a missing function in new sub-routine parseHmmer3pm
     ## Bug fix: sortRef actually did not sort anything as it was accessing the unsorted file
-    
+
     ## 09.01.2014
     ## Extension: Add the possibility to sort the hits by the hmmersearch Score rather than an alignment score
     ## This will make the best hmmersearch hit surviving the re-blast automatically the representative
-    
+
     ## 10.01.2014
     ## Bug fix (minor): modified option -outpath to accept non-default value
-    ## modification of the translate_tc call. 
+    ## modification of the translate_tc call.
 
     ## 17.01.2014
     ## Bug fix (minor): added the option --anysymbol to the mafft-linsi command to avoid crash when protein sequences
     ## contain non-standard amino acids (U = selenocystein)
-    
+
     ## 14.02.2014
     ## Extension: added the option to use ublast rather than blast for the reciprocity check
-    
+
     ## 25.02.2014
     ## Extension: added the option -reuse. By default, old results will now be deleted unless flag -reuse has been set
     ## Extension: added syntax required for running fact implemented into Hamstr2.0. Option -fact does not occur in help
     ## as this works only in context with Hamstr2.0
     ## Extension: Hamstr now outputs a results summary at the end of the run.
     ## Extension: added the option -cleartmp to faciliate automatic removal of the tmp-dir prior to the hamstr run
-     
+
     ## 05.03.2014
     ## Bug fix (minor): Variable $grepprog was not used throughout the script. In some routines 'grep' was hard coded.
     ## On MAC OS this could lead to unwanted call of BSD grep resulting in an error during re-blast.
-    
+
     ## 16.03.2014
     ## Bug fix (major): There was a problem in translating ESTs in the correct frame. This has been fixed.
     ## Modification (minor): The alignment positions together with the score are no longer sorted externally.
-    
+
  	## 02.04.2014
 	## Bug fix (minor): Flag $runublast was not changed to 1 when configuring hamstr
 	## with the ublast option.
-	
+
 	## 05.08.2014
 	## Exentsion: Update to version 13.2.3. New features include the option to run hamstr in silent mode and the option
 	## to parallelize the hamstr search for individual core orthologs using the Parallel::ForkManager package
-	
+
 	## 14.08.2014
 	## Bug fix (minor): corrected typo in sub routine call 'printOUT'
-	
+
 	## 31.07.2015
 	## Extension: Update to version 13.2.4. New feaure provides the option to entirely remove intron sequences and incomplete codons
 	## from transcripts
-	
+
 	## 03.07.2015
 	## Minor extension: Selected behavior with respect to introns in transcripts will be printed to hamstrsearch.log
-	
+
 	## 05.07.2015
 	## Minor bug fix: A no-blast hit was not reported properly in the sub routine check4reciprocity resulting in rare
-	## cases in the acceptance of a spurious ortholog. 
-	
+	## cases in the acceptance of a spurious ortholog.
+
 	## 14.08.2015
 	## Change of output file naming. Upon selection of the strict option the reference species is no longer appended
-	## to the output file name. 
-	
+	## to the output file name.
+
 	## 30.01.2016
 	## Minor changes including the better integration of the onseq.pl script. Among others the blast files are no longer
 	## expected to have the '_prot' appendix.
-	
+
 	## 12.02.2016
 	## Minor bug fix: In some instances the representative protein was not chosen correctly due to a bug in the subroutine
 	## sortRef. Analyses of transcript data are not affected at all.
-    
+
 	## 19.12.2017
 	## Extension: HaMStR can now automatically determine the hit limit up to which candidates from the intial
 	## hmm search are evaluated as potential orthologs. Two options are available, either an hmm score driven
@@ -191,14 +188,13 @@ use Statistics::R;
 ######################## start main ###########################################
 my $version = "HaMStR v.13.2.10";
 ######################## checking whether the configure script has been run ###
-my $configure = 1;
+my $configure = 0;
 if ($configure == 0){
-	die "\n\n$version\n\nPLEASE RUN THE CONFIGURE OR CONFIGURE_MAC SCRIPT BEFORE USING HAMSTR\n\n";
+	die "\n\n$version\n\nPLEASE RUN Setup.sh FILE BEFORE USING HAMSTR\n\n";
 }
 ########## EDIT THE FOLLOWING LINES TO CUSTOMIZE YOUR SCRIPT ##################
 my $prog = 'hmmsearch'; #program for the hmm search
 my $eval = 1; # default evalue cutoff for the hmm search
-my $path =  '/share/project/ingo/src/HaMStR';
 my $sedprog = 'sed';
 my $grepprog = 'grep';
 my $alignmentprog = 'clustalw';
@@ -206,10 +202,11 @@ my $alignmentprog_co = 'muscle';
 ########## EDIT THE FOLLOWING TWO LINES TO CHOOSE YOUR BLAST PROGRAM ##########
 #my $blast_prog = 'blastall';
 my $blast_prog = 'blastp';
-my $filter = 'F'; # low complexity filter switch. Default 'on'. Set of 'F' to turn off permanently. 
+my $filter = 'F'; # low complexity filter switch. Default 'on'. Set of 'F' to turn off permanently.
 my $eval_blast = 10; # default evalue cutoff for the blast search
 ########## EDIT THE FOLLOWING LINES TO MODIFY DEFAULT PATHS ###################
-
+my $path = abs_path(dirname(__FILE__));
+$path =~ s/\/bin//;
 my $hmmpath = "$path/core_orthologs"; #path where the hmms are located
 my $blastpath = "$path/blast_dir"; #path to the blast-dbs
 my $outpath = '.';
@@ -225,7 +222,7 @@ my ($norm, $under, $bold) = map { $t->Tputs($_,1) } qw/me md us/;
 
 ############################## Variables ##############
 my $fileobj;
-## The main variable storing most of the results; 
+## The main variable storing most of the results;
 ## $fileobj->{$taxon}->{prot}->[$hitcounter]
 ## $fileobj->{$taxon}->{ids}->[$hitcounter]
 ## $fileobj->{$taxon}->{cds}->[$hitcounter]
@@ -243,7 +240,7 @@ my $fafile;
 my @seqs2store;
 my @cds2store;
 my $dbpath;
-my $dboutpath;	
+my $dboutpath;
 my $ep2eg;
 my $dbfile_base;
 my $aln;
@@ -288,7 +285,7 @@ my $algorithm = 'blastp';
 my $frame;
 my $checkCoRef;
 my $sortalign;
-my $check_genewise = 0;
+my $check_genewise = 1;
 my $outputfmt = 'blastxml';
 my $fact;
 my $runFACTparameter;
@@ -334,13 +331,13 @@ ${bold}REQUIRED$norm
 		The program will look for the files in the default directory 'core-orthologs' unless you specify
 		a different path via the option -hmmpath.
 -refspec=<>
-		sets the reference species. Note, it has to be a species that contributed sequences 
+		sets the reference species. Note, it has to be a species that contributed sequences
 		to the hmms you are using. NO DEFAULT IS SET! For a list of possible reference
 		taxa you can have a look at the speclist.txt file in the default core-ortholog sets
 		that come with this distribution. Please use the abreviations in this list. If you choose
 		to use core-orthologs where not every taxon is represented in all core-orthologs, you
-		can provide a comma-separated list with the preferred refspec first. The lower-ranking 
-		reference species will only be used if a certain gene is not present in the preferred 
+		can provide a comma-separated list with the preferred refspec first. The lower-ranking
+		reference species will only be used if a certain gene is not present in the preferred
 		refspecies due to alternative paths in the transitive closure to define the core-orthologs.
 		CURRENTLY NO CHECK IS IMPLEMENTED!
 		NOTE: A BLAST-DB FOR THE REFERENCE SPECIES IS REQUIRED!
@@ -348,7 +345,7 @@ ${bold}REQUIRED$norm
 		You need to specify a default taxon name from which your ESTs or protein sequences are derived.
 -est
 		set this flag if you are searching in ESTs. Note, if neither the -est nor the -protein flag is set, HaMStR will
-		guess the sequence type. If you select this flag, make sure to specify how to deal with introns retained in the 
+		guess the sequence type. If you select this flag, make sure to specify how to deal with introns retained in the
 		ESTs. Check option -intron!
 -protein
 		set this flag if you are searching in protein sequences. Note, if neither the -est nor the -protein flag is set, HaMStR will
@@ -362,7 +359,7 @@ ${bold}USING NON-DEFAULT PATHS$norm
 		Lets you specify the absolute or relative path to the core ortholog set. DEFAULT: $hmmpath
 -outpath=<>
 		You can determine the path to the HaMStR output. Default: current directory.
-        
+
 ${bold}ADDITIONAL OPTIONS$norm
 
 -append
@@ -371,9 +368,9 @@ ${bold}ADDITIONAL OPTIONS$norm
 -central
 		set this flag to store the modified infile in the same directory as the infile rather than in the output dir.
 -checkCoorthologsRef
-		If the re-blast does not identify the original reference protein sequence as best hit, HaMStR will check whether the best blast 
+		If the re-blast does not identify the original reference protein sequence as best hit, HaMStR will check whether the best blast
 		hit is likely a co-ortholog of the reference protein relative to the search taxon. NOTE: Setting this flag will substantially increase
-		the sensitivity of HaMStR but most likely affect also the specificity, especially when the search taxon is evolutionarily only very 
+		the sensitivity of HaMStR but most likely affect also the specificity, especially when the search taxon is evolutionarily only very
 		distantly related to the reference taxon.
 -cleartmp
 		set this flag to remove existing tmp dir in the HaMStR output directory.
@@ -393,26 +390,26 @@ ${bold}ADDITIONAL OPTIONS$norm
 -hit_limit=<>
 		By default, HaMStR will re-blast all hmmsearch hits against the reference proteome. Reduce the number
 		of hits for reblast with this option.
--autoLimit	
+-autoLimit
 		Setting this flag will invoke a lagPhase analysis on the score distribution from the hmmer search. This will determine automatically
 		a hit_limit for each query.
 -scoreThreshold
 		Instead of setting an automatic hit limit, you can specify with this flag that only candidates with an hmm score no less
-		than x percent of the hmm score of the best hit are further evaluated. Default is x = 10. 
+		than x percent of the hmm score of the best hit are further evaluated. Default is x = 10.
 		You can change this cutoff with the option -scoreCutoff. Note, when setting this lag, it will be effective for
 		both the core ortholog compilation and the final ortholog search.
 -scoreCutoff=<>
 		In combination with -scoreThreshold you can define the percent range of the hmms core of the best hit up to which a
 		candidate of the hmmsearch will be subjected for further evaluation. Default: 10%.
 -hmm
-		Option to provide only a single hmm to be used for the search. 
-		Note, this file has to end with .hmm 
+		Option to provide only a single hmm to be used for the search.
+		Note, this file has to end with .hmm
 -intron=<${bold}k${norm}eep|${bold}m${norm}ask|${bold}r${norm}emove>
 		Specify how to deal with introns that may occur in transcript sequences. Default: keep - Introns will be retained in the transcript
 		but will be identified by lower case letters.
 -longhead
 		Set this flag in the case your sequence identifier contain whitespaces and you whish to keep
-		the entire sequence identifier throughout your analysis. HaMStR will then replace the whitespaces with 
+		the entire sequence identifier throughout your analysis. HaMStR will then replace the whitespaces with
 		a '__'. If this flag is not set, HaMStR will truncate the sequence
 		Identifier at the first whitespace, however if and only if the sequence identifier then remain unique.
 		NOTE: too long sequence headers (~ > 30 chars) will cause trouble in the hmmsearch as the program will truncate
@@ -430,7 +427,7 @@ ${bold}ADDITIONAL OPTIONS$norm
 		From all sequences that fulfill the reciprocity criterion the one showing the highest similarity to the
 		core ortholog sequence in the reference species is identified and selected as representative.
 -reuse
-		Set this flag if you want to prevent HaMStR from overwriting previous results. 
+		Set this flag if you want to prevent HaMStR from overwriting previous results.
 -show_hmmsets
 		setting this flag will list all available core ortholog sets in the specified path. Can be combined with -hmmpath.
 -silent
@@ -440,11 +437,11 @@ ${bold}ADDITIONAL OPTIONS$norm
 -sort_global_align
 		Setting this flag will tell hamstr to sort ortholog candidates according to their global alignment score to the reference
 		sequence rather than according to the score they have achieved in the hmmer search (local). NOTE: In the case of searching
-		EST data this flag is automatically set.  
+		EST data this flag is automatically set.
 -strict
 		Set this flag if the reciprocity criterion is only fulfilled when the re-blast against
 		all primer taxa was successfull
--aligner	
+-aligner
 		Choose between muscle or mafft-linsi for the alignment of multiple sequences. DEFAULT: muscle
 		\n\n";
 GetOptions ("append" => \$append,
@@ -458,7 +455,7 @@ GetOptions ("append" => \$append,
             "debug"             => \$debug,
             "est"    => \$estflag,
             "eval_blast=s" => \$eval_blast,
-            "eval_hmmer=s" => \$eval,          
+            "eval_hmmer=s" => \$eval,
             "fasta_file=s" => \$fafile,
             "filter=s" => \$filter,
             "force"    => \$force,
@@ -470,7 +467,7 @@ GetOptions ("append" => \$append,
             "intron=s" => \$keepintron,
             "longhead" => \$longhead,
             "nonoverlapping_cos" => \$nonoverlappingCO,
-            "outpath=s" => \$outpath,            
+            "outpath=s" => \$outpath,
             "protein"=> \$proteinflag,
             "rbh" => \$bhh,
             "refspec=s" => \$refspec_string,
@@ -537,11 +534,11 @@ my $pm = new Parallel::ForkManager($cpu);
 ## 2) loop through the hmms
 ## process each hmm file separately
 $hmmcount = scalar(@hmms);
- 
+
 for (my $i = 0; $i < @hmms; $i++) {
 	my $pid = $pm->start and next;
 	my $localid = $$;
-	$frame = undef;	
+	$frame = undef;
 	$fileobj = undef;
   	my @seqs = qw();
   	my @newseqs = qw();## var to contain the sequences to be added to the orthologous cluster
@@ -559,7 +556,7 @@ for (my $i = 0; $i < @hmms; $i++) {
   	else {
     	printOUT("an hmmresult $hmmout already exists. Using this one!\n");
   	}
-  
+
  	## 4) process the hmm search result
   	my $hitcount = 0;
   	## 4a) loop through the individual results
@@ -577,8 +574,8 @@ for (my $i = 0; $i < @hmms; $i++) {
         }
 	elsif (defined $scoreThreshold) {
 		printDebug("Automatic cutoff estimation via a minimal score was selected. Cutoff: $scoreCutoff percent of the best hmm score. Hits with an hmm score below $criticalValue are not considered. Limiting the number of hits for the evaluation from " . scalar(@$results) . " to $hitlimit_local");
-	} 
-	## 
+	}
+	##
   	printOUT("Results for $query_name\n");
   	my ($check, $refspec_final) = &determineRefspecFinal($query_name, @refspec);
   	if ($check == 0) {
@@ -671,7 +668,7 @@ for (my $i = 0; $i < @hmms; $i++) {
 			for (my $i = 0; $i < @newseqs; $i+= 2) {
 				my $line = $newseqs[$i] . "|" . $newseqs[$i+1];
 				$line =~ s/>//;
-				
+
 				print OUT $line;
 				print OUT "\n";
 	#			push @seqs2store, $line;
@@ -689,7 +686,7 @@ for (my $i = 0; $i < @hmms; $i++) {
   	}
   	if (@seqs2store > 0) {
   		my $seqref = \@seqs2store;
-  		my $estref = \@cds2store; 
+  		my $estref = \@cds2store;
   		$pm->finish;
   	}
   	else {
@@ -727,7 +724,7 @@ $pm->wait_all_children;
  # }
  #}
  ###########################################################################################
- 
+
 my $orthologs = 0;
 if (-e $seqs2store_file) {
 	$orthologs = `less $seqs2store_file |wc -l`;
@@ -735,7 +732,7 @@ if (-e $seqs2store_file) {
   	## starting funFACT.pl <user_defined_taxonName> <comma-separated string_of_all_used_reference_species>
   	system("perl runFact.pl $runFACTparameter $outpath $blastpath $taxon_global $refspec_string");
     }
-}    
+}
 else {
   printOUT("no hits found\n\n");
 }
@@ -745,14 +742,14 @@ my $hmmsearched = `ls $hmmsearch_dir |wc -l`;
 chomp ($ortholog_groups, $hmmsearched, $orthologs);
 
 print "\n\n
-####HaMStR completed!######### 
+####HaMStR completed!#########
 Results of HaMStR search in $taxon_global
 Number of core_orthologs searched: $hmmcount
 Number of core_orthologs with hmmsearch output: $hmmsearched
 Number of ortholog_groups extended: $ortholog_groups
 Number of orthologous sequences: $orthologs
 ##############################\n\n";
-	
+
 exit;
 ##################### start sub ###############
 ####### checkInput performs a number of checks whether sufficient information
@@ -774,7 +771,7 @@ sub checkInput {
 				for (my $j = 0; $j < @refspec; $j++){
 					if (-e "$blastpath/$refspec[$j]"){
 						push @available, "\t$refspec[$j]";
-					} 
+					}
 					else {
 						push @unavailable, "\t$refspec[$j]";
 					}
@@ -784,7 +781,7 @@ sub checkInput {
 				if (@unavailable > 0){
 					print "\n\n\tUnvailable reference taxa (no Blast db at $blastpath)\n";
 					print join "\n", @unavailable;
-				} 
+				}
 			}
 		}
 		else {
@@ -824,7 +821,7 @@ sub checkInput {
 				strict => $strict,
 				taxon => $taxon_global,
 				ublast => $ublast);
-	
+
 	foreach ( sort keys %parameters) {
 		if (defined $parameters{$_}) {
 			push @log, "\t -$_:\t$parameters{$_}";
@@ -833,10 +830,10 @@ sub checkInput {
 			push @log, "\t -$_:\tnot set";
 		}
 	}
-	
+
 	#############################################################################
   	my $check = 1;
-    
+
   	if (!defined $dbfile) {
   		push @log, "You need to specify a valid infile with the option -sequence_file\n\n";
   		$check = 0;
@@ -844,23 +841,23 @@ sub checkInput {
   	}
   	### for FACT use the unmodified value of $dbfile
   	$runFACTparameter = $dbfile;
-  	## extract the path from the dbpath if available and prune of trailing '/'  	
+  	## extract the path from the dbpath if available and prune of trailing '/'
   	if ($dbfile =~ /(.*\/)/) {
 		$dbpath = $1;
 		$dbpath =~ s/\/$//;
   	}
   	else {
   		$dbpath = '.';
-  		
+
   	}
-  	$dbfile =~ s/.*\///;	
+  	$dbfile =~ s/.*\///;
   	$dbfile_short = $dbfile;
   	$dbfile_short =~ s/\..*//;
   	if ($central) {
   		$dboutpath = $dbpath;
   		print "setting dboutpath to $dboutpath";
   	}
-  	## 
+  	##
   	## 0) Check for presence of the file with the sequences that should be hamstered
   	if (-e "$dbpath/$dbfile") {
 		#the file exists
@@ -876,7 +873,7 @@ sub checkInput {
                         system("$path/bin/nentferner.pl -in=$dbpath/$dbfile -out=$dboutpath/$dbfile.tmp -replace");
                         system("ln -s $dboutpath/$dbfile $dboutpath/$dbfile.mod")
 		}
-		if 	(! -e "$dboutpath/$dbfile.mod") { 
+		if 	(! -e "$dboutpath/$dbfile.mod") {
 			push @log, "${bold}FATAL:${norm} Problems running the script nentferner.pl";
 			$check = 0;
 		}
@@ -923,7 +920,7 @@ sub checkInput {
 	  }
 	  ## $dbfile_base hat den originalen file namen, egal ob est oder protein
       $dbfile_base = $dbfile;
-      
+
       if ($ublast){
       		if ($runublast){
       			$blast_prog = 'usearch';
@@ -956,7 +953,7 @@ sub checkInput {
   	    }
   	    else {
       		push @log, "Translated file already exists, using this one";
-    	}	
+    	}
     	if (! -e "$dboutpath/$dbfile") {
     	 	push @log, "${bold}FATAL:${norm} The translation of $dbfile_base failed. Check the script translate.pl";
 				print "failed\n";
@@ -1007,7 +1004,7 @@ sub checkInput {
 		  else {
 		  	my $gwcheck = `echo \$WISECONFIGDIR`;
 	  		if (length($gwcheck) < 1) {
-	  			push @log, "${bold}FATAL:${norm} The environmental variable WISECONFIGDIR has not been set. I am expecting troubles when invoking genewise. 
+	  			push @log, "${bold}FATAL:${norm} The environmental variable WISECONFIGDIR has not been set. I am expecting troubles when invoking genewise.
 Please consult the installation manual for genewise and set this variable";
 			print "failed: the environmental variable WISECONFIGDIR has not been set.\n";
 			$check = 0;
@@ -1053,9 +1050,9 @@ Please consult the installation manual for genewise and set this variable";
       					}
       				else {
       					push @log, "\t$hmms[$k] has been found";
-     	 			}	
+     	 			}
 				}
-			}	
+			}
     		else {
       			push @log, "\trunning HaMStR with all hmms in $hmm_dir";
      	 		@hmms = `ls $hmm_dir`;
@@ -1084,7 +1081,7 @@ Please consult the installation manual for genewise and set this variable";
   	}
   	## 7) Checks for the taxon_file
   	push @log, "\nCHECKING TAXON NAME\n";
-  	printOUT("testing whether the taxon has been determined:\t");  
+  	printOUT("testing whether the taxon has been determined:\t");
     if (defined $taxon_global) {
       	push @log, "\tusing default taxon $taxon_global for all sequences";
       	printOUT("succeeded\n");
@@ -1106,7 +1103,7 @@ Please consult the installation manual for genewise and set this variable";
   	elsif (defined $strict or defined $relaxed) {
       if (! defined $refspec_string) {
       	## The user has not provided a string of reference taxa. Chose all from the fasta file containing
-	  	## the core orthologs. 
+	  	## the core orthologs.
 	  	@refspec = `$grepprog '>'  $fafile |cut -d '|' -f 2 |sort |uniq`;
 	 	chomp @refspec;
 		$refspec_string = join ',', @refspec;
@@ -1153,7 +1150,7 @@ Please consult the installation manual for genewise and set this variable";
             else {
                     push @log, "${bold}FATAL:${norm} please edit the blastpath. Could not find $blastpathtmp or blast database blastpathtmp.pin does not exist.";
                     print "$blastpathtmp failed\n";
-                    $check = 0;		
+                    $check = 0;
             }
         }
     ## 9.1) Check for presence of the required FASTA file of reference species
@@ -1197,7 +1194,7 @@ Please consult the installation manual for genewise and set this variable";
                     push @log, "\tOption -longhead was chosen. Replaced whitespaces in the sequence identifier with '$idsep'";
                 }
             }
-            
+
         }elsif (-e "$referencedb_prot"){
             #checking files
             if (-e "$referencedb_prot.mod") {
@@ -1223,7 +1220,7 @@ Please consult the installation manual for genewise and set this variable";
                     push @log, "\tOption -longhead was chosen. Replaced whitespaces in the sequence identifier with '$idsep'";
                 }
             }
-        
+
 	}else{
             #the provided reference fasta file does not exist or link to file does not exist:
             push @log, "${bold}FATAL:${norm} FASTA file for the specified reference $refspec[$i] does not exist. PLEASE PROVIDE A VALID REFERENCE SPECIES!\n";
@@ -1231,7 +1228,7 @@ Please consult the installation manual for genewise and set this variable";
             return ($check, @log);
         }
     }
-    
+
   	## 10) Set the file where the matched seqs are found
   	my $strictstring = '';
   	if (defined $strict) {
@@ -1247,7 +1244,7 @@ Please consult the installation manual for genewise and set this variable";
 				if (!$force){
                                     print "A HaMStR outfile $seqs2store_file already exists and option -force has not been chosen! Shall I overwrite this file [Y|N]: ";
 				    $answer = <STDIN>;
-				    chomp $answer;				
+				    chomp $answer;
 				    while ($answer !~ /[YN]/i and ($breaker < 4)) {
                                             $breaker ++;
 					    print "Please answer with 'Y' or 'N':\t";
@@ -1288,7 +1285,7 @@ Please consult the installation manual for genewise and set this variable";
   	}
   	## 11c) The blast evalue limit
   	push @log, "\tBlast will run with an evalue limit of $eval_blast\n";
-  	
+
   	## 12) check for filter setting for BLAST
   	printOUT("checking for low complexity filter setting:\t");
 	$filter =~ tr/ft/FT/;
@@ -1305,7 +1302,7 @@ Please consult the installation manual for genewise and set this variable";
 	}
 	printOUT("succeeded\n");
 	}
-  	
+
  	## 13) setting up the directories where the output files will be put into.
  	$fa_dir_neu = $outpath . '/fa_dir_' . $dbfile_short . '_' . $hmmset . '_' . $refspec[0];
   	$tmpdir = $outpath . '/' . $tmpdir;
@@ -1316,7 +1313,7 @@ Please consult the installation manual for genewise and set this variable";
   		$fa_dir_neu = $outpath . '/fa_dir_' . $dbfile_short . '_' . $hmmset;
   		$fa_dir_neu .= '_strict';
   	}
-  	
+
   	if ($relaxed) {
             $fa_dir_neu .= '_relaxed';
   	}
@@ -1350,21 +1347,21 @@ Please consult the installation manual for genewise and set this variable";
   	else {
 		push @log, "\tHaMStR was called without the -representative option. More than one ortholog may be identified per core-ortholog group!";
 	}
-	
+
 	## check further options
 	if (defined $nonoverlappingCO){
-		push @log, "\tThe flag -nonoverlapping_cos has been set. HaMStR will output co-orthologs even when they align to non-overlapping parts of the reference sequence"; 
+		push @log, "\tThe flag -nonoverlapping_cos has been set. HaMStR will output co-orthologs even when they align to non-overlapping parts of the reference sequence";
 	}
 	if (defined $checkCoRef){
 		push @log, "\tThe flag -CheckCoorthologsRef has been set.";
 	}
 	if (defined $bhh){
 		push @log, "\tThe flag -rbh has been set. HaMStR will run with the reciprocal best hit option.";
-	} 
+	}
 	if ($sortalign){
 		push @log, "\tThe flag -sort_global_align has been set. HaMStR will sort hits according to the global alignment score against the reference sequence. (Default for EST data)."
 	}
-	
+
 	## check how hamstr should deal with possible introns in transcripts:
 	if ($estflag) {
                 my $breaker = 0;
@@ -1387,9 +1384,9 @@ Please consult the installation manual for genewise and set this variable";
 		elsif ($keepintron =~ /^r/i) {
 			push @log, "\tRemove introns has been chosen. HaMStR will remove any position that genewise could not align to the reference protein rendering the CDS consistent with the amino acid sequence";
 		}
-		
-	} 
-	
+
+	}
+
   	return ($check, @log);
 }
 #################
@@ -1425,17 +1422,17 @@ sub check4reciprocity {
 		printOUT("Reftaxon: $refspec_final->[$k]->{refspec}\n");
 		if ($blast_prog =~ /blast[px]/) {
 			!`$blast_prog -db $refspec_final->[$k]->{searchdb} -seg '$filter' -max_target_seqs 10 -evalue $eval_blast -outfmt 5 -query $tmpdir/$$.fa  -out $tmpdir/$$.blast` or die "Problem running $blast_prog\n";
- 			### postprocess the outfile	
+ 			### postprocess the outfile
 		}
 		elsif ($blast_prog =~ /blastall/) {
 			!`blastall -p $algorithm -d $refspec_final->[$k]->{searchdb} -F $filter -e $eval_blast -m7 -i $tmpdir/$$.fa -o $tmpdir/$$.blast` or die "Problem running $blast_prog\n"
 		}
 		else {
 			if ($estflag){
-				`$blast_prog -ublast $tmpdir/$$.fa -db $refspec_final->[$k]->{searchdb}.udb -strand both -accel $accel -evalue $eval_blast -blast6out $tmpdir/$$.blast` or die "Problem running $blast_prog\n;" 
+				`$blast_prog -ublast $tmpdir/$$.fa -db $refspec_final->[$k]->{searchdb}.udb -strand both -accel $accel -evalue $eval_blast -blast6out $tmpdir/$$.blast` or die "Problem running $blast_prog\n;"
 			}
 			else {
-				`$blast_prog -ublast $tmpdir/$$.fa -db $refspec_final->[$k]->{searchdb}.udb -accel $accel -evalue $eval_blast -blast6out $tmpdir/$$.blast` or die "Problem running $blast_prog\n;" 
+				`$blast_prog -ublast $tmpdir/$$.fa -db $refspec_final->[$k]->{searchdb}.udb -accel $accel -evalue $eval_blast -blast6out $tmpdir/$$.blast` or die "Problem running $blast_prog\n;"
 			}
 			## sort the output as ublast does not do it (at least not for ESTs)
 			`sort -n -r -k 12 $tmpdir/$$.blast >$tmpdir/blastsort.tmp`;
@@ -1485,7 +1482,7 @@ sub check4reciprocity {
 					$strict_suc = 0;
 				}
 			}
-			
+
 			else {
 				## The user has chosen to search more sensitive, asking whether the best blast hit might be a co-ortholog to the reference sequence
 				my $qhdistance;
@@ -1564,7 +1561,7 @@ sub check4reciprocity {
 	if ($relaxed_suc == 1) {
 		if ($estflag and $frame eq '-') {
 			## reverse sequence
-			$hitseq = &revComp($hitseq); 
+			$hitseq = &revComp($hitseq);
 		}
 		return (1, $hitseq, $frame);
 	}
@@ -1580,7 +1577,7 @@ sub getBestBlasthit {
     my ($file) = @_;
     my $searchio = Bio::SearchIO->new(
     				-file        => $file,
-				    -format      => $outputfmt) 
+				    -format      => $outputfmt)
 				    or die "parse failed";
     while(my $result = $searchio->next_result){
 		my $sig;
@@ -1599,9 +1596,9 @@ sub getBestBlasthit {
 			else {
 				$frame = 'na';
 			}
-			
+
 		    ## now I enter all top hits having the same evalue into the result
-	  	  $sig = $hit->score;	
+	  	  $sig = $hit->score;
 	  	  if (!defined $sig_old) {
 				$sig_old = $sig;
 	  	  }
@@ -1687,14 +1684,14 @@ sub determineReferences {
 }
 ###############
 sub processHits {
-  my ($localid, $fileobj) = @_; 
+  my ($localid, $fileobj) = @_;
   ## 1) align all hit sequences for a taxon against the reference species
   my @taxa = keys(%$fileobj);
   for (my $i = 0; $i < @taxa; $i++) {
     &orfRanking($localid, $taxa[$i]);
   }
-}  
-  
+}
+
 
 ################
 sub predictORF {
@@ -1751,8 +1748,8 @@ sub orfRanking {
 	}
 	else {
 		## more than one cluster
-		## note, I set the refseq fix to the first entry. This is to avoid that in this routine 
-		## sequences from different taxa are used.  
+		## note, I set the refseq fix to the first entry. This is to avoid that in this routine
+		## sequences from different taxa are used.
 		push @toalign, ">$fileobj->{$spec}->{refspec}->[0]";
 		push @toalign, $fileobj->{$spec}->{refseq}->[0];
 		## now walk through all the contigs
@@ -1785,7 +1782,7 @@ sub orfRanking {
 		}
 		### the results for all seqs has been gathered, now order them according to alignment start in the refseq
 		$result = &sortRef($result);
-		($refprot, $refcds, $refid) = &determineRef($result,$spec);	
+		($refprot, $refcds, $refid) = &determineRef($result,$spec);
 	}
 	$fileobj->{$spec}->{refprot} = $refprot;
 	$fileobj->{$spec}->{refcds}  = $refcds;
@@ -1932,7 +1929,7 @@ sub parseHmmer3pm {
     			}
     		}
     	}
-    
+
 		if (defined $hits->[0]) {
 		    ####### a quick hack to obtain the lagPhase value
 			my $criticalValue; # takes the value used for candidate discrimination
@@ -1993,7 +1990,7 @@ sub parseHmmer4pm {
                                 last;
                         }
                 }
-        
+
 	}
 	if (defined $hits->[0]) {
       		####### limit the list of hmm hits
@@ -2010,7 +2007,7 @@ sub parseHmmer4pm {
 	else {
 	        return ($query);
         }
- 
+
 }
 ##############################
 sub parseSeqfile {
@@ -2046,7 +2043,7 @@ sub parseSeqfile {
   return ($seqref);
 }
 ##################
-sub getAlignmentScore{ 
+sub getAlignmentScore{
     my ($localid, $refseq_cand, $hitseq) = @_;
     my @testseq = ('>hitseq', $hitseq, '>refseq', $refseq_cand);
     open (OUT, ">$tmpdir/$localid.ref.fa") or die "could not open file for writing refseqs\n";
@@ -2073,7 +2070,7 @@ sub determineRefspecFinal {
   for (my $i = 0; $i < @refspec; $i++) {
     @original = `$grepprog -A 1 "^>$query_name|$refspec[$i]" $fafile |$sedprog -e "s/.*$refspec[$i]\|//"`;
     chomp @original;
-    
+
     if (@original > 0) {
       $refspec_final->[$ac]->{refspec} = $refspec[$i];
       $refspec_final->[$ac]->{searchdb} = "$blastpath/$refspec[$i]/$refspec[$i]" . $blastapp;
@@ -2098,7 +2095,7 @@ sub determineRefspecFinal {
   if (! defined $refspec_final->[0]->{refid}) {
     print "original sequence not found\n";
     return (0, $refspec_final);
-  } 
+  }
   ## now print some wordy information...
   if (!defined $strict and !defined $relaxed) {
     printOUT("REFSPEC is $refspec_final->[0]->{refspec}\n");
@@ -2106,7 +2103,7 @@ sub determineRefspecFinal {
   return(1, $refspec_final);
 }
 
-############## co-ortholog prediction using a alignment score criterion as in InParanoid. 
+############## co-ortholog prediction using a alignment score criterion as in InParanoid.
 sub identifyCoorthologsProt{
 	my ($localid, $spec) = @_;
 	my @get;
@@ -2188,9 +2185,9 @@ sub identifyCoorthologsProt{
 }
 ######## sub checkCoorthologRef
 sub checkCoorthologRef {
-	## relevant steps are 
-	## 1) get query sequence and query id, 
-	## 2) get refseq 
+	## relevant steps are
+	## 1) get query sequence and query id,
+	## 2) get refseq
 	## 3) get seq for best blast hit
 	## compute the distance query - best blast hit and best blast hit - reference seq
 	## return '1' if d(q,b)>d(r,b), else return '0';
@@ -2264,7 +2261,7 @@ sub getLag {
 		## hmmscore. Return the value of $hitcount.
 		return($hitcount, 1);
 	}
-	## debug 
+	## debug
 	else {
 		print "hitcount is $hitcount, max is $maxScore, min is $minScore\n";
 		my @yData = qw();
@@ -2337,7 +2334,7 @@ sub printDebug{
 }
 ##########################
 sub computeLagPoint {
-	my ($R, $xdata, $ydata) = @_;	
+	my ($R, $xdata, $ydata) = @_;
 	$R->set( 'x', \@$xdata);
         $R->set( 'y', \@$ydata );
         # define function
@@ -2361,4 +2358,3 @@ sub computeLagPoint {
         my $lagPoint = $R->get('lagPoint');
 	return($lagPoint);
 }
-
