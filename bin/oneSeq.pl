@@ -188,7 +188,7 @@ my @defaultRanks = ('superkingdom', 'kingdom',
 					'species group', 'species subgroup', 'species');
 #switched from online version to flatfile because it is much faster
 #taxon files can be downloaded from: ftp://ftp.ncbi.nih.gov/pub/taxonomy/
-print "Please wait why the taxonomy database is indexing...\n";
+print "Please wait while the taxonomy database is indexing...\n";
 my $db = Bio::DB::Taxonomy->new(-source    => 'flatfile',
 								-nodesfile => $idx_dir . 'nodes.dmp',
 								-namesfile => $idx_dir . 'names.dmp',
@@ -2816,7 +2816,7 @@ ${bold}YOU ARE RUNNING $version on $hostname$norm
 This program is freely distributed under a GPL.
 Copyright (c) GRL limited: portions of the code are from separate copyrights
 
-\n${bold}USAGE:${norm} oneSeq.pl -sequence_file=<> -seqId=<>  -seqName=<> -refSpec=<> -minDist=<> -maxDist=<> [OPTIONS]
+\n${bold}USAGE:${norm} oneSeq.pl -seqFile=<> -seqId=<>  -seqName=<> -refSpec=<> -minDist=<> -maxDist=<> [OPTIONS]
 
 ${bold}OPTIONS:$norm
 
