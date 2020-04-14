@@ -510,7 +510,7 @@ if (!$coreex) {
 if (!$coreOnly) {
 	$coremode = 0;
 	my $CoreEndTime = time - $startTime;
-        push @logOUT, "Core set compilation finished after $CoreEndTime sec! Performing the final HaMStR search on all taxa\n";
+        push @logOUT, "Core set compilation finished after $CoreEndTime sec! Performing the final HaMStR search on all taxa";
         print "Core set compilation finished after $CoreEndTime! Performing the final HaMStR search on all taxa\n";
 	%taxa = getTaxa();
 	my $tree = getTree();
@@ -534,11 +534,14 @@ if (!$coreOnly) {
 	}
 	$pm->wait_all_children;
 }
-
+my $HamstrTime = time;
+my $time2add = $HamstrTime - $startTime;
+push @logOUT, "Ortholog search completed after $time2add sec!";
 ## Evaluation of all orthologs that are predicted by the final hamstr run
 if(!$coreOnly){ #} and $fas_support){
-        my $HamstrTime = time - $startTime;
-        push @logOUT, "Ortholog search completed after $HamstrTime sec!";
+        my $FASTime = time;
+	$time2add = $FASTime - $startTime;
+        push @logOUT, "Starting FAS evaluation after $time2add sec!";
         print "Ortholog search completed after $HamstrTime sec! Starting the feature architecture similarity score computation.\n";
 	my $processID = $$;
 
@@ -596,6 +599,8 @@ if(!$coreOnly){ #} and $fas_support){
 		}
 		fasta2profile($finalOutput, $seqName)
 	}
+my $FASEndTime = time - $startTime;
+push @logOUT, "FAS evaluation completed after $FASEndTime sec! Cleaning up...";
 }
 
 ## clean up the mess...
