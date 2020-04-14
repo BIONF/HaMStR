@@ -67,12 +67,12 @@ if [ -z "$(which R)" ]; then
     conda install -y r
 fi
 
-if [[ -z $(conda list | grep "pkg-config ") ]]; then
+if [[ -z $(conda list | $grepprog "pkg-config ") ]]; then
     echo "pkg-config"
     conda install -y pkg-config
 fi
 
-if [[ -z $(conda list | grep "perl-bioperl ") ]]; then
+if [[ -z $(conda list | $grepprog "perl-bioperl ") ]]; then
     echo "perl-bioperl"
     conda install -y -c bioconda perl-bioperl
     conda install -y -c bioconda perl-bioperl-core
@@ -100,7 +100,7 @@ for i in "${dependencies[@]}"; do
     elif [ "$tool" = "genewise" ]; then
       conda install -y -c bioconda wise2
       wisePath=$(which "genewise")
-      if [ -z "$(grep WISECONFIGDIR=$wisePath ~/$bashFile)" ]; then
+      if [ -z "$($grepprog WISECONFIGDIR=$wisePath ~/$bashFile)" ]; then
           echo "export WISECONFIGDIR=${wisePath}" >> ~/$bashFile
       fi
     elif [ "$tool" = "fasta36" ]; then
@@ -218,11 +218,11 @@ if [ -z "$(which greedyFAS)" ]; then
         annoFAS --fasta test.fa --path $CURRENT --name q --prepare --annoPath $CURRENT/bin/fas
     fi
 else
-    fasPath="$(pip show greedyFAS | grep Location | sed 's/Location: //')"
+    fasPath="$(pip show greedyFAS | $grepprog Location | $sedprog 's/Location: //')"
     annoFile="$fasPath/greedyFAS/annoFAS.pl"
-    tmp="$(grep "my \$config" $annoFile | sed 's/my \$config = //' | sed 's/;//')"
+    tmp="$($grepprog "my \$config" $annoFile | $sedprog 's/my \$config = //' | $sedprog 's/;//')"
     if [ $tmp == "1" ]; then
-        annoPath="$(grep "my \$annotationPath" $annoFile | sed 's/my \$annotationPath = "//' | sed 's/";//')"
+        annoPath="$($grepprog "my \$annotationPath" $annoFile | $sedprog 's/my \$annotationPath = "//' | $sedprog 's/";//')"
         echo $annoPath
         if ! [ -f "$annoPath/Pfam/Pfam-hmms/Pfam-A.hmm" ]; then
             annoFAS --fasta test.fa --path $CURRENT --name q --prepare --annoPath $annoPath
@@ -291,17 +291,17 @@ fi
 echo "-------------------------------------"
 echo "Adding paths to ~/$bashFile"
 
-if [ -z "$(grep PATH=$CURRENT/bin:\$PATH ~/$bashFile)" ]; then
+if [ -z "$($grepprog PATH=$CURRENT/bin:\$PATH ~/$bashFile)" ]; then
 	echo "export PATH=$CURRENT/bin:\$PATH" >> ~/$bashFile
 fi
 
 wisePath=$(which "genewise")
-if [ -z "$(grep WISECONFIGDIR=$wisePath ~/$bashFile)" ]; then
+if [ -z "$($grepprog WISECONFIGDIR=$wisePath ~/$bashFile)" ]; then
     echo "export WISECONFIGDIR=${wisePath}" >> ~/$bashFile
 fi
 
 echo "Adding paths to ~/$rprofile"
-if [ -z "$(grep $CURRENT/bin ~/$rprofile)" ]; then
+if [ -z "$($grepprog $CURRENT/bin ~/$rprofile)" ]; then
     echo "Sys.setenv(PATH = paste(\"$CURRENT/bin\", Sys.getenv(\"PATH\"), sep=\":\"))" >> ~/$rprofile
 fi
 
@@ -342,7 +342,7 @@ condaPkgs=(
   fasta3
 )
 for i in "${condaPkgs[@]}"; do
-    if [[ -z $(conda list | grep "$i ") ]]; then
+    if [[ -z $(conda list | $grepprog "$i ") ]]; then
         progname=$i
         if [ "$i" == "blast" ]; then
             progname="blastp"
@@ -376,16 +376,16 @@ envPaths=(
   WISECONFIGDIR
 )
 for i in "${envPaths[@]}"; do
-    if [ -z "$(grep $i ~/$bashFile)" ]; then
+    if [ -z "$($grepprog $i ~/$bashFile)" ]; then
         echo -e "\t\033[31m$i was not added into ~/$bashFile\033[0m"
         flag=1
     fi
 done
 
-if [ -z "$(grep PATH=$CURRENT/bin:\$PATH ~/$bashFile)" ]; then
+if [ -z "$($grepprog PATH=$CURRENT/bin:\$PATH ~/$bashFile)" ]; then
 	echo -e "\t\033[31m$CURRENT/bin was not added into ~/$bashFile\033[0m"
 fi
-if [ -z "$(grep $CURRENT/bin ~/$rprofile)" ]; then
+if [ -z "$($grepprog $CURRENT/bin ~/$rprofile)" ]; then
 	echo -e "\t\033[31mWARNING $CURRENT/bin was not added into ~/$rprofile\033[0m"
     flag=1
 fi
