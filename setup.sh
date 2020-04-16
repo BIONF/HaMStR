@@ -190,7 +190,7 @@ if [ $fas == 1 ]; then
                 echo "Installation of FAS failed! Please try again!"
                 exit
             else
-                annoFAS --fasta test.fa --path $CURRENT --name q --prepare --annoPath $CURRENT/bin/fas
+                annoFAS --fasta $CURRENT/data/infile.fa --path $CURRENT --name q --prepare --annoPath $CURRENT/bin/fas
             fi
         else
             pip install $CURRENT/bin/fas --user

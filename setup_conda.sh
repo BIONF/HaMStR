@@ -215,7 +215,7 @@ if [ -z "$(which greedyFAS)" ]; then
         echo -e "\033[31mInstallation of FAS failed! Please try again!\033[0m"
         exit
     else
-        annoFAS --fasta test.fa --path $CURRENT --name q --prepare --annoPath $CURRENT/bin/fas
+        annoFAS --fasta $CURRENT/data/infile.fa --path $CURRENT --name q --prepare --annoPath $CURRENT/bin/fas
     fi
 else
     fasPath="$(pip show greedyFAS | $grepprog Location | $sedprog 's/Location: //')"
@@ -225,10 +225,10 @@ else
         annoPath="$($grepprog "my \$annotationPath" $annoFile | $sedprog 's/my \$annotationPath = "//' | $sedprog 's/";//')"
         echo $annoPath
         if ! [ -f "$annoPath/Pfam/Pfam-hmms/Pfam-A.hmm" ]; then
-            annoFAS --fasta test.fa --path $CURRENT --name q --prepare --annoPath $annoPath
+            annoFAS --fasta $CURRENT/data/infile.fa --path $CURRENT --name q --prepare --annoPath $annoPath
         fi
     else
-        annoFAS --fasta test.fa --path $CURRENT --name q --prepare --annoPath $CURRENT/bin/fas
+        annoFAS --fasta $CURRENT/data/infile.fa --path $CURRENT --name q --prepare --annoPath $CURRENT/bin/fas
     fi
 fi
 cd $CURRENT
