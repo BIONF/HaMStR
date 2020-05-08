@@ -27,7 +27,7 @@ fi
 # NOTE: install only available for Linux!
 if [ -z "$(which $sedprog)" ]; then
     if [ "$sys" == "Darwin" ]; then
-        echo -e "\033[31m$sedprog not found. Please install it first (e.g. using brew)!\033[0m"
+        echo -e "\e[31m$sedprog not found. Please install it first (e.g. using brew)!\e[0m"
         flag=1
     fi
 	conda install -c conda-forge sed
@@ -35,7 +35,7 @@ fi
 
 if [ -z "$(which $grepprog)" ]; then
     if [ "$sys" == "Darwin" ]; then
-        echo -e "\033[31m$grepprog not found. Please install it first (e.g. using brew)!\033[0m"
+        echo -e "\e[31m$grepprog not found. Please install it first (e.g. using brew)!\e[0m"
         flag=1
     fi
 	conda install -c bioconda grep
@@ -43,7 +43,7 @@ fi
 
 if [ -z "$(which $wgetprog)" ]; then
     if [ "$sys" == "Darwin" ]; then
-        echo -e "\033[31m$wgetprog not found. Please install it first (e.g. using brew)!\033[0m"
+        echo -e "\e[31m$wgetprog not found. Please install it first (e.g. using brew)!\e[0m"
         flag=1
     fi
 	conda install -c anaconda wget
@@ -113,7 +113,7 @@ done
 
 for i in "${dependencies[@]}"; do
   if [ -z "$(which $i)" ]; then
-    echo -e "\033[31m$i not found. Please install it to use HaMStR!\033[0m"
+    echo -e "\e[31m$i not found. Please install it to use HaMStR!\e[0m"
     flag=1
   fi
 done
@@ -203,32 +203,44 @@ if ! [ -f "nodes" ]; then
 fi
 cd $CURRENT
 if ! [ -f "$CURRENT/taxonomy/nodes" ]; then
-	echo -e "\033[31mError while indexing NCBI taxonomy database! Please check $CURRENT/taxonomy/ folder and run this setup again!\033[0m"
+	echo -e "\e[31mError while indexing NCBI taxonomy database! Please check $CURRENT/taxonomy/ folder and run this setup again!\e[0m"
 	exit
 fi
 
 cd "bin"
+fasPrepare=0
 if [ -z "$(which greedyFAS)" ]; then
     echo "FAS"
     conda install -y -c BIONF fas
     if [ -z "$(which annoFAS)" ]; then
-        echo -e "\033[31mInstallation of FAS failed! Please try again!\033[0m"
+        echo -e "\e[31mInstallation of FAS failed! Please try again!\e[0m"
         exit
-    else
-        annoFAS --fasta $CURRENT/data/infile.fa --path $CURRENT --name q --prepare --annoPath $CURRENT/bin/fas
     fi
+    fasPrepare=1
 else
     fasPath="$(pip show greedyFAS | $grepprog Location | $sedprog 's/Location: //')"
     annoFile="$fasPath/greedyFAS/annoFAS.pl"
     tmp="$($grepprog "my \$config" $annoFile | $sedprog 's/my \$config = //' | $sedprog 's/;//')"
     if [ $tmp == "1" ]; then
         annoPath="$($grepprog "my \$annotationPath" $annoFile | $sedprog 's/my \$annotationPath = "//' | $sedprog 's/";//')"
-        echo $annoPath
         if ! [ -f "$annoPath/Pfam/Pfam-hmms/Pfam-A.hmm" ]; then
-            annoFAS --fasta $CURRENT/data/infile.fa --path $CURRENT --name q --prepare --annoPath $annoPath
+            fasPrepare=1
         fi
     else
-        annoFAS --fasta $CURRENT/data/infile.fa --path $CURRENT --name q --prepare --annoPath $CURRENT/bin/fas
+        fasPrepare=1
+    fi
+fi
+
+if [ -z "$(which annoFAS)" ]; then
+    echo -e "Installation of FAS failed! Please try again or install FAS by yourself using \e[91mconda install -c BIONF fas\e[0m"
+    echo -e "For more info, please check FAS website at \e[91mhttps://github.com/BIONF/FAS\e[0m"
+    exit
+else
+    fasPath="$(pip show greedyFAS | $grepprog Location | $sedprog 's/Location: //')"
+    annoFile="$fasPath/greedyFAS/annoFAS.pl"
+    tmp="$($grepprog "my \$config" $annoFile | $sedprog 's/my \$config = //' | $sedprog 's/;//')"
+    if [ $tmp == "0" ]; then
+        fasPrepare=1
     fi
 fi
 cd $CURRENT
@@ -272,14 +284,14 @@ if ! [ "$(ls -A $CURRENT/genome_dir)" ]; then
     if [ "$(ls -A $CURRENT/blast_dir)" ]; then
         echo "Data should be in place to run HaMStR.\n"
     else
-        echo -e "\033[31mSomething went wrong with the download. Data folders are empty.\033[0m"
+        echo -e "\e[31mSomething went wrong with the download. Data folders are empty.\e[0m"
       echo "Please try to download again from"
       echo "https://applbio.biologie.uni-frankfurt.de/download/hamstr_qfo/$data_HaMStR_file"
       echo "Or contact us if you think this is our issue!"
       exit
     fi
 	else
-	  echo -e "\033[31mSomething went wrong with the download. Checksum does not match.\033[0m"
+	  echo -e "\e[31mSomething went wrong with the download. Checksum does not match.\e[0m"
 	  echo "Please try to download again from"
 	  echo "https://applbio.biologie.uni-frankfurt.de/download/hamstr_qfo/$data_HaMStR_file"
 	  echo "Please put it into $CURRENT folder and run this setup again!"
@@ -354,7 +366,7 @@ for i in "${condaPkgs[@]}"; do
             progname="fasta36"
         fi
         if [ -z "$(which $progname)" ]; then
-            echo -e "\t\033[31m$i could not be installed\033[0m"
+            echo -e "\t\e[31m$i could not be installed\e[0m"
             flag=1
         fi
     fi
@@ -365,7 +377,7 @@ echo "Perl modules"
 for i in "${perlModules[@]}"; do
   msg=$((perl -e "use $i") 2>&1)
   if ! [[ -z ${msg} ]]; then
-    echo -e "\t\033[31m$i could not be installed\033[0m"
+    echo -e "\t\e[31m$i could not be installed\e[0m"
     flag=1
   fi
 done
@@ -377,16 +389,16 @@ envPaths=(
 )
 for i in "${envPaths[@]}"; do
     if [ -z "$($grepprog $i ~/$bashFile)" ]; then
-        echo -e "\t\033[31m$i was not added into ~/$bashFile\033[0m"
+        echo -e "\t\e[31m$i was not added into ~/$bashFile\e[0m"
         flag=1
     fi
 done
 
 if [ -z "$($grepprog PATH=$CURRENT/bin:\$PATH ~/$bashFile)" ]; then
-	echo -e "\t\033[31m$CURRENT/bin was not added into ~/$bashFile\033[0m"
+	echo -e "\t\e[31m$CURRENT/bin was not added into ~/$bashFile\e[0m"
 fi
 if [ -z "$($grepprog $CURRENT/bin ~/$rprofile)" ]; then
-	echo -e "\t\033[31mWARNING $CURRENT/bin was not added into ~/$rprofile\033[0m"
+	echo -e "\t\e[31mWARNING $CURRENT/bin was not added into ~/$rprofile\e[0m"
     flag=1
 fi
 
@@ -406,12 +418,18 @@ else
     echo "-------------------------------------"
     $sedprog -i -e 's/my $configure = .*/my $configure = 1;/' $CURRENT/bin/hamstr.pl
     $sedprog -i -e 's/my $configure = .*/my $configure = 1;/' $CURRENT/bin/oneSeq.pl
-    echo "All tests succeeded, HaMStR should be ready to run. You can test it by going into HaMStR folder"
-    echo -e "\033[1mcd HaMStR\033[0m"
-    echo "and run"
-    echo -e "\033[1moneSeq -seqFile=infile.fa -seqName=test -refspec=HUMAN@9606@3 -minDist=genus -maxDist=kingdom -coreOrth=5 -cleanup -cpu=4\033[0m"
+    if [ "$fasPrepare" == 1 ]; then
+        echo "All tests succeeded."
+        echo -e "\e[91mPLEASE RUN\e[0m \e[96mprepareFAS\e[0m \e[91mTO CONFIGURE FAS BEFORE USING HaMStR!\e[0m"
+        echo "Then you can test HaMStR with:"
+    else
+        echo "All tests succeeded, HaMStR should be ready to run. You can test it with:"
+    fi
+    echo -e "\e[96mcd HaMStR\e[0m"
+    echo -e "\e[96moneSeq -seqFile=infile.fa -seqName=test -refspec=HUMAN@9606@3 -minDist=genus -maxDist=kingdom -coreOrth=5 -cleanup -cpu=4\e[0m"
     echo "Output files with prefix \"test\" will be found at your current working directory!"
-    echo "For more details, use"
-    echo -e "\033[1moneSeq -h\033[0m"
+    echo -e "For more details, use \e[96moneSeq -h\e[0m"
+    echo -e "\e[91mNote: if oneSeq not found, you should run this command first:\e[0m \e[96msource ~/$bashFile\e[0m"
+    echo "Happy HaMStRing! ;-)"
 fi
 exit 1
