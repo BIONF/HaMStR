@@ -270,8 +270,8 @@ Ebersberger, I., Strauss, S. & von Haeseler, A. HaMStR: Profile hidden markov mo
 
 # Contributors
 - [Ingo Ebersberger](https://github.com/ebersber)
-- [Holger Bergmann](https://github.com/holgerbgm)
 - [Vinh Tran](https://github.com/trvinh)
+- [Holger Bergmann](https://github.com/holgerbgm)
 
 ## Contact
 For further support or bug reports please contact: ebersberger@bio.uni-frankfurt.de
