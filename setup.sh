@@ -67,26 +67,26 @@ if [ "$sys" == "Darwin" ]; then
 fi
 
 if [ -z "$(which $sedprog)" ]; then
-    echo -e "\033[31m$sedprog not found!\033[0m"
+    echo -e "\e[31m$sedprog not found!\e[0m"
 	if [ $root == 0 ]; then
 		echo "Please run $CURRENT/install_lib.sh first!"
-    	exit
+        exit
 	fi
 fi
 
 if [ -z "$(which $grepprog)" ]; then
-    echo -e "\033[31m$grepprog not found!\033[0m"
+    echo -e "\e[31m$grepprog not found!\e[0m"
 	if [ $root == 0 ]; then
 		echo "Please run $CURRENT/install_lib.sh first!"
-    	exit
+        exit
 	fi
 fi
 
 if [ -z "$(which $wgetprog)" ]; then
-    echo -e "\033[31m$wgetprog not found!\033[0m"
+    echo -e "\e[31m$wgetprog not found!\e[0m"
 	if [ $root == 0 ]; then
 		echo "Please run $CURRENT/install_lib.sh first!"
-    	exit
+        exit
 	fi
 fi
 
@@ -141,14 +141,14 @@ if [ -z "$(which fasta36)" ]; then
               make -f ../make/Makefile.os_x86_64 all
     	  fi
     fi
-    if [ -z "$(grep PATH=$CURRENT/bin/aligner/bin ~/$bashFile)" ]; then
+    if [ -z "$($grepprog PATH=$CURRENT/bin/aligner/bin ~/$bashFile)" ]; then
         echo "export PATH=$CURRENT/bin/aligner/bin:\$PATH" >> ~/$bashFile
     fi
 fi
 cd $CURRENT
 if [ -z "$(which fasta36)" ]; then
 	if ! [ -f "$CURRENT/bin/aligner/bin/fasta36" ]; then
-		echo -e "\033[31mfasta36 tool could not be found in $CURRENT/bin/aligner/. Please check again!\033[0m"
+		echo -e "\e[31mfasta36 tool could not be found in $CURRENT/bin/aligner/. Please check again!\e[0m"
 		exit
 	fi
 fi
@@ -170,10 +170,11 @@ if ! [ -f "nodes" ]; then
 fi
 cd $CURRENT
 if ! [ -f "$CURRENT/taxonomy/nodes" ]; then
-	echo -e "\033[31mError while indexing NCBI taxonomy database! Please check $CURRENT/taxonomy/ folder and run this setup again!\033[0m"
+	echo -e "\e[31mError while indexing NCBI taxonomy database! Please check $CURRENT/taxonomy/ folder and run this setup again!\e[0m"
 	exit
 fi
 
+fasPrepare=0
 if [ $fas == 1 ]; then
     cd "bin"
     if [ -z "$(which greedyFAS)" ]; then
@@ -189,40 +190,44 @@ if [ $fas == 1 ]; then
             if [ -z "$(which annoFAS)" ]; then
                 echo "Installation of FAS failed! Please try again!"
                 exit
-            else
-                annoFAS --fasta test.fa --path $CURRENT --name q --prepare --annoPath $CURRENT/bin/fas
             fi
+            fasPrepare=1
         else
             pip install $CURRENT/bin/fas --user
-            if [ -z "$(grep \$HOME/.local/bin:\$PATH ~/$bashFile)" ]; then
+            if [ -z "$($grepprog \$HOME/.local/bin:\$PATH ~/$bashFile)" ]; then
                 echo "export PATH=\$HOME/.local/bin:\$PATH" >> ~/$bashFile
             fi
-            if [ -z "$(grep $homedir/.local/bin ~/$rprofile)" ]; then
+            if [ -z "$($grepprog $homedir/.local/bin ~/$rprofile)" ]; then
                 echo "Sys.setenv(PATH = paste(\"$homedir/.local/bin\", Sys.getenv(\"PATH\"), sep=\":\"))" >> ~/$rprofile
             fi
-            # change path to annoFAS.py and greeyFAS.py in oneSeq.pl (to not require for restarting the terminal)
-            annoprog="python \$path\/bin\/fas\/greedyFAS\/annoFAS.py"
-            $sedprog -i -e "s/\(my \$annotation_prog = \).*/\1\"$annoprog\";/" $CURRENT/bin/oneSeq.pl
-            fasprog="python \$path\/bin\/fas\/greedyFAS\/greedyFAS.py"
-            $sedprog -i -e "s/\(my \$fas_prog = \).*/\1\"$fasprog\";/" $CURRENT/bin/oneSeq.pl
-            # get FAS annotation tools and pre-calculated data
-            python $CURRENT/bin/fas/greedyFAS/annoFAS.py --fasta $CURRENT/data/infile.fa --path $CURRENT --name q --prepare --annoPath $CURRENT/bin/fas
+            fasPrepare=1
         fi
     else
-        fasPath="$(pip show greedyFAS | grep Location | sed 's/Location: //')"
+        fasPath="$(pip show greedyFAS | $grepprog Location | $sedprog 's/Location: //')"
         annoFile="$fasPath/greedyFAS/annoFAS.pl"
-        tmp="$(grep "my \$config" $annoFile | sed 's/my \$config = //' | sed 's/;//')"
+        tmp="$($grepprog "my \$config" $annoFile | $sedprog 's/my \$config = //' | $sedprog 's/;//')"
         if [ $tmp == "1" ]; then
-            annoPath="$(grep "my \$annotationPath" $annoFile | sed 's/my \$annotationPath = "//' | sed 's/";//')"
+            annoPath="$($grepprog "my \$annotationPath" $annoFile | $sedprog 's/my \$annotationPath = "//' | $sedprog 's/";//')"
             if ! [ -f "$annoPath/Pfam/Pfam-hmms/Pfam-A.hmm" ]; then
-                annoFAS --fasta $CURRENT/data/infile.fa --path $CURRENT --name q --prepare --annoPath $annoPath
+                fasPrepare=1
             fi
         else
-            annoFAS --fasta $CURRENT/data/infile.fa --path $CURRENT --name q --prepare --annoPath $CURRENT/bin/fas
+            fasPrepare=1
         fi
     fi
 
     cd $CURRENT
+    if [ -z "$(which annoFAS)" ]; then
+        echo -e "Installation of FAS failed! Please try again or install FAS by yourself at \e[91mhttps://github.com/BIONF/FAS\e[0m!"
+        exit
+    else
+        fasPath="$(pip show greedyFAS | $grepprog Location | $sedprog 's/Location: //')"
+        annoFile="$fasPath/greedyFAS/annoFAS.pl"
+        tmp="$($grepprog "my \$config" $annoFile | $sedprog 's/my \$config = //' | $sedprog 's/;//')"
+        if [ $tmp == "0" ]; then
+            fasPrepare=1
+        fi
+    fi
     echo "done!"
 fi
 
@@ -264,14 +269,14 @@ if ! [ "$(ls -A $CURRENT/genome_dir)" ]; then
         if [ "$(ls -A $CURRENT/blast_dir)" ]; then
             echo "Data should be in place to run HaMStR."
         else
-            echo -e "\033[31mSomething went wrong with the download. Data folders are empty.\033[0m"
+            echo -e "\e[31mSomething went wrong with the download. Data folders are empty.\e[0m"
             echo "Please try to download again from"
             echo "https://applbio.biologie.uni-frankfurt.de/download/hamstr_qfo/$data_HaMStR_file"
             echo "Or contact us if you think this is our issue!"
             exit
         fi
 	else
-        echo -e "\033[31mSomething went wrong with the download. Checksum does not match.\033[0m"
+        echo -e "\e[31mSomething went wrong with the download. Checksum does not match.\e[0m"
         echo "Please try to download again from"
         echo "https://applbio.biologie.uni-frankfurt.de/download/hamstr_qfo/$data_HaMStR_file"
         echo "Please put it into $CURRENT folder and run this setup again!"
@@ -283,17 +288,17 @@ fi
 echo "-------------------------------------"
 echo "Adding paths to ~/$bashFile"
 
-if [ -z "$(grep PATH=$CURRENT/bin:\$PATH ~/$bashFile)" ]; then
+if [ -z "$($grepprog PATH=$CURRENT/bin:\$PATH ~/$bashFile)" ]; then
 	echo "export PATH=$CURRENT/bin:\$PATH" >> ~/$bashFile
 fi
 
 wisePath=$(which "genewise")
-if [ -z "$(grep WISECONFIGDIR=$wisePath ~/$bashFile)" ]; then
+if [ -z "$($grepprog WISECONFIGDIR=$wisePath ~/$bashFile)" ]; then
     echo "export WISECONFIGDIR=${wisePath}" >> ~/$bashFile
 fi
 
 echo "Adding paths to ~/$rprofile"
-if [ -z "$(grep $CURRENT/bin ~/$rprofile)" ]; then
+if [ -z "$($grepprog $CURRENT/bin ~/$rprofile)" ]; then
     echo "Sys.setenv(PATH = paste(\"$CURRENT/bin\", Sys.getenv(\"PATH\"), sep=\":\"))" >> ~/$rprofile
 fi
 echo "done!"
@@ -342,7 +347,7 @@ for i in "${dependencies[@]}"; do
         fi
     fi
     if [ -z "$(which $tool)" ]; then
-        echo -e "\t\033[31mWARNING $tool not found!\033[0m"
+        echo -e "\t\e[31mWARNING $tool not found!\e[0m"
         flag=1
     fi
 done
@@ -383,7 +388,7 @@ echo "Perl modules"
 for i in "${perlModules[@]}"; do
   msg=$((perl -e "use $i") 2>&1)
   if ! [[ -z ${msg} ]]; then
-    echo -e "\t\033[31mWARNING $i could not be installed\033[0m"
+    echo -e "\t\e[31mWARNING $i could not be installed\e[0m"
     flag=1
   fi
 done
@@ -393,23 +398,23 @@ envPaths=(
   WISECONFIGDIR
 )
 for i in "${envPaths[@]}"; do
-    if [ -z "$(grep $i ~/$bashFile)" ]; then
-        echo -e "\t\033[31mWARNING $i was not added into ~/$bashFile\033[0m"
+    if [ -z "$($grepprog $i ~/$bashFile)" ]; then
+        echo -e "\t\e[31mWARNING $i was not added into ~/$bashFile\e[0m"
         flag=1
     fi
 done
 if [ "$fasta36" == "no" ]; then
-    if [ -z "$(grep PATH=$CURRENT/bin/aligner/bin ~/$bashFile)" ]; then
-        echo -e "\t\033[31mWARNING $CURRENT/bin/aligner/bin was not added into ~/$bashFile\033[0m"
+    if [ -z "$($grepprog PATH=$CURRENT/bin/aligner/bin ~/$bashFile)" ]; then
+        echo -e "\t\e[31mWARNING $CURRENT/bin/aligner/bin was not added into ~/$bashFile\e[0m"
         flag=1
     fi
 fi
-if [ -z "$(grep PATH=$CURRENT/bin:\$PATH ~/$bashFile)" ]; then
-	echo -e "\t\033[31mWARNING $CURRENT/bin was not added into ~/$bashFile\033[0m"
+if [ -z "$($grepprog PATH=$CURRENT/bin:\$PATH ~/$bashFile)" ]; then
+	echo -e "\t\e[31mWARNING $CURRENT/bin was not added into ~/$bashFile\e[0m"
     flag=1
 fi
-if [ -z "$(grep $CURRENT/bin ~/$rprofile)" ]; then
-	echo -e "\t\033[31mWARNING $CURRENT/bin was not added into ~/$rprofile\033[0m"
+if [ -z "$($grepprog $CURRENT/bin ~/$rprofile)" ]; then
+	echo -e "\t\e[31mWARNING $CURRENT/bin was not added into ~/$rprofile\e[0m"
     flag=1
 fi
 
@@ -427,10 +432,17 @@ else
     echo "-------------------------------------"
     $sedprog -i -e 's/my $configure = .*/my $configure = 1;/' $CURRENT/bin/hamstr.pl
     $sedprog -i -e 's/my $configure = .*/my $configure = 1;/' $CURRENT/bin/oneSeq.pl
-    echo "All tests succeeded, HaMStR should be ready to run. You can test it with:"
-    echo -e "\033[1moneSeq -seqFile=infile.fa -seqName=test -refspec=HUMAN@9606@3 -minDist=genus -maxDist=kingdom -coreOrth=5 -cleanup -cpu=4\033[0m"
+    if [ "$fasPrepare" == 1 ]; then
+        echo "All tests succeeded."
+        echo -e "\e[91mPLEASE RUN\e[0m \e[96mprepareFAS\e[0m \e[91mTO CONFIGURE FAS BEFORE USING HaMStR!\e[0m"
+        echo "Then you can test HaMStR with:"
+    else
+        echo "All tests succeeded, HaMStR should be ready to run. You can test it with:"
+    fi
+    echo -e "\e[96moneSeq -seqFile=infile.fa -seqName=test -refspec=HUMAN@9606@3 -minDist=genus -maxDist=kingdom -coreOrth=5 -cleanup -cpu=4\e[0m"
     echo "Output files with prefix \"test\" will be found at your current working directory!"
-    echo "For more details, use"
-    echo -e "\033[1moneSeq -h\033[0m"
+    echo -e "For more details, use \e[96moneSeq -h\e[0m"
+    echo -e "\e[91mNote: if oneSeq not found, you should run this command first:\e[0m \e[96msource ~/$bashFile\e[0m"
+    echo "Happy HaMStRing! ;-)"
 fi
 exit 1

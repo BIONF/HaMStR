@@ -185,8 +185,12 @@ use run_genewise_hamstr;
     ## fixed the issue of long proteins with best total hmm bit score but very poor domain scores. Allow now the option to sort
     ## hmmsearch output according to the best domain bit score. The current routine assumes that neither query nor
     ## hit has whitespaces in their names
+
+	## 14.04.2020 (Vinh)
+    ## Bug fix (solved): existing symbolic link cannot recognized while checking the reference fasta file
+
 ######################## start main ###########################################
-my $version = "HaMStR v.13.2.10";
+my $version = "HaMStR v.13.2.11";
 ######################## checking whether the configure script has been run ###
 my $configure = 0;
 if ($configure == 0){
@@ -195,8 +199,8 @@ if ($configure == 0){
 ########## EDIT THE FOLLOWING LINES TO CUSTOMIZE YOUR SCRIPT ##################
 my $prog = 'hmmsearch'; #program for the hmm search
 my $eval = 1; # default evalue cutoff for the hmm search
-my $sedprog = 'sed';
-my $grepprog = 'grep';
+my $sedprog = 'gsed';
+my $grepprog = 'ggrep';
 my $alignmentprog = 'clustalw';
 my $alignmentprog_co = 'muscle';
 ########## EDIT THE FOLLOWING TWO LINES TO CHOOSE YOUR BLAST PROGRAM ##########
@@ -1158,12 +1162,19 @@ Please consult the installation manual for genewise and set this variable";
     push @log, "\nCHECKING FOR REFERENCE FASTA FILES\n";
     for (my $i = 0; $i < @refspec; $i++) {
         my $referencedb = "$blastpath/$refspec[$i]/$refspec[$i]".".fa";
-	my $referencedb_prot = "$blastpath/$refspec[$i]/$refspec[$i]"."_prot.fa"; # backward compatibility
+		my $referencedb_prot = "$blastpath/$refspec[$i]/$refspec[$i]"."_prot.fa"; # backward compatibility
         my $ref_dir = "$blastpath/$refspec[$i]";
-        my $link = `readlink $referencedb`;
-        my $ref_location = $referencedb;
+		my $link = $referencedb;
+		unless (-e $referencedb) {
+			$link = `readlink $referencedb`;
+			unless ($link =~ /^\./ || $link =~ /^\//) {
+				my $cwd = cwd();
+				die "Linked source for $referencedb not found in $cwd!";
+			}
+		}
+        # my $ref_location = $referencedb; # not used anywhere else
         chomp($link);
-        if (-e "$referencedb") {
+        if (-e $referencedb || -e $link) {
             if (defined $link){
                 # link to file (.fa)
                 my $cwd = cwd();
@@ -1195,7 +1206,7 @@ Please consult the installation manual for genewise and set this variable";
                 }
             }
 
-        }elsif (-e "$referencedb_prot"){
+        } elsif (-e "$referencedb_prot"){
             #checking files
             if (-e "$referencedb_prot.mod") {
                 push  @log, "\tA infile is already modified: linked $referencedb.mod existst. Using this one";
@@ -1221,7 +1232,7 @@ Please consult the installation manual for genewise and set this variable";
                 }
             }
 
-	}else{
+		} else {
             #the provided reference fasta file does not exist or link to file does not exist:
             push @log, "${bold}FATAL:${norm} FASTA file for the specified reference $refspec[$i] does not exist. PLEASE PROVIDE A VALID REFERENCE SPECIES!\n";
             $check = 0;

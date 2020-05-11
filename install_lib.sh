@@ -71,7 +71,7 @@ dependenciesUbuntu=(
   libipc-run-perl
   perl-doc
   locales
-  lib32ncurses5
+  lib32ncurses6
   lib32z1
 )
 

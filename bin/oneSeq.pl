@@ -98,9 +98,14 @@ my $startTime = time;
 ## Modified 05. Feb. 2020 (Vinh):   - added option to set number of CPUs for FAS annotation
 ##									- input faste file must not be present in data folder or working directory
 ##									- output files will be stored either in user defined directory set via -outpath option, or in working directory by default
+
 ## Bug fix 14. April 2020 (Ingo):	- fixed bug that inactivated the -append option
+
+## Modified 14. Aprilf 2002 (Vinh): - added option for using user-defined blast_dir, genome_dir and weight_dir
+##									- reference species (and taxa for core-set compilation) specified from blast_dir
+
 ############ General settings
-my $version = 'oneSeq v.1.5.1';
+my $version = 'oneSeq v.1.6.0';
 ##### configure for checking if the setup.sh script already run
 my $configure = 0;
 if ($configure == 0){
@@ -121,8 +126,8 @@ $path =~ s/\/$//;
 printDebug("Path is $path");
 
 #### Programs and output
-my $sedprog = 'sed';
-my $grepprog = 'grep';
+my $sedprog = 'gsed';
+my $grepprog = 'ggrep';
 
 my $globalaligner = 'ggsearch36';
 my $glocalaligner = 'glsearch36';
@@ -169,8 +174,8 @@ my $outputPath = $currDir; #"$path/output"; ## DEFAULT OUTPUT PATH
 my $hamstrPath = "$path/bin/hamstr";
 my $homeDir = $path;
 my $alignmentscoreMatrix = "BP62"; ## opt given by ssearch and glsearch [codaa.mat idnaa.mat P250 P120 BL50 MD40 MD20 MD10 BL62 BL80 BP62 VT160 OPT5]
-my $genome_dir = "genome_dir";
-my $taxaPath = "$path/$genome_dir/";
+my $genome_dir = "$path/genome_dir";
+my $taxaPath = "$genome_dir/";
 my $blastPath = "$path/blast_dir/";
 my $idx_dir = "$path/taxonomy/";
 my $tmpdir = "$path/tmp";
@@ -272,8 +277,10 @@ my $core_filter_mode;
 my $dbmode = 0;         ## default run in dbmode. consider setting this in the configure step
 my $vlevel = 2;         ## verbosity level
 my @taxonlist = qw();
+my @refTaxonlist = qw();
 my $seqio_object;
 my %taxa;
+my %refTaxa;
 my $autoclean;
 my $getversion;
 my $coreex; ## flag to set when the core set already exists
@@ -328,6 +335,9 @@ GetOptions ("h"                 => \$help,
 			"cpu=s"             => \$cpu,
 			"outpath=s"         => \$outputPath,
 			"hmmpath=s"         => \$coreOrthologsPath,
+			"blastpath=s"         => \$blastPath,
+			"searchpath=s"         => \$genome_dir,
+			"weightpath=s"         => \$weightPath,
 			"debug"             => \$debug,
 			"coreHitlimit=s"   => \$core_hitlimit,
 			"hitlimit=s"        => \$hitlimit,
@@ -343,6 +353,11 @@ GetOptions ("h"                 => \$help,
 			"aligner=s"	=> \$aln);
 
 $outputPath = abs_path($outputPath);
+$coreOrthologsPath = abs_path($coreOrthologsPath)."/";
+$blastPath = abs_path($blastPath)."/";
+$weightPath = abs_path($weightPath)."/";
+$genome_dir = abs_path($genome_dir)."/";
+$taxaPath = $genome_dir;
 
 ############# connect to the database
 if ($dbmode) {
@@ -350,7 +365,7 @@ if ($dbmode) {
 	or die "Can not open the database!";
 }
 # check additional environment
-checkEnv();
+# checkEnv(); # turn off by Vinh
 
 ############# show all taxa
 if ($showTaxa) {
@@ -361,6 +376,7 @@ if ($showTaxa) {
 }
 
 %taxa = getTaxa();
+%refTaxa = getRefTaxa();
 ## debugging message
 my $taxcount = keys(%taxa);
 printDebug("receiving hash of taxa with $taxcount elements from sub getTaxa");
@@ -387,19 +403,21 @@ my $maxAlnScore = 0;
 # create weight_dir in oneseq's home dir (used for annotations,weighting,feature extraction)
 # get annotations for seed sequence if fas support is on
 if ($fas_support){
-	createWeightFolder();
+	if (!$weightPath) {
+		createWeightFolder();
+	}
 	getAnnotation($outputFa);
 }
 
 #core-ortholog search
 if (!$coreex) {
 	$coremode = 1;
-
+	$taxaPath = $blastPath;
 	#### moved from above
 	my $starttime = time;
 	print "Building up the taxonomy tree. Start $starttime\n";
-        push @logOUT, "Building up the taxonomy tree. Start $starttime\n";
-	$tree = getTree();
+    push @logOUT, "Building up the taxonomy tree. Start $starttime\n";
+	$tree = getRefTree();
 	$treeDelFlag = 0;
 	if($group) {
 		foreach($tree->get_nodes()) {
@@ -411,9 +429,9 @@ if (!$coreex) {
 	}
 	my $endtime = time;
 	print "Finished building the taxonomy tree: $endtime\n";
-        push @logOUT, "Finished building the taxonomy tree: $endtime\n";
+    push @logOUT, "Finished building the taxonomy tree: $endtime\n";
 	## Tree without deletions
-	$wholeTree = getTree();
+	$wholeTree = getRefTree();
 	if($group) {
 		foreach($wholeTree->get_nodes()) {
 			if($_->id == $groupNode->id) {
@@ -423,14 +441,14 @@ if (!$coreex) {
 		$wholeTree->set_root_node($groupNode);
 	}
 	## initialise control nodes
-	$currentDistNode = $wholeTree->find_node(-ncbi_taxid => $taxa{$refSpec});
+	$currentDistNode = $wholeTree->find_node(-ncbi_taxid => $refTaxa{$refSpec});
 	$currentNoRankDistNode = $currentDistNode->ancestor; ## the node from which the distance to other species will be calculated
 	$currentChildsToIgnoreNode = $currentDistNode; ## the node containing all child species which will not be included in the candidates file
 
 	%hashTree = buildHashTree();
 	removeMaxDist();
-	printDebug("Subroutine call removeMinDist\nRefspec is $refSpec\nTaxon is $taxa{$refSpec}\n");
-	$treeDelFlag = removeMinDist($taxa{$refSpec});
+	printDebug("Subroutine call removeMinDist\nRefspec is $refSpec\nTaxon is $refTaxa{$refSpec}\n");
+	$treeDelFlag = removeMinDist($refTaxa{$refSpec});
 	#### end moved from above
 
 	if ($ignoreDistance){
@@ -486,8 +504,8 @@ if (!$coreex) {
 			clearTmpFiles();
 
 			++$curCoreOrthologs;
-			printDebug("Subroutine call from core-ortholog compilation\nTaxon is $addedTaxon\nNCBI Id is $taxa{$addedTaxon}\n");
-			$treeDelFlag = removeMinDist($taxa{$addedTaxon});
+			printDebug("Subroutine call from core-ortholog compilation\nTaxon is $addedTaxon\nNCBI Id is $refTaxa{$addedTaxon}\n");
+			$treeDelFlag = removeMinDist($refTaxa{$addedTaxon});
 		}
 		else {
 			#there are no more core orthologs
@@ -789,7 +807,7 @@ sub nFAS_score_final{
 
 #################################
 ## Clears Temporary files
-sub clearTmpFiles{
+sub clearTmpFiles {
 	#clear temporary result file
 	if(-e $outputFa.".extended") {
 		unlink($outputFa.".extended");
@@ -1166,13 +1184,18 @@ sub parseArchitecture{
 }
 ## auto clean up can be invoked via the "-cleanup" option
 # $processID: given process ID
-sub runAutoCleanUp{
+sub runAutoCleanUp {
 	my $processID = $_[0];
 	print "\noneSeq.pl finished. Starting Auto Clean-up...\n\n";
 
 	my $delCommandMod = "rm -f $outputPath/*.mod";
 	system ($delCommandMod) == 0 or die "Error deleting result files\n";
 	print "--> $outputPath/*.mod deleted.\n";
+	foreach my $tax (keys %taxa) {
+		$delCommandMod = "rm -f $genome_dir/$tax/*.mod";
+		system ($delCommandMod) == 0 or die "Error deleting result files\n";
+	}
+	print "--> $genome_dir/*.mod deleted.\n";
 
 	my $delCommandTmp = "rm -rf $outputPath/tmp";
 	system ($delCommandTmp) == 0 or die "Error deleting result files\n";
@@ -1473,8 +1496,8 @@ sub checkEnv {
 			print "\nThe given additional environment ". $addenv . " was not found...exiting.\n";
 			exit;
 		}
-		$genome_dir = "genome_dir"."_".$addenv;
-		$taxaPath = "$path/$genome_dir/";
+		$genome_dir = "$path/genome_dir"."_".$addenv;
+		$taxaPath = $genome_dir; #"$path/$genome_dir/";
 		$blastPath = "$path/blast_dir"."_".$addenv."/";
 		$weightPath = "$path/weight_dir"."_".$addenv."/";
 		print "Environment set to ".$addenv."\nUsing taxa in \n\t$taxaPath\n\t$blastPath\n\t$weightPath\n\n";
@@ -1526,22 +1549,23 @@ sub checkOptions {
 	### begin move up
 	### checking reference species
 	my $optbreaker = 0;
-	while ((!$refSpec or !$taxa{$refSpec})  && !$blast) {
+	while ((!$refSpec or !$refTaxa{$refSpec})  && !$blast) {
 		if ($optbreaker >= 3){
 			print "No proper refspec given ... exiting.\n";
 			exit;
 		}
 		my $output = '';
-		for (my $i = 0; $i < @taxonlist; $i++) {
-			$output = $output . "[$i]" . "\t" . $taxonlist[$i] . "\n";
+		for (my $i = 0; $i < @refTaxonlist; $i++) {
+			$output = $output . "[$i]" . "\t" . $refTaxonlist[$i] . "\n";
 		}
-		for (keys %taxa){
-			print "value of $_ is \'$taxa{$_}\'";
-		}
-		printDebug("taxa contains $taxa{$refSpec}");
+		### for debug?
+		# for (keys %taxa){
+		# 	print "value of $_ is \'$taxa{$_}\'";
+		# }
+		# printDebug("taxa contains $taxa{$refSpec}"); # cannot print this if $taxa{$refSpec} not exists!
 		my $refSpecIdx = getInput("\n" . $output . "\n" . "You did not provide a valid reference species ($refSpec). Please choose the number for the reference species your input sequence is derived from", 1);
 		$optbreaker++;
-		$refSpec = $taxonlist[$refSpecIdx];
+		$refSpec = $refTaxonlist[$refSpecIdx];
 		checkBlastDb($refSpec, $refSpec);
 	}
 	### end move up
@@ -1640,7 +1664,7 @@ sub checkOptions {
 			$besthit = determineRef($seqFile, ($refSpec));
 		}
 		else {
-			$besthit = determineRef($seqFile, @taxonlist);
+			$besthit = determineRef($seqFile, @refTaxonlist);
 		}
 		$seqId = $besthit->{name};
 		$refSpec = $besthit->{species};
@@ -1662,7 +1686,7 @@ sub checkOptions {
 		foreach (@userTaxa) {
 			$newTaxa{$_} = $taxa{$_};
 		}
-		$newTaxa{$refSpec} = $taxa{$refSpec};
+		$newTaxa{$refSpec} = $refTaxa{$refSpec};
 		%taxa = %newTaxa;
 	}
 
@@ -1750,7 +1774,7 @@ sub checkOptions {
         }
 
 	my $node;
-	$node = $db->get_taxon(-taxonid => $taxa{$refSpec});
+	$node = $db->get_taxon(-taxonid => $refTaxa{$refSpec});
 	$node->name('supplied', $refSpec);
 
 	#### checking for the min and max distance for the core set compilation
@@ -1978,7 +2002,7 @@ sub getBestOrtholog {
 		## iterate over each leaf with the same distance
 		foreach my $key (@$array){
 			my $keyName = @{$key->name('supplied')}[0];
-			my $nodeId = $wholeTree->find_node(-ncbi_taxid => $taxa{$keyName})->id;
+			my $nodeId = $wholeTree->find_node(-ncbi_taxid => $refTaxa{$keyName})->id;
 			print "Hamstr species: " . $key->scientific_name . " - " . @{$key->name('supplied')}[0] . "\n";
 			runHamstr(@{$key->name('supplied')}[0], $seqName, $outputFa, $refSpec, $core_hitlimit, $core_rep, $corestrict, $coremode, $eval_blast, $eval_hmmer, $aln);
 			## check weather a candidate was found in the searched taxon
@@ -2189,13 +2213,13 @@ sub getTaxa {
 	}
 	else {
 		## removal of misplaced files in genome_dir
-		if (-e "$path/$genome_dir/query.sql"){
-			unlink("$path/$genome_dir/query.sql");
+		if (-e "$genome_dir/query.sql"){ # "$path/$genome_dir/query.sql"){
+			unlink("$genome_dir/query.sql"); #unlink("$path/$genome_dir/query.sql");
 		}
-		if (-e "$path/$genome_dir/@@.fa"){
-			unlink("$path/$genome_dir/@@.fa");
+		if (-e "$genome_dir/@@.fa"){ # if (-e "$path/$genome_dir/@@.fa"){
+			unlink("$genome_dir/@@.fa"); # unlink("$path/$genome_dir/@@.fa");
 		}
-		@taxonlist = `ls $path/$genome_dir`;
+		@taxonlist = `ls $genome_dir`; # `ls $path/$genome_dir`;
 		chomp @taxonlist;
 		for (my $i = 0; $i < @taxonlist; $i++) {
 			my ($taxon_name, $ncbi_id, $src_id) = split /@/, $taxonlist[$i];
@@ -2221,6 +2245,20 @@ sub getTaxa {
 	printDebug("Returning $hashcount taxa from subroutine getTaxa");
 	return(%taxa);
 }
+####### get all available reference taxa
+sub getRefTaxa {
+	@refTaxonlist = `ls $blastPath`;
+	chomp @refTaxonlist;
+	for (my $i = 0; $i < @refTaxonlist; $i++) {
+		my ($taxon_name, $ncbi_id, $src_id) = split /@/, $refTaxonlist[$i];
+		if (!$src_id) {
+			$src_id = '';
+		}
+		$taxon_name = $refTaxonlist[$i];
+		$refTaxa{$taxon_name} = $ncbi_id;
+	}
+	return(%refTaxa);
+}
 ####################
 sub getTree {
 	# the full lineages of the species are merged into a single tree
@@ -2230,6 +2268,35 @@ sub getTree {
 		printDebug("\$key in sub getTree is $key and taxid is $taxa{$key}\n");
 		if (!defined $node){
 			print "ISSUE in sub getTree. No correspodence found in taxonomy file for $key and taxid $taxa{$key}. Skipping...\n";
+			next;
+		}
+		else {
+			$node->name('supplied', $key);
+			if($tree) {
+				$tree->merge_lineage($node);
+			}
+			else {
+				$tree = Bio::Tree::Tree->new(-verbose => $db->verbose, -node => $node);
+			}
+		}
+	}
+	if ($debug){
+		print "\nTaxonomic Tree as text:\n";
+		my $tree_as_string = $tree->as_text("tabtree");
+		print $tree_as_string;
+		print "\n";
+	}
+	return $tree;
+}
+
+sub getRefTree {
+	# the full lineages of the species are merged into a single tree
+	my $tree;
+	foreach my $key (sort {lc $a cmp lc $b} keys %refTaxa) { #%taxa) {
+		my $node = $db->get_taxon(-taxonid => $refTaxa{$key}); #$taxa{$key});
+		printDebug("\$key in sub getRefTree is $key and taxid is $refTaxa{$key}\n"); # $taxa{$key}\n");
+		if (!defined $node){
+			print "ISSUE in sub getRefTree. No correspodence found in taxonomy file for $key and taxid $refTaxa{$key}. Skipping...\n"; # $taxa{$key}. Skipping...\n";
 			next;
 		}
 		else {
@@ -2268,7 +2335,7 @@ sub runHamstr {
 	if(! -e $taxaDir and $dbmode) {
 		getProteome($taxon);
 	}
-	if (-e $taxaDir){
+	if (-e $taxaDir) {
 		print "hamstr for taxon: " . $taxon . "\n";
 		chdir($taxaDir) or die "Error: Directory for " . $taxon  . " does not exist!\n";
 		my $seqfile = $taxon . ".fa";
@@ -2327,7 +2394,6 @@ sub runHamstr {
 				push @hamstr, "-debug";
 			}
 			printDebug(@hamstr);
-
 			system(@hamstr) == 0 or die "Error: hamstr failed for " . $taxon . "\n";
 
 			if(-e $resultFile) {
@@ -2426,7 +2492,7 @@ sub printTaxa {
 	else {
 		print "Taxon_Name\tNCBI_ID\n";
 		print "-------------\t------------\n";
-		my $taxacall= "ls $path/$genome_dir |$sedprog -e 's/@/\t/'";
+		my $taxacall= "ls $genome_dir |$sedprog -e 's/@/\t/'"; # $path/$genome_dir |$sedprog -e 's/@/\t/'";
 		@result = `$taxacall`;
 		chomp @result;
 		print join "\n", @result;
@@ -2470,7 +2536,7 @@ sub remove_branch {
 }
 ############################
 sub removeMaxDist {
-	my $node = $tree->find_node(-ncbi_taxid => $taxa{$refSpec});
+	my $node = $tree->find_node(-ncbi_taxid => $refTaxa{$refSpec});
 	my $root = $tree->get_root_node();
 
 	if ($maxDist eq "no rank"){
@@ -2837,7 +2903,7 @@ ${bold}REQUIRED$norm
 -seqId=<>
 	Specifies the sequence identifier of the seed sequence in the reference protein set.
 	If not provided, the program will attempt to determin it automatically.
--refSpec
+-refSpec=<>
 	Determines the reference species for the hamstr search. It should be the species the seed sequence was derived from.
 	If not provided, the program will ask for it.
 -minDist=<>
@@ -2854,7 +2920,13 @@ ${bold}USING NON-DEFAULT PATHS$norm
 -outpath=<>
 	Specifies the path for the output directory. Default is $outputPath;
 -hmmpath=<>
-	Specifies the path for the core ortholog directory. Default is $coreOrthologsPath
+	Specifies the path for the core ortholog directory. Default is $coreOrthologsPath;
+-blastpath=<>
+	Specifies the path for the blastDB directory. Default is $blastPath;
+-searchpath=<>
+	Specifies the path for the search taxa directory. Default is $genome_dir;
+-weightpath=<>
+	Specifies the path for the pre-calculated feature annotion directory. Default is $weightPath;
 
 ${bold}ADDITIONAL OPTIONS$norm
 
