@@ -182,6 +182,7 @@ my $taxaPath = "$genome_dir/";
 my $blastPath = "$path/blast_dir/";
 my $idx_dir = "$path/taxonomy/";
 my $tmp_dir = "$path/tmp";
+my $tmpdir = "$path/tmp";
 my $dataDir = $path . '/data';
 my $weightPath = "$path/weight_dir/";
 
@@ -224,8 +225,6 @@ my %profile     = ();
 my %fas_score_keeper = ();
 my $eval_filter = 0.001;
 my $inst_eval_filter = 0.01;
-# my $weight_seed = 0;
-# my $annoCores = 2;
 
 my $help;
 my @profile = qw();
@@ -346,12 +345,10 @@ GetOptions ("h"                 => \$help,
 			"force"             => \$force,
 			"cleanup"           => \$autoclean,
 			"addenv=s"          => \$addenv,
-			# "weightSeed"       => \$weight_seed,
 			"version"           => \$getversion,
 			"reuseCore"        => \$coreex,
 			"ignoreDistance"	=> \$ignoreDistance,
 			"distDeviation=s"	=> \$distDeviation,
-			# "annoCores=s" => \$annoCores,
 			"aligner=s"	=> \$aln);
 
 $outputPath = abs_path($outputPath);
@@ -390,7 +387,7 @@ checkOptions();
 
 my $outputFa =  $coreOrthologsPath . $seqName . "/" . $seqName . ".fa";
 my $outputAln = $coreOrthologsPath . $seqName . "/" . $seqName . ".aln";
-$tmpdir = $tmp_dir . '/' . $seqName . '/tmp';
+$tmpdir = $tmpdir . '/' . $seqName . '/tmp';
 createFoldersAndFiles($outputFa, $seqName, $inputSeq, $refSpec, $tmpdir);
 
 my $curCoreOrthologs = 0;
