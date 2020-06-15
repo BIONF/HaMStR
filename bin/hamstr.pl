@@ -199,8 +199,8 @@ if ($configure == 0){
 ########## EDIT THE FOLLOWING LINES TO CUSTOMIZE YOUR SCRIPT ##################
 my $prog = 'hmmsearch'; #program for the hmm search
 my $eval = 1; # default evalue cutoff for the hmm search
-my $sedprog = 'gsed';
-my $grepprog = 'ggrep';
+my $sedprog = 'sed';
+my $grepprog = 'grep';
 my $alignmentprog = 'clustalw';
 my $alignmentprog_co = 'muscle';
 ########## EDIT THE FOLLOWING TWO LINES TO CHOOSE YOUR BLAST PROGRAM ##########

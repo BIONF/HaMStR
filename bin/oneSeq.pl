@@ -101,11 +101,15 @@ my $startTime = time;
 
 ## Bug fix 14. April 2020 (Ingo):	- fixed bug that inactivated the -append option
 
-## Modified 14. Aprilf 2002 (Vinh): - added option for using user-defined blast_dir, genome_dir and weight_dir
+## Modified 14. April 2020 (Vinh): - added option for using user-defined blast_dir, genome_dir and weight_dir
 ##									- reference species (and taxa for core-set compilation) specified from blast_dir
 
+## Modified 16. Juni 2020 (Vinh): major change in FAS score calculation (v1.7.0)
+##									- no need for profile_prog, architecture_prog and visualsPath
+##									- final FAS score calculation is done using hamstrFAS
+
 ############ General settings
-my $version = 'oneSeq v.1.6.0';
+my $version = 'oneSeq v.1.7.0';
 ##### configure for checking if the setup.sh script already run
 my $configure = 0;
 if ($configure == 0){
@@ -126,8 +130,8 @@ $path =~ s/\/$//;
 printDebug("Path is $path");
 
 #### Programs and output
-my $sedprog = 'gsed';
-my $grepprog = 'ggrep';
+my $sedprog = 'sed';
+my $grepprog = 'grep';
 
 my $globalaligner = 'ggsearch36';
 my $glocalaligner = 'glsearch36';
@@ -151,8 +155,7 @@ my $eval_blast_query = 0.0001;
 my $filter = 'T';
 my $annotation_prog = "annoFAS";
 my $fas_prog = "greedyFAS";
-my $profile_prog = 'parseOneSeq_single.pl';
-my $architecture_prog = 'parseArchitecture.pl';
+my $hamstrFAS_prog = "hamstrFAS";
 
 ##### ublast Baustelle: not implemented yet
 my $runublast = 0;
@@ -178,10 +181,9 @@ my $genome_dir = "$path/genome_dir";
 my $taxaPath = "$genome_dir/";
 my $blastPath = "$path/blast_dir/";
 my $idx_dir = "$path/taxonomy/";
-my $tmpdir = "$path/tmp";
+my $tmp_dir = "$path/tmp";
 my $dataDir = $path . '/data';
 my $weightPath = "$path/weight_dir/";
-my $visualsPath = "$path/bin/visuals/";
 
 my @defaultRanks = ('superkingdom', 'kingdom',
 					'superphylum', 'phylum', 'subphylum',
@@ -222,8 +224,8 @@ my %profile     = ();
 my %fas_score_keeper = ();
 my $eval_filter = 0.001;
 my $inst_eval_filter = 0.01;
-my $weight_seed = 0;
-my $annoCores = 2;
+# my $weight_seed = 0;
+# my $annoCores = 2;
 
 my $help;
 my @profile = qw();
@@ -344,12 +346,12 @@ GetOptions ("h"                 => \$help,
 			"force"             => \$force,
 			"cleanup"           => \$autoclean,
 			"addenv=s"          => \$addenv,
-			"weightSeed"       => \$weight_seed,
+			# "weightSeed"       => \$weight_seed,
 			"version"           => \$getversion,
 			"reuseCore"        => \$coreex,
 			"ignoreDistance"	=> \$ignoreDistance,
 			"distDeviation=s"	=> \$distDeviation,
-			"annoCores=s" => \$annoCores,
+			# "annoCores=s" => \$annoCores,
 			"aligner=s"	=> \$aln);
 
 $outputPath = abs_path($outputPath);
@@ -388,7 +390,7 @@ checkOptions();
 
 my $outputFa =  $coreOrthologsPath . $seqName . "/" . $seqName . ".fa";
 my $outputAln = $coreOrthologsPath . $seqName . "/" . $seqName . ".aln";
-$tmpdir = $tmpdir . '/' . $seqName . '/tmp';
+$tmpdir = $tmp_dir . '/' . $seqName . '/tmp';
 createFoldersAndFiles($outputFa, $seqName, $inputSeq, $refSpec, $tmpdir);
 
 my $curCoreOrthologs = 0;
@@ -555,70 +557,33 @@ if (!$coreOnly) {
 my $HamstrTime = time;
 my $time2add = $HamstrTime - $startTime;
 push @logOUT, "Ortholog search completed after $time2add sec!";
+
 ## Evaluation of all orthologs that are predicted by the final hamstr run
 if(!$coreOnly){ #} and $fas_support){
-        my $FASTime = time;
+	my $FASTime = time;
 	$time2add = $FASTime - $startTime;
-        push @logOUT, "Starting FAS evaluation after $time2add sec!";
-        print "Ortholog search completed after $HamstrTime sec! Starting the feature architecture similarity score computation.\n";
+  push @logOUT, "Starting FAS evaluation after $time2add sec!";
+  print "Ortholog search completed after $HamstrTime sec! Starting the feature architecture similarity score computation.\n";
 	my $processID = $$;
 
-	## finalOutput to hash
-	open (FINORTH, "<".$finalOutput) or die "Error: Could not find $finalOutput\n";
+	unless (-e $finalOutput) {
+		die "Error: Could not find $finalOutput\n";
+	}
 	if ($fas_support) {
-		my $head;
-
-		while(<FINORTH>){
-			my $line = $_;
-			chomp($line);
-			if ($line =~ m/^>/){
-				$line =~ s/>//; # clip '>' character
-				$head = $line;
-			}else{
-				$finalcontent{$head} = $line;
-			}
+		my $hamstrFAScmd = "$hamstrFAS_prog -i $finalOutput -n $seqName -w $weightPath -t $tmp_dir -o $outputPath -s $seqId -a $refSpec --cores $cpu";
+		if ($countercheck) {
+			$hamstrFAScmd .= " --bidirectional"
 		}
-		close (FINORTH);
-
-		## create array of keys
-		my @k_ary;
-		foreach my $k (sort keys(%finalcontent)){
-			push(@k_ary, $k);
-		}
-
-		## define chunk size for forking (Parallel::ForkManager)
-		my $size = ceil(scalar(@k_ary) / $cpu); # floor(scalar(@k_ary) / $cpu);
-
-		## create tmp folder
-		## modfied by Ingo 2019-11-19
-		my $evaluationDir = $outputPath."/fas_dir/fasscore_dir/";
-		mkpath($evaluationDir);
-
-		## handle finalcontent (final hamstr orthologs)
-		## evaluate final hamstr orthologs with FAS score
-		## $size: declares the chunk size
-		## $evaluationDir: FAS output
-		## @k_ary: contains all identifier (header, keys) from finalcontent (used to distribute workload to cpus)
-		nFAS_score_final($size, $evaluationDir, @k_ary);
-		if($autoclean){
-			runAutoCleanUp($processID);
-		}
-		removeMetaOrthologFiles($processID, $evaluationDir);
-
-		printDebug("Output files and directories:\nName: ".$seqName."\nFAS-Scores: ".$evaluationDir."scores_1/0_fas.collection\nFinal Orthologs: ".$finalOutput."\n");
-		parseProfile($finalOutput, $seqName);
-		parseArchitecture($evaluationDir."scores_1_fas.collection",$finalOutput, $seqName, $outputPath."/".$seqName);
-		if ($countercheck){
-			parseArchitecture($evaluationDir."scores_0_fas.collection",$finalOutput, $seqName, $outputPath."/".$seqName);
-		}
+		system($hamstrFAScmd)
+		# print $hamstrFAScmd,"\n";
 	} else {
-		if($autoclean){
-			runAutoCleanUp($processID);
-		}
 		fasta2profile($finalOutput, $seqName)
 	}
-my $FASEndTime = time - $startTime;
-push @logOUT, "FAS evaluation completed after $FASEndTime sec! Cleaning up...";
+	my $FASEndTime = time - $startTime;
+	push @logOUT, "FAS evaluation completed after $FASEndTime sec! Cleaning up...";
+	if($autoclean){
+		runAutoCleanUp($processID);
+	}
 }
 
 ## clean up the mess...
@@ -667,143 +632,6 @@ print "OneSeq finished after $endTime seconds\n";
         close LOGOUT;
         exit;
 ######################## SUBROUTINES ########################
-## handle forked score calculations(sliced key array (k_ary))
-## for CORE candidates
-# $n: defines the size of "slices" (array with all ids is sliced into chunks)
-# $e_dir: dir for FAS output file (xml)
-# $c_dir: dir for candidate sequences and tmp. coreProFile
-sub nFAS_score_core{
-
-	my %candicontent = getCandicontent();
-	my $n = shift;
-	my $e_dir = shift;
-	my $c_dir = $coreOrthologsPath . $seqName . "/fas_dir/";
-	my $py = new Parallel::ForkManager($corecpu);
-
-	while (my @next_n = splice @_, 0, $n) {
-
-		my $pid = $py->start and next;
-
-		my %core_fas_0_box;
-
-		my $ii = 0;
-		while ($ii<scalar(@next_n)){
-			#header: $next_n[$ii]
-			#sequence: $finalcontent{$next_n[$ii]}
-
-			my ($name,$gene_set,$gene_id,$rep_id) = split (/\|/,$next_n[$ii]);
-			my $candseqFile = $coreOrthologsPath . $seqName . "/fas_dir/" . $gene_set . "_" . $gene_id . ".candidate";
-			## added 2019-11-19 Ingo
-			open(CANDI_SEQ, ">".$candseqFile) or die "Error: Could not create $candseqFile\n";
-			print CANDI_SEQ ">" . $next_n[$ii] . "\n" . $candicontent{$next_n[$ii]};
-			close CANDI_SEQ;
-			getAnnotation_Set($gene_set);
-
-			my $headerkey = $next_n[$ii];
-			# look up of annotations from the core_orthologs dir
-			# running FAS with iterative Model2 (core, -o 0, seed <--vs-- hit protein)
-			my $cand_annot   = getAnnotation_Candidate($gene_set,$gene_id,$candseqFile);
-			my $seed_annot  = $coreOrthologsPath.$seqName."/fas_dir/annotation_dir/";
-			my $mode        = 0; #FAS scoring Model2 (core)
-			my $score_0;
-			unless($weight_seed){
-				#weight will be determined on the basis of orthologs origin (taxon where the orthologs is dereived from)
-				$score_0 = runFAS($cand_annot, $seed_annot.$seqName."_seed", $gene_set."_".$gene_id, $seqName, $e_dir, $weightPath."/".$gene_set,$mode, $priThreshold);
-			}else{
-				#weight will be determined on the basis of seed species (taxon where the seed is dereived from)
-				$score_0 = runFAS($cand_annot, $seed_annot.$seqName."_seed", $gene_set."_".$gene_id, $seqName, $e_dir, $weightPath."/".$refSpec,$mode, $priThreshold);
-			}
-
-			$core_fas_0_box{$headerkey} = $score_0;
-			$ii++;
-		}
-
-		## keep child results for later
-
-		keepCandidateFAS(\%core_fas_0_box, $c_dir);
-
-		$py->finish;
-
-	}
-	$py->wait_all_children;
-
-}
-## handle forked score calculations(sliced key array (k_ary))
-## for FINAL orthologs
-# $n: defines the size of "slices" (array with all ids is sliced into chunks)
-# $e_dir: dir for FAS output file (xml)
-sub nFAS_score_final{
-	my $n = shift;
-	my $e_dir = shift;
-	printDebug("Sub nFas_score_final: e_dir is $e_dir\n", 1);
-	my $ps = new Parallel::ForkManager($cpu);
-
-	while (my @next_n = splice @_, 0, $n) {
-
-		my $pid = $ps->start and next;
-
-		my %final_fas_1_box;
-		my %final_fas_0_box;
-
-		my $ii = 0;
-		while ($ii<scalar(@next_n)){
-			#header: $next_n[$ii]
-			#sequence: $finalcontent{$next_n[$ii]}
-
-			my ($name,$gene_set,$gene_id,$rep_id) = split (/\|/,$next_n[$ii]);
-			my $finOrth_seqFile = $e_dir . $gene_set . "_" . $gene_id . ".ortholog";
-			## added 2019-11-19 Ingo
-			printDebug("finOrth_seqfile is $finOrth_seqFile");
-			if (defined $profile{$gene_set}  && $append) {
-				printDebug("FAS Score has already been computed and option -append has been selected. Skipping...");
-				$ii++;
-				next;
-			}
-			### end added
-			open(ORTH_SEQ, ">".$finOrth_seqFile) or die "Error: Could not create $finOrth_seqFile\n";
-			print ORTH_SEQ ">" . $next_n[$ii] . "\n" . $finalcontent{$next_n[$ii]};
-			close ORTH_SEQ;
-			getAnnotation_Set($gene_set);
-			my $headerkey = $next_n[$ii];
-			# look up of annotations from the core_orthologs dir
-			# seed --vs--> hit protein
-			my $cand_annot  = getAnnotation_Candidate($gene_set,$gene_id,$finOrth_seqFile);
-			my $seed_annot  = $coreOrthologsPath.$seqName."/fas_dir/annotation_dir/";
-			my $mode        = 1; #FAS scoring Model1 (final)
-			my $score_1;
-			unless($weight_seed){
-				#weight will be determined on the basis of orthologs origin (taxon where the orthologs is dereived from)
-				$score_1 = runFAS($seed_annot.$seqName."_seed", $cand_annot, $gene_set."_".$gene_id, $seqName, $e_dir, $weightPath."/".$gene_set,$mode, $priThreshold);
-			}else{
-				#weight will be determined on the basis of seed species (taxon where the seed is dereived from)
-				$score_1 = runFAS($seed_annot.$seqName."_seed", $cand_annot, $gene_set."_".$gene_id, $seqName, $e_dir, $weightPath."/".$refSpec,$mode, $priThreshold);
-			}
-			$final_fas_1_box{$headerkey} = $score_1;
-			# double check the FAS results (extra calculation needed, change of direction)
-			# seed <--vs-- hit protein
-			if ($countercheck){
-				$mode = 0;
-				my $score_0;
-				unless($weight_seed){
-					#weight will be determined on the basis of orthologs origin (taxon where the orthologs is dereived from)
-					$score_0 = runFAS($cand_annot, $seed_annot.$seqName."_seed", $gene_set."_".$gene_id, $seqName, $e_dir, $weightPath."/".$gene_set,$mode, $priThreshold);
-				}else{
-					#weight will be determined on the basis of seed species (taxon where the seed is dereived from)
-					$score_0 = runFAS($cand_annot, $seed_annot.$seqName."_seed", $gene_set."_".$gene_id, $seqName, $e_dir, $weightPath."/".$refSpec,$mode, $priThreshold);
-				}
-				$final_fas_0_box{$headerkey} = $score_0;
-			}
-			$ii++;
-		}
-
-		## print results into profile
-		printEvaluationTab(\%final_fas_1_box, \%final_fas_0_box);
-
-		$ps->finish;
-
-	}
-	$ps->wait_all_children;
-}
 
 #################################
 ## Clears Temporary files
@@ -978,38 +806,18 @@ sub getFasScore{
 	## get FAS score
 	## fas support: on/off
 	if ($fas_support){
-		## create array of keys
-		my @k_ary;
-		foreach my $k (sort keys(%candicontent)){
-			push(@k_ary, $k);
+			my @candidateIds = keys(%candicontent);
+			my ($name,$gene_set,$gene_id,$rep_id) = split(/\|/, $candidateIds[0]);
+			unless (-e "$weightPath/$gene_set.json") {
+			print "ERROR: $weightPath/$gene_set.json not found! FAS Score will be set as zero.\n";
+			$fas_box{$candidateIds[0]} = 0.0;
+		} else {
+			my $lnCmd = "ln -fs $weightPath/$gene_set.json $coreOrthologsPath$seqName/fas_dir/annotation_dir/";
+			system($lnCmd);
+			my $fasOutTmp = `calcFAS -s $coreOrthologsPath$seqName/$seqName.fa -q $blastPath/$gene_set/$gene_set.fa --query_id $gene_id -a $coreOrthologsPath$seqName/fas_dir/annotation_dir/ -o $coreOrthologsPath$seqName/fas_dir/annotation_dir/ --raw | grep "#" | cut -f 3,4`;
+			my @fasOutTmp = split(/\t/,$fasOutTmp);
+			$fas_box{$candidateIds[0]} = $fasOutTmp[1];
 		}
-
-		## define chunk size for forking (Parallel::ForkManager)
-		my $size = ceil(scalar(@k_ary) / $cpu); # floor(scalar(@k_ary) / $corecpu);
-
-		## create tmp folder
-		my $evaluationDir = $coreOrthologsPath.$seqName."/fas_dir/fasscore_dir/";
-		mkpath($evaluationDir);
-
-		## handle candicontent (hamstr core orthologs)
-		## evaluate hamstr core orthologs with FAS score
-		## $size: declares the chunk size
-		## $evaluationDir: FAS output for core orthologs
-		## @k_ary: contains all identifier (header, keys) from finalcontet (used to distribute workload to cpus)
-		nFAS_score_core($size, $evaluationDir, @k_ary);
-
-		# read core profile
-		# to be cleared after usage
-		my $coreProFile = $coreOrthologsPath.$seqName."/fas_dir/candidates.profile";
-		open (CANDI, "<".$coreProFile) or die "Error: Could not find $coreProFile\n";
-		while(<CANDI>){
-			my $line = $_;
-			chomp($line);
-			my @pair = split(/\t/,$line);
-			$fas_box{$pair[0]}=$pair[1];
-		}
-		close CANDI;
-		unlink($coreProFile);
 	}
 	return %fas_box;
 }
@@ -1120,68 +928,6 @@ sub fasta2profile{
 	close(PPOUT);
 }
 
-## parse profile
-sub parseProfile{
-	my ($file, $out) = ($_[0], $_[1]);
-	my ($fO_base, $fO_path, $fO_suffix) = fileparse( $file, qr/\.[^.]*/ );
-	my $pro_File = $fO_path.$fO_base.".profile";
-	my $outfile = $fO_path.$out.".phyloprofile";
-	my @cmd;
-	my $pl 	= "perl";
-	my $viz	= "$visualsPath$profile_prog";
-	my $i	= "-i$pro_File";
-	my $o	= "-o$outfile";
-	my ($in, $stdout, $err);
-	eval {
-		@cmd = ($pl,$viz,$i,$o);
-		if ($debug){printVariableDebug(@cmd);}
-		print "\n##############################\n";
-		print "Writing of Visualisation file for profile.\n";
-
-		run \@cmd, \$in, \$stdout, \$err, timeout( 600 ) or die "$profile_prog killed.\n";
-
-		print "stdout is $stdout\n";
-	};
-	#could become debug output:
-	if($err){
-		print "\nERROR in sub parseProfile:\n" . $err ."\n";
-	}
-}
-
-## parse architecture from scores.collection
-sub parseArchitecture{
-
-	my ($infile, $file, $groupID, $outfile) = ($_[0], $_[1], $_[2], $_[3]);
-	my ($fO_base, $fO_path, $fO_suffix) = fileparse( $file, qr/\.[^.]*/ );
-	my $proFile = $fO_path."/".$fO_base.".profile";
-	my @cmd;
-	my $pl 	= "perl";
-	my $viz	= "$visualsPath/$architecture_prog";
-	my $i	= "-i=$infile";
-	my $p       = "-p=$proFile";
-	my $g       = "-g=$groupID";
-	my $o	= "-o=$outfile";
-	my $ap	= '';
-	if (defined $append) {
-		$ap = "-append";
-	}
-
-	my ($in, $stdout, $err);
-	eval {
-		@cmd = ($pl,$viz,$i,$p,$g,$o,$ap);
-		if ($debug){ printVariableDebug(@cmd);}
-		print "\n##############################\n";
-		print "Writing of Visualisation file for feature architecture.\n";
-
-		run \@cmd, \$in, \$stdout, \$err, timeout( 600 ) or die "$architecture_prog killed.\n";
-
-		print "$stdout\n";
-	};
-	#could become debug output:
-	if($err){
-		print "\nERROR in sub parseArchitecture:\n" . $err ."\n";
-	}
-}
 ## auto clean up can be invoked via the "-cleanup" option
 # $processID: given process ID
 sub runAutoCleanUp {
@@ -1207,7 +953,7 @@ sub runAutoCleanUp {
 		my @annodirs = grep (!/$seedName/, readdir(ANNODIR));
 		print scalar(@annodirs) . " content of $annopath\n";
 		for (my $anno = 0; $anno < @annodirs; $anno++){
-			if ($annodirs[$anno] ne '..' and $annodirs[$anno] ne '.') {
+			if ($annodirs[$anno] ne '..' and $annodirs[$anno] ne '.' and $annodirs[$anno] ne $seqName.".json") {
 				print "Deleting $annopath/$annodirs[$anno]\n";
 				rmtree ($annopath."/".$annodirs[$anno]);
 			}
@@ -1217,231 +963,14 @@ sub runAutoCleanUp {
 	}
 }
 
-## removing single fasta files of predicted orthologs - meta files that are pooled in multifastas as results
-# $processID: given process ID
-sub removeMetaOrthologFiles{
-	my ($processID, $evaluationDir) = @_; #$_[0];
-	print "\nCompressing meta files...\n\n";
-
-	my $delCommandCandi = "rm -f ".$coreOrthologsPath.$seqName."/fas_dir/*.candidate";
-	system ($delCommandCandi) == 0 or die "Error deleting candidate files\n";
-	print "--> ".$coreOrthologsPath.$seqName."/fas_dir/*.candidate\n";
-
-	## modfified by Ingo 2019-11-19
-	my $delCommandOrth = "rm -f ".$evaluationDir."*.ortholog";
-	system ($delCommandOrth) == 0 or die "Error deleting single sequence files of orthologs\n";
-	print "--> ".$evaluationDir."*.ortholog\n";
-
-	## compress *_fas.xml files in coreOrthologs
-	opendir(COREFAS,$coreOrthologsPath.$seqName . "/fas_dir/fasscore_dir");
-	my @fasscores = grep(/_fas\.xml/, sort { $a cmp $b } readdir(COREFAS));
-	closedir(COREFAS);
-	compressScoreCollections($coreOrthologsPath.$seqName."/fas_dir/fasscore_dir/", \@fasscores, "core");
-	print "--> ".$coreOrthologsPath.$seqName."/fas_dir/fasscore_dir/*_fas.xml\n";
-
-	## compress *_1_fas.xml files in results
-	opendir(COREFAS, $evaluationDir);
-	@fasscores = grep(/_1_fas\.xml/,sort { $a cmp $b } readdir(COREFAS));
-	closedir(COREFAS);
-	compressScoreCollections($evaluationDir, \@fasscores, "1");
-
-	if ($countercheck){
-		# compress *_0_fas.xml files: M.countercheck (cc) FAS out
-		opendir(COREFAS, $evaluationDir);
-		my @fasscores_cc = grep(/_0_fas\.xml/,sort { $a cmp $b } readdir(COREFAS));
-		closedir(COREFAS);
-		compressScoreCollections($evaluationDir, \@fasscores_cc, "0");
-	}
-
-	print "--> ".$evaluationDir. "*_fas.xml\n";
-}
-## keep FAS score results (including feature information) as *scores.collection files
-## param: $cur_path - path to fas score files
-## param: @fileset - collected files
-sub compressScoreCollections{
-	my $cur_path = $_[0];
-	my @fileset = @{$_[1]};
-	my $scoremode = $_[2];
-
-	my @cur_content = qw();
-	my $file;
-	foreach(@fileset){
-		my $catCommand = "cat ".$cur_path.$_;
-		push (@cur_content, $_);
-		$file = `$catCommand`;
-		push (@cur_content, $file);
-		my $delCommandXML = "rm -f ".$cur_path.$_;
-		system($delCommandXML) == 0 or die "Error deleting single fas score files\n";
-	}
-	open(FASCOL,">".$cur_path."scores_".$scoremode."_fas.collection") or die "Error: Could not create ".$cur_path."scores_".$scoremode."_fas.collection\n";
-	for (my $ii = 0; $ii < scalar(@cur_content); $ii++){
-		print FASCOL $cur_content[$ii];
-		print FASCOL "\n";
-	}
-	close(FASCOL);
-}
-## keep FAS scores for core candidates
-# %subprofile: profile (hash) of gene ids (key) and FAS scores (value) created in forked process
-# $c_dir: dir (fas_dir) for core candidates and candidates.profile (tmp file)
-sub keepCandidateFAS{
-	my %subprofile = %{$_[0]};
-	my $c_dir = $_[1];
-
-	my $corePro_File = $c_dir. "candidates.profile";
-	# open to append
-	open(PROFILE, ">>".$corePro_File) or die "Error: Could not create $corePro_File\n";
-	foreach my $key (sort keys %subprofile){
-		print PROFILE $key . "\t" . $subprofile{$key}. "\n";
-	}
-	close PROFILE;
-}
-
-## print tab separated table of orthologs and their fas score
-## writes *extended.profile in data dir
-# %profile: profile (hash) of gene ids (key) and FAS scores (value, score Model 1) created in forked process
-# %counterprofile: profile (hash) of gene ids (key) and FAS scores (value, score Model 2) created in forked process
-sub printEvaluationTab{
-	my %profile = %{$_[0]};
-	my %counterprofile = %{$_[1]};
-	my ($fO_base, $fO_path, $fO_suffix) = fileparse( $finalOutput, qr/\.[^.]*/ );
-
-	my $pro_File = $fO_path."/".$fO_base.".profile";
-	# open to append
-	open(PROFILE, ">>".$pro_File) or die "Error: Could not create $pro_File\n";
-	foreach my $key (sort keys %profile){
-		print PROFILE $key . "\t" . $profile{$key};
-		if ($countercheck){
-			print PROFILE "\t" . $counterprofile{$key} . "\n";
-		}else{
-			print PROFILE "\n";
-		}
-	}
-	close PROFILE or die "Error during closing the filehandle PROFILE";
-}
 ## starting annotation_prog for given seed sequence file
 # $seedseqFile: fasta file with seed sequence
 sub getAnnotation {
 	my ($seedseqFile) = ($_[0]);
-	my $annotationCommand = "$annotation_prog --fasta=" . $seedseqFile . " --path=" . $coreOrthologsPath . $seqName . "/fas_dir" . "/annotation_dir" . " --name=" . $seqName . "_seed" . " --cores=". $annoCores;
+	# my $annotationCommand = "$annotation_prog --fasta=" . $seedseqFile . " --path=" . $coreOrthologsPath . $seqName . "/fas_dir" . "/annotation_dir" . " --name=" . $seqName . "_seed" . " --cores=". $annoCores;
+	my $annotationCommand = "$annotation_prog" . " -i $seedseqFile" . " -o $coreOrthologsPath" . $seqName . "/fas_dir" . "/annotation_dir" . " --cpus 1"; #" --name " . $seqName . "_seed" . " --cpus 1";
+	# print($annotationCommand,"\n");
 	system($annotationCommand);
-}
-## starting annotation_prog for candidate ortholog
-## annotations are saved for reuse in fas_dir/annotation_dir
-## requested annotations will be extracted on demand from weight_dir/$geneset
-## returns location of annotations
-# $cand_geneset: gene set for taxon (candidate ortholog)
-# $gene_id: gene id of candidate ortholog ($cand_geneset)
-sub getAnnotation_Candidate {
-	my ($cand_geneset,$gene_id,$candseqFile) = ($_[0],$_[1],$_[2]);
-	my $location = '';
-
-	# check for existing annotations
-	# gene annotations:
-	if (-d $coreOrthologsPath . $seqName . "/fas_dir" . "/annotation_dir/" . $cand_geneset . "_" . $gene_id){
-		# annotations already exist for candidate gene
-		$location = $coreOrthologsPath . $seqName . "/fas_dir" . "/annotation_dir/" . $cand_geneset . "_" . $gene_id;
-
-		return $location;
-	}elsif(-d "$weightPath/$cand_geneset"){
-		# annotations for $cand_geneset already exist
-		# Extracting annotations from xml files in $weightPath/$cand_geneset
-		unless (-d $coreOrthologsPath . $seqName . "/fas_dir" . "/annotation_dir/" . $cand_geneset . "_" . $gene_id) {
-			mkdir($coreOrthologsPath . $seqName . "/fas_dir" . "/annotation_dir/" . $cand_geneset . "_" . $gene_id);
-		}
-		my $annotationCommand = "$annotation_prog --fasta=" . $candseqFile . " --path=" . $weightPath . $cand_geneset . " --name=" . $gene_id . " --extract=" . $coreOrthologsPath . $seqName . "/fas_dir" . "/annotation_dir/" . $cand_geneset . "_" . $gene_id;
-		system($annotationCommand);
-
-		$location = $coreOrthologsPath . $seqName . "/fas_dir" . "/annotation_dir/" . $cand_geneset . "_" . $gene_id;
-		return $location;
-	}else{
-		# no annotations exist
-		print "No annotations found.\n";
-		print "--> Starting to annotate gene $gene_id from species $cand_geneset.\n";
-		my $annotationCommand = "$annotation_prog --fasta=" . $candseqFile . " --path=" . $coreOrthologsPath . $seqName . "/fas_dir" . "/annotation_dir/" . " --name=" . $cand_geneset . "_" . $gene_id  . " --cores=". $annoCores;
-		system($annotationCommand);
-
-		$location = $coreOrthologsPath . $seqName . "/fas_dir" . "/annotation_dir/" . $cand_geneset . "_" . $gene_id;
-		return $location;
-	}
-
-	return $location
-}
-
-## starting annotation_prog for whole gene set (weighting)
-## sub getAnnotation_Set will be called if a candidate ortholog is identified
-sub getAnnotation_Set{
-	my ($geneset) = ($_[0]);
-	# chdir($fasPath);
-
-	# check for existing annotations in weights_dir
-	# if annotations already exist the script will skip them/no requery
-	# print "Annotations for ".$geneset." will be made. This may take a while ...\n";
-	my $annotationCommand = "$annotation_prog --fasta=" . $taxaPath . $geneset ."/". $geneset . ".fa --path=" . $weightPath . " --name=" . $geneset . " --cores=". $annoCores;
-	system($annotationCommand);
-}
-
-## running actual FAS calculations via IPC
-# $single: annotaions (*xml) for single protein/seed
-# $ortholog: annotations (*xml) for set (ortholog) protein/query
-# $name: jobname for FAS
-# $group: sequence name given for oneseq
-# $outdir: dir for output files
-# $weight: gene set of ortholog, used for weighting
-# $mode: invocation mode (single --vs--> set or set --vs--> single)
-sub runFAS{
-	my ($single, $ortholog, $name, $group, $outdir, $weight, $mode, $priThreshold) = ($_[0], $_[1], $_[2], $_[3], $_[4], $_[5], $_[6], $_[7]);
-	# chdir($fasPath);
-
-	my @cmd;
-	# my $py 	= "python";
-	my $fas	= "$fas_prog"; #"$fasPath/$fas_prog";
-	my $s	= "--seed=$single/";
-	my $p	= "--query=$ortholog/";
-	my $r	= "--ref_proteome=" . $weight;
-	my $j	= "--jobname=$outdir/" . $name . "_". $mode ."_fas.xml";
-	my $f   = "--efilter=".$eval_filter;       #dest="efilter", default="0.001", help="E-value filter for hmm based search methods (feature based/complete sequence).")
-	my $i   = "--inst_efilter=".$inst_eval_filter;  #dest="inst_efilter", default="0.01", help="E-value filter for hmm bas
-	my $a	= "--raw_output=2";
-	my $h	= "--help";
-	my $m   = "--classicMS";
-
-	## adding the option to extract a particular sequence from the annotation directory
-	## becomes relevant when using the pre-computed core sets, where feature annotation for
-	## all sequences is available in the core set
-	my $si = '';
-	if ($mode == 1){
-		## this is the standard search, features of the seed protein, which are absent in the
-		## ortholog will be penalized
-		$si = "--seed_id=\"$seqName|$refSpec|$seqId\"";
-	}
-	else {
-		## This is the reverse scoring, features of the ortholog, which are absent in the seed
-		## will be penalized
-		$si = "--query_id=\"$seqName|$refSpec|$seqId\"";
-	}
-	my ($in, $score, $err);
-	$score = "NAN";
-	eval {
-		@cmd = ($fas,$s,$p,$r,$j,$a,$f,$i,$si,$m,$priThreshold); #($py,$fas,$s,$p,$r,$j,$a,$f,$i,$si,$m,$priThreshold);
-		if ($debug){printVariableDebug(@cmd);}
-		print "\n##############################\n";
-		print "Begin of FAS score calculation.\n";
-		print "--> Running ". $fas_prog ."\n";
-		# run \@cmd, \$in, \$score, \$err, timeout( 10000 ) or die "$fas_prog killed.\n";
-		my $cmd = join(" ", @cmd);
-		($score, $err) = capture {
-			system ($cmd);
-		};
-		chomp($score);
-	};
-	#could become debug output:
-	if($err){
-		print "\nERROR:\n" . $err ."\n";
-	}
-	if(!$score){
-		$score = 0;
-	}
-	return $score;
 }
 
 ## determines the reference species and/or the sequence id of the input sequence.
@@ -1601,34 +1130,6 @@ sub checkOptions {
 				printOut("\nThe specified file $seqFile does not exist!\n",1);
 			}
 		}
-		# $seqFile = getInput("Please specify a valid file name for the seed sequence", 1);
-		# $optbreaker ++;
-		# if ($seqFile =~ /\//){
-		# 	## user has provided a path
-		# 	$seqFile =~ /(.*)\/(.+)/;
-		# 	if ($1) {
-		# 		## the user has provided a relativ path
-		# 		my $relpath = $1;
-		# 		if ($relpath =~ /^\//){
-		# 			#user has provided an absolute path
-		# 			$dataDir = $relpath;
-		# 		}
-		# 		elsif($relpath =~ /^\.\//){
-		# 			$dataDir = $currDir;
-		# 		}
-		# 		elsif($relpath =~ /^\.\.\//){
-		# 			my $dataDirTmp = $currDir;
-		# 			while ($relpath =~ /^\.\./){
-		# 				$relpath =~ s/^\.\.\///;
-		# 				$dataDirTmp =~ s/(.*)\/.+$/$1/;
-		# 			}
-		# 			$dataDir = $dataDirTmp . '/' . $relpath;
-		# 		}
-		# 		printDebug("setting dataDir to $dataDir");
-		# 	}
-		# 	$seqFile = $2;
-		# 	printDebug("Setting infile to $seqFile in sub checkOptions");
-		# }
 	}
 	if (-e "$currDir/$seqFile"){
 		$dataDir = $currDir;
@@ -1935,8 +1436,8 @@ sub createFoldersAndFiles {
 		my $annodir = $fasdir."/annotation_dir";
 		mkdir "$annodir", 0777 unless -d "$annodir";
 
-		my $scoredir = $fasdir."/fasscore_dir";
-		mkdir "$scoredir", 0777 unless -d "$scoredir";
+		# my $scoredir = $fasdir."/fasscore_dir";
+		# mkdir "$scoredir", 0777 unless -d "$scoredir";
 	}
 	mkdir "$tmpdir", 0755 unless -d "$tmpdir";
 }
@@ -3022,12 +2523,8 @@ ${bold}SPECIFYING FAS SUPPORT OPTIONS$norm
 	The option '-minScore=<>' specifies the cut-off of the FAS score.
 -minScore=<>
 	Specify the threshold for coreFilter. Default is 0.75.
--weight_seed
-	Specify the gene set (either seed species or orthologs origin) which is used to determine the weight of a feature. If this flag is set the weights will be determined on the basis of the seed species. Default is the origin of the respective ortholog.
 -countercheck
 	Set this flag to counter-check your final profile. The FAS score will be computed in two ways (seed vs. hit and hit vs. seed).
--annoCores
-	Set number of CPUs used for annotating proteins. By default 2 CPUs will be used.
 
 ${bold}SPECIFYING EXTENT OF OUTPUT TO SCREEN$norm
 
