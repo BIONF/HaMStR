@@ -36,6 +36,17 @@ def checkFileExist(file):
     if not os.path.exists(os.path.abspath(file)):
         sys.exit('%s not found' % file)
 
+def checkTaxId(taxId):
+    ncbi = NCBITaxa()
+    tmp = ncbi.get_rank([taxId])
+    try:
+        tmp = ncbi.get_rank([taxId])
+        rank = tmp[int(taxId)]
+        if not rank == 'species':
+            print('\033[92mWARNING: rank of %s is not SPECIES (%s)\033[0m' % (taxId, rank))
+    except:
+        print('\033[92mWARNING: %s not found in NCBI taxonomy database!\033[0m' % taxId)
+
 
 def main():
     version = '1.0.0'
@@ -62,18 +73,6 @@ def main():
     cpus = args.cpus
     if cpus == 0:
         cpus = mp.cpu_count()-2
-
-    ### check taxId
-    ncbi = NCBITaxa()
-    tmp = ncbi.get_rank([taxId])
-    try:
-        tmp = ncbi.get_rank([taxId])
-        rank = tmp[int(taxId)]
-        if not rank == 'species':
-            print('\033[92mWARNING: rank of %s is not SPECIES (%s)\033[0m' % (taxId, rank))
-    except:
-        print('\033[92mWARNING: %s not found in NCBI taxonomy database!\033[0m' % taxId)
-
 
     ### species name after hamstr naming scheme
     specName = name+'@'+taxId+'@'+ver
