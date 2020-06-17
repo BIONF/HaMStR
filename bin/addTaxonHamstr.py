@@ -88,18 +88,21 @@ def main():
     Path(genomePath).mkdir(parents = True, exist_ok = True)
     # load fasta seq
     inSeq = SeqIO.to_dict((SeqIO.parse(open(faIn), 'fasta')))
-    f = open(genomePath + '/' + specName + '.fa', 'w')
-    index = 0
-    tmpDict = []
-    for id in inSeq:
-        if not id in tmpDict:
-            tmpDict[id] = 1
-        else:
-            index = index + 1
-            id = str(id) + '|' + str(index)
-            tmpDict[id] = 1
-        f.write('>%s\n%s\n' % (id, inSeq[id].seq))
-    f.close()
+    if not os.path.exists(os.path.abspath(genomePath + '/' + specName + '.fa')):
+        f = open(genomePath + '/' + specName + '.fa', 'w')
+        index = 0
+        tmpDict = []
+        for id in inSeq:
+            if not id in tmpDict:
+                tmpDict[id] = 1
+            else:
+                index = index + 1
+                id = str(id) + '|' + str(index)
+                tmpDict[id] = 1
+            f.write('>%s\n%s\n' % (id, inSeq[id].seq))
+        f.close()
+    else:
+        print(genomePath + '/' + specName + '.fa already exists!')
 
     ### create annotation
     if doAnno:
