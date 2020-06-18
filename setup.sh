@@ -204,14 +204,8 @@ if [ $fas == 1 ]; then
         fi
     else
         fasPath="$(pip show greedyFAS | $grepprog Location | $sedprog 's/Location: //')"
-        annoFile="$fasPath/greedyFAS/annoFAS.pl"
-        tmp="$($grepprog "my \$config" $annoFile | $sedprog 's/my \$config = //' | $sedprog 's/;//')"
-        if [ $tmp == "1" ]; then
-            annoPath="$($grepprog "my \$annotationPath" $annoFile | $sedprog 's/my \$annotationPath = "//' | $sedprog 's/";//')"
-            if ! [ -f "$annoPath/Pfam/Pfam-hmms/Pfam-A.hmm" ]; then
-                fasPrepare=1
-            fi
-        else
+        pathconfigFile="$fasPath/pathconfig.txt"
+        if ! [ -f $pathconfigFile ]; then
             fasPrepare=1
         fi
     fi
@@ -222,9 +216,8 @@ if [ $fas == 1 ]; then
         exit
     else
         fasPath="$(pip show greedyFAS | $grepprog Location | $sedprog 's/Location: //')"
-        annoFile="$fasPath/greedyFAS/annoFAS.pl"
-        tmp="$($grepprog "my \$config" $annoFile | $sedprog 's/my \$config = //' | $sedprog 's/;//')"
-        if [ $tmp == "0" ]; then
+        pathconfigFile="$fasPath/pathconfig.txt"
+        if ! [ -f $pathconfigFile ]; then
             fasPrepare=1
         fi
     fi
@@ -232,8 +225,8 @@ if [ $fas == 1 ]; then
 fi
 
 ### download data
-data_HaMStR_file="data_HaMStR-2019.tar.gz"
-checkSumData="1303809705 685885017 $data_HaMStR_file"
+data_HaMStR_file="data_HaMStR-2019b.tar.gz"
+checkSumData="883696907 626983801 $data_HaMStR_file"
 
 if ! [ "$(ls -A $CURRENT/genome_dir)" ]; then
     echo "-------------------------------------"
