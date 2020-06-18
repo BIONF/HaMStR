@@ -127,18 +127,14 @@ Within the data package (https://fasta.bioch.virginia.edu/fasta_www2/fasta_list2
 * weight_dir (Contains sub-directories for feature annotation files for each proteome)
 
 
-However, if needed the user can manually add further gene sets (multifasta format) and place them into the respective directories (genome_dir, weight_dir, blast_dir). Please note, that every taxon/species must be present in the NCBI taxonomy. The following steps need to be conducted:
-
-1) Download the gene set of your taxon of interest as amino acid sequences from the NCBI database.
-
-2) Rename the file in accordance to the naming schema of hamstr:     SPECIES@12345@1.fa ([Species acronym]@[NCBI ID]@[Proteome version])
-
-3) Fasta header must be whitespace free and unique within the gene set (short header make your life easier for downstream analysis). The following bash command uses sed to cut the header at the first whitespace:
+However, if needed the user can manually add further gene sets (multifasta format) using provided python script `bin/addTaxonHamstr.py`:
 ```
-sed -i "s/ .*//" SPECIES@12345@1.fa
+python addTaxonHamstr.py -f newTaxon.fa -n abbr_name -i taxID -o output_path [-c] [-v protein_version] [-a]
 ```
 
-Example, a before fasta file:
+in which, there are 3 required arguments including `abbr_name` is the species acronym name, `taxID` is its NCBI taxonomy ID, `output_path` is where the sub-directories will be saved (genome_dir, blast_dir and weight_dir). Other arguments are optional, which are `-c` for calculating the BLAST DB (only needed if you need to include your new taxon into the list of taxa for compilating the core set), `-v` for identifying the genome/proteome version (default will be 1), and `-a` for turning off the annotation step (*not recommended*). The fasta header of the parsed sequences will contain only the first word of the original header, for example:
+
+A before fasta file:
 ```
 >EXR66326.1 biofilm-associated domain protein, partial [Acinetobacter baumannii 339786]
 MTGEGPVAIHAEAVDAQGNVDVADADVTLTIDTTPQDLITAITVPEDLNGDGILNAAELGTDGSFNAQVALGPDAVDGTV
@@ -155,31 +151,6 @@ MTGEGPVAIHAEAVDAQGNVDVADADVTLTIDTTPQDLITAITVPEDLNGDGILNAAELGTDGSFNAQVALGPDAVDGTV
 NRRLLITTQPTATDSNYKTPIYINAPNGELYFANQDETSVSSVVFKRVIGATAANAPYVASDSWTKKIRKWNTYNHEVSK
 ...
 ```
-4) After your gene set (proteomic data) is prepared and placed into the respective sub-directory in the genome_dir directory you can conduct the following instructions:
-
-5) Create a Blast DB for the species within the blast_dir
-
-a) Create a Blast DB using makeblastdb
-```
-makeblastdb -dbtype prot -in genome_dir/SPECI@00001@1/SPECI@00001@1.fa -out blast_dir/SPECI@00001@1/SPECI@00001@1
-```
-
-b) Create a symbolic link with the blast_dir (change into the respective sub-directory in the blast_dir)
-```
-cd blast_dir/SPECI@00001@1
-ln -s ../../genome_dir/SPECI@00001@1/SPECI@00001@1.fa SPECI@00001@1.fa
-```
-6) Create the annotation files for your taxon with the provided perl script
-```
-annoFAS --fasta=/path/to/your/hamstr/genome_dir/SPECI@00001@1/SPECI@00001@1.fa --path=/path/to/your/hamstr/weight_dir --name=SPECI@00001@1
-```
-Please take care that all parameter paths are provided as absolute paths. This action takes considerably longer than the BLAST database creation with makeblastdb (it takes about one hour to annotate a gene set with 5000 sequences).
-
-To prove if your manually added species is integrated into the HaMStR framework your can run:
-```
-oneSeq -showTaxa
-```
-This command simply prints a list of all available taxa.
 
 ## Dependencies
 HaMStR has some dependencies, that either will be automatically installed via the setup script, or must be installed by your system admin if you don't have the root privileges. In the following you will find the full list of HaMStR's dependencies for Ubuntu system as well as the alternatives for MacOS. In Ubuntu, you can install those system and bioinformatics tools/libraries using `apt-get` tool
