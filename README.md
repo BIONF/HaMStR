@@ -129,12 +129,14 @@ Within the data package (https://fasta.bioch.virginia.edu/fasta_www2/fasta_list2
 
 However, if needed the user can manually add further gene sets (multifasta format) using provided python script `bin/addTaxonHamstr.py`:
 ```
-python addTaxonHamstr.py -f newTaxon.fa -n abbr_name -i taxID -o output_path [-c] [-v protein_version] [-a]
+python bin/addTaxonHamstr.py -f newTaxon.fa -n abbr_name -i taxID -o output_path [-c] [-v protein_version] [-a]
 ```
 
-in which, there are 3 required arguments including `abbr_name` is the species acronym name, `taxID` is its NCBI taxonomy ID, `output_path` is where the sub-directories will be saved (genome_dir, blast_dir and weight_dir). Other arguments are optional, which are `-c` for calculating the BLAST DB (only needed if you need to include your new taxon into the list of taxa for compilating the core set), `-v` for identifying the genome/proteome version (default will be 1), and `-a` for turning off the annotation step (*not recommended*). The fasta header of the parsed sequences will contain only the first word of the original header, for example:
+in which, the first 3 arguments are required including `abbr_name` is the species acronym name, `taxID` is its NCBI taxonomy ID, `output_path` is where the sub-directories will be saved (genome_dir, blast_dir and weight_dir). Other arguments are optional, which are `-c` for calculating the BLAST DB (only needed if you need to include your new taxon into the list of taxa for compilating the core set), `-v` for identifying the genome/proteome version (default will be 1), and `-a` for turning off the annotation step (*not recommended*). For more details check `python bin/addTaxonHamstr.py -h`.
 
-A before fasta file:
+The fasta header of the parsed sequences will contain only the first word of the original header, for example:
+
+A before fasta file
 ```
 >EXR66326.1 biofilm-associated domain protein, partial [Acinetobacter baumannii 339786]
 MTGEGPVAIHAEAVDAQGNVDVADADVTLTIDTTPQDLITAITVPEDLNGDGILNAAELGTDGSFNAQVALGPDAVDGTV
@@ -143,7 +145,7 @@ NRRLLITTQPTATDSNYKTPIYINAPNGELYFANQDETSVSSVVFKRVIGATAANAPYVASDSWTKKIRKWNTYNHEVSK
 ...
 ```
 
-and after (this is how your sequence data should look like):
+and after (this is how your sequence data should look like)
 ```
 >EXR66326.1
 MTGEGPVAIHAEAVDAQGNVDVADADVTLTIDTTPQDLITAITVPEDLNGDGILNAAELGTDGSFNAQVALGPDAVDGTV
