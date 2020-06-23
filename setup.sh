@@ -177,7 +177,7 @@ fi
 fasPrepare=0
 if [ $fas == 1 ]; then
     cd "bin"
-    if [ -z "$(which greedyFAS)" ]; then
+    if [ -z "$(which annoFAS)" ]; then
         echo "FAS"
         if ! [ -f "fas/setup.py" ]; then
             wget https://github.com/BIONF/FAS/archive/master.tar.gz
@@ -257,7 +257,7 @@ if ! [ "$(ls -A $CURRENT/genome_dir)" ]; then
         echo "Extracting archive $data_HaMStR_file..."
         tar xf $CURRENT/$data_HaMStR_file
         rm $CURRENT/$data_HaMStR_file
-        for i in $(ls "$CURRENT/genome_dir"); do rm "$CURRENT/genome_dir/$i/$i.fa.mod"; done
+        for i in $(ls "$CURRENT/genome_dir"); do rm -f "$CURRENT/genome_dir/$i/$i.fa.mod"; done
 
         if [ "$(ls -A $CURRENT/blast_dir)" ]; then
             echo "Data should be in place to run HaMStR."

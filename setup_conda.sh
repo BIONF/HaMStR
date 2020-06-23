@@ -209,7 +209,7 @@ fi
 
 cd "bin"
 fasPrepare=0
-if [ -z "$(which greedyFAS)" ]; then
+if [ -z "$(which annoFAS)" ]; then
     echo "FAS"
     conda install -y -c BIONF fas
     if [ -z "$(which annoFAS)" ]; then
@@ -272,7 +272,7 @@ if ! [ "$(ls -A $CURRENT/genome_dir)" ]; then
 	  echo "Extracting archive $data_HaMStR_file..."
 	  tar xf $CURRENT/$data_HaMStR_file
 	  rm $CURRENT/$data_HaMStR_file
-    for i in $(ls "$CURRENT/genome_dir"); do rm "$CURRENT/genome_dir/$i/$i.fa.mod"; done
+    for i in $(ls "$CURRENT/genome_dir"); do rm -f "$CURRENT/genome_dir/$i/$i.fa.mod"; done
 
     if [ "$(ls -A $CURRENT/blast_dir)" ]; then
         echo "Data should be in place to run HaMStR.\n"
