@@ -203,10 +203,12 @@ if [ $fas == 1 ]; then
             fasPrepare=1
         fi
     else
-        fasPath="$(pip show greedyFAS | $grepprog Location | $sedprog 's/Location: //')"
-        pathconfigFile="$fasPath/pathconfig.txt"
-        if ! [ -f $pathconfigFile ]; then
+        if ! [ -z "$(prepareFAS -t ./ --check 2>&1 | grep ERROR)" ]; then
             fasPrepare=1
+        # fasPath="$(pip show greedyFAS | $grepprog Location | $sedprog 's/Location: //')"
+        # pathconfigFile="$fasPath/pathconfig.txt"
+        # if ! [ -f $pathconfigFile ]; then
+        #     fasPrepare=1
         fi
     fi
 
@@ -215,10 +217,12 @@ if [ $fas == 1 ]; then
         echo -e "Installation of FAS failed! Please try again or install FAS by yourself at \e[91mhttps://github.com/BIONF/FAS\e[0m!"
         exit
     else
-        fasPath="$(pip show greedyFAS | $grepprog Location | $sedprog 's/Location: //')"
-        pathconfigFile="$fasPath/pathconfig.txt"
-        if ! [ -f $pathconfigFile ]; then
+        if ! [ -z "$(prepareFAS -t ./ --check | grep ERROR)" ]; then
             fasPrepare=1
+        # fasPath="$(pip show greedyFAS | $grepprog Location | $sedprog 's/Location: //')"
+        # pathconfigFile="$fasPath/pathconfig.txt"
+        # if ! [ -f $pathconfigFile ]; then
+        #     fasPrepare=1
         fi
     fi
     echo "done!"

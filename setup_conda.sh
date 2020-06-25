@@ -218,9 +218,7 @@ if [ -z "$(which annoFAS)" ]; then
     fi
     fasPrepare=1
 else
-    fasPath="$(pip show greedyFAS | $grepprog Location | $sedprog 's/Location: //')"
-    pathconfigFile="$fasPath/pathconfig.txt"
-    if ! [ -f $pathconfigFile ]; then
+    if ! [ -z "$(prepareFAS -t ./ --check 2>&1 | grep ERROR)" ]; then
         fasPrepare=1
     fi
 fi
@@ -230,9 +228,7 @@ if [ -z "$(which annoFAS)" ]; then
     echo -e "For more info, please check FAS website at \e[91mhttps://github.com/BIONF/FAS\e[0m"
     exit
 else
-    fasPath="$(pip show greedyFAS | $grepprog Location | $sedprog 's/Location: //')"
-    pathconfigFile="$fasPath/pathconfig.txt"
-    if ! [ -f $pathconfigFile ]; then
+    if ! [ -z "$(prepareFAS -t ./ --check 2>&1 | grep ERROR)" ]; then
         fasPrepare=1
     fi
 fi
