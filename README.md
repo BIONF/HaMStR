@@ -126,9 +126,9 @@ Within the data package (https://fasta.bioch.virginia.edu/fasta_www2/fasta_list2
 * blast_dir (Contains sub-directories for BLAST databases made with makeblastdb out of your proteomes)
 * weight_dir (Contains sub-directories for feature annotation files for each proteome)
 
-
 However, if needed the user can manually add further gene sets (multifasta format) using provided python scripts.
 
+### Adding a new gene set into HaMStR
 For adding **one gene set**, please use the `bin/addTaxonHamstr.py` script:
 ```
 python3 bin/addTaxonHamstr.py -f newTaxon.fa -n abbr_name -i tax_id -o /path/to/HaMStR [-c] [-v protein_version] [-a]
@@ -136,6 +136,7 @@ python3 bin/addTaxonHamstr.py -f newTaxon.fa -n abbr_name -i tax_id -o /path/to/
 
 in which, the first 3 arguments are required including `abbr_name` is the species acronym name, `tax_id` is its NCBI taxonomy ID, `/path/to/HaMStR` is where the sub-directories will be saved (genome_dir, blast_dir and weight_dir). Other arguments are optional, which are `-c` for calculating the BLAST DB (only needed if you need to include your new taxon into the list of taxa for compilating the core set), `-v` for identifying the genome/proteome version (default will be 1), and `-a` for turning off the annotation step (*not recommended*).
 
+### Adding a list of gene sets into HaMStR
 For adding **more than one gene set**, please use the `bin/addTaxaHamstr.py` script:
 ```
 python3 bin/addTaxaHamstr.py -i /path/to/newtaxa/fasta -m mapping_file -o /path/to/HaMStR [-c]
@@ -151,27 +152,6 @@ filename3	4932	my_fungi
 ```
 
 The first line (started with #) is optional. The last 2 columns (abbr. taxon name and genome version) are also optional. If you want to specify a new version for a genome, you need to define also the abbr. taxon name, so that the genome version is always at the 4th column in the mapping file.
-
-
-The fasta header of the parsed sequences will contain only the first word of the original header, for example:
-
-A before fasta file
-```
->EXR66326.1 biofilm-associated domain protein, partial [Acinetobacter baumannii 339786]
-MTGEGPVAIHAEAVDAQGNVDVADADVTLTIDTTPQDLITAITVPEDLNGDGILNAAELGTDGSFNAQVALGPDAVDGTV
->EXR66351.1 hypothetical protein J700_4015, partial [Acinetobacter baumannii 339786]
-NRRLLITTQPTATDSNYKTPIYINAPNGELYFANQDETSVSSVVFKRVIGATAANAPYVASDSWTKKIRKWNTYNHEVSK
-...
-```
-
-and after (this is how your sequence data should look like)
-```
->EXR66326.1
-MTGEGPVAIHAEAVDAQGNVDVADADVTLTIDTTPQDLITAITVPEDLNGDGILNAAELGTDGSFNAQVALGPDAVDGTV
->EXR66351.1
-NRRLLITTQPTATDSNYKTPIYINAPNGELYFANQDETSVSSVVFKRVIGATAANAPYVASDSWTKKIRKWNTYNHEVSK
-...
-```
 
 Please check this [wiki page](https://github.com/BIONF/HaMStR/wiki/Add-new-taxa-to-HaMStR) for more details.
 
