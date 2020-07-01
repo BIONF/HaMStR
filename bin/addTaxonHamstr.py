@@ -134,7 +134,11 @@ def main():
         try:
             subprocess.call([annoCmd], shell = True)
         except:
-            print('\033[91mProblem with running annoFAS. You can check it with this command:\n%s\033[0m' % annoCmd)
+            annoCmd = 'annoFAS -i %s/%s.fa -o %s -n %s --cores %s' % (genomePath, specName, outPath+'/weight_dir', specName, cpus)
+            try:
+                subprocess.call([annoCmd], shell = True)
+            except:
+                print('\033[91mProblem with running annoFAS. You can check it with this command:\n%s\033[0m' % annoCmd)
 
     print('Output can be found in %s within genome_dir [and blast_dir, weight_dir] folder[s]' % outPath)
 
