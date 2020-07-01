@@ -112,7 +112,7 @@ my $startTime = time;
 ##									- replace greedyFAS by calcFAS
 
 ############ General settings
-my $version = 'oneSeq v.1.7.0';
+my $version = 'oneSeq v.1.7.1';
 ##### configure for checking if the setup.sh script already run
 my $configure = 0;
 if ($configure == 0){
