@@ -108,6 +108,9 @@ my $startTime = time;
 ##									- no need for profile_prog, architecture_prog and visualsPath
 ##									- final FAS score calculation is done using hamstrFAS
 
+## Modified 16. Juni 2020 v1.7.1 (Vinh)
+##									- replace greedyFAS by calcFAS
+
 ############ General settings
 my $version = 'oneSeq v.1.7.0';
 ##### configure for checking if the setup.sh script already run
@@ -154,7 +157,7 @@ my $outputfmt = 'blastxml';
 my $eval_blast_query = 0.0001;
 my $filter = 'T';
 my $annotation_prog = "annoFAS";
-my $fas_prog = "greedyFAS";
+my $fas_prog = "calcFAS";
 my $hamstrFAS_prog = "hamstrFAS";
 
 ##### ublast Baustelle: not implemented yet
@@ -811,7 +814,7 @@ sub getFasScore{
 		} else {
 			my $lnCmd = "ln -fs $weightPath/$gene_set.json $coreOrthologsPath$seqName/fas_dir/annotation_dir/";
 			system($lnCmd);
-			my $fasOutTmp = `calcFAS -s $coreOrthologsPath$seqName/$seqName.fa -q $blastPath/$gene_set/$gene_set.fa --query_id $gene_id -a $coreOrthologsPath$seqName/fas_dir/annotation_dir/ -o $coreOrthologsPath$seqName/fas_dir/annotation_dir/ --raw | grep "#" | cut -f 3,4`;
+			my $fasOutTmp = `$fas_prog -s $coreOrthologsPath$seqName/$seqName.fa -q $blastPath/$gene_set/$gene_set.fa --query_id $gene_id -a $coreOrthologsPath$seqName/fas_dir/annotation_dir/ -o $coreOrthologsPath$seqName/fas_dir/annotation_dir/ --raw --tsv --domain | grep "#" | cut -f 3,4`;
 			my @fasOutTmp = split(/\t/,$fasOutTmp);
 			$fas_box{$candidateIds[0]} = $fasOutTmp[1];
 		}
