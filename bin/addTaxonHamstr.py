@@ -71,6 +71,7 @@ def main():
     optional.add_argument('-c', '--coreTaxa', help='Include this taxon to core taxa (i.e. taxa in blast_dir folder)', action='store_true', default=False)
     optional.add_argument('-v', '--verProt', help='Proteome version', action='store', default=1, type=int)
     optional.add_argument('-a', '--noAnno', help='Do NOT annotate this taxon using annoFAS', action='store_true', default=False)
+    optional.add_argument('--oldFAS', help='Use old verion of FAS (annoFAS ≤ 1.2.0)', action='store_true', default=False)
     optional.add_argument('--cpus', help='Number of CPUs used for annotation. Default = available cores - 1', action='store', default=0, type=int)
 
     args = parser.parse_args()
@@ -83,6 +84,7 @@ def main():
     noAnno = args.noAnno
     coreTaxa = args.coreTaxa
     ver = str(args.verProt)
+    oldFAS = args.oldFAS
     cpus = args.cpus
     if cpus == 0:
         cpus = mp.cpu_count()-2
@@ -131,15 +133,13 @@ def main():
     if not noAnno:
         Path(outPath + '/weight_dir').mkdir(parents = True, exist_ok = True)
         annoCmd = 'annoFAS -i %s/%s.fa -o %s --cpus %s' % (genomePath, specName, outPath+'/weight_dir', cpus)
+        if oldFAS:
+            annoCmd = 'annoFAS -i %s/%s.fa -o %s -n %s --cores %s' % (genomePath, specName, outPath+'/weight_dir', specName, cpus)
         try:
             subprocess.call([annoCmd], shell = True)
         except:
-            annoCmd = 'annoFAS -i %s/%s.fa -o %s -n %s --cores %s' % (genomePath, specName, outPath+'/weight_dir', specName, cpus)
-            try:
-                subprocess.call([annoCmd], shell = True)
-            except:
-                print('\033[91mProblem with running annoFAS. You can check it with this command:\n%s\033[0m' % annoCmd)
-
+            print('\033[91mProblem with running annoFAS. You can check it with this command:\n%s\033[0m' % annoCmd)
+            
     print('Output can be found in %s within genome_dir [and blast_dir, weight_dir] folder[s]' % outPath)
 
 if __name__ == '__main__':

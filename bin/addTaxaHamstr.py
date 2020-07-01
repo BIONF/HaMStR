@@ -69,13 +69,15 @@ def parseMapFile(mappingFile):
     return(nameDict)
 
 def runAddTaxon(args):
-    (f,n,i,o,c,v,a,cpus) = args
+    (f,n,i,o,c,v,a,cpus,oldFAS) = args
     script = os.path.realpath(__file__).replace('addTaxaHamstr', 'addTaxonHamstr')
     cmd = 'python3 %s -f %s -n %s -i %s -o %s -v %s --cpus %s' % (script, f,n,i,o,v,cpus)
     if c == True:
         cmd = cmd + ' -c'
     if a == True:
         cmd = cmd + ' -a'
+    if oldFAS == True:
+        cmd = cmd + ' --oldFAS'
     # print(cmd)
     logFile = o + '/addTaxaHamstr.log'
     cmd = cmd + ' >> ' + logFile
@@ -93,6 +95,7 @@ def main():
     required.add_argument('-o', '--outPath', help='Path to output directory', action='store', default='', required=True)
     optional.add_argument('-c', '--coreTaxa', help='Include these taxa to core taxa (i.e. taxa in blast_dir folder)', action='store_true', default=False)
     optional.add_argument('-a', '--noAnno', help='Do NOT annotate these taxa using annoFAS', action='store_true', default=False)
+    optional.add_argument('--oldFAS', help='Use old verion of FAS (annoFAS ≤ 1.2.0)', action='store_true', default=False)
     optional.add_argument('--cpus', help='Number of CPUs used for annotation. Default = available cores - 1', action='store', default=0, type=int)
 
     ### get arguments
@@ -103,6 +106,7 @@ def main():
     outPath = str(Path(args.outPath).resolve())
     noAnno = args.noAnno
     coreTaxa = args.coreTaxa
+    oldFAS = args.oldFAS
     cpus = args.cpus
     if cpus == 0:
         cpus = mp.cpu_count()-2
@@ -133,7 +137,7 @@ def main():
                 verProt = nameDict[tmp[0]][2]
                 jobs.append([
                     folIn + '/' + f, nameDict[tmp[0]][0], nameDict[tmp[0]][1],
-                    outPath, coreTaxa, nameDict[tmp[0]][2], noAnno, cpus
+                    outPath, coreTaxa, nameDict[tmp[0]][2], noAnno, cpus, oldFAS
                 ])
 
     if len(dupList) > 0:
