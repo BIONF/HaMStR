@@ -29,7 +29,6 @@ import argparse
 from pathlib import Path
 from Bio import SeqIO
 import subprocess
-import multiprocessing as mp
 from ete3 import NCBITaxa
 
 def checkFileExist(file):
@@ -81,7 +80,7 @@ def main():
     name = args.name.upper()
     taxId = str(args.taxid)
     outPath = str(Path(args.outPath).resolve())
-    doAnno = args.noAnno
+    noAnno = args.noAnno
     coreTaxa = args.coreTaxa
     ver = str(args.verProt)
     cpus = args.cpus
@@ -129,7 +128,7 @@ def main():
             print('Blast DB already exists!')
 
     ### create annotation
-    if not doAnno:
+    if not noAnno:
         Path(outPath + '/weight_dir').mkdir(parents = True, exist_ok = True)
         annoCmd = 'annoFAS -i %s/%s.fa -o %s --cpus %s' % (genomePath, specName, outPath+'/weight_dir', cpus)
         try:
