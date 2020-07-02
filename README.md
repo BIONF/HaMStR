@@ -131,10 +131,10 @@ However, if needed the user can manually add further gene sets (multifasta forma
 ### Adding a new gene set into HaMStR
 For adding **one gene set**, please use the `bin/addTaxonHamstr.py` script:
 ```
-python3 bin/addTaxonHamstr.py -f newTaxon.fa -n abbr_name -i tax_id -o /path/to/HaMStR [-c] [-v protein_version] [-a]
+python3 bin/addTaxonHamstr.py -f newTaxon.fa -i tax_id -o /path/to/HaMStR [-n abbr_tax_name] [-c] [-v protein_version] [-a]
 ```
 
-in which, the first 3 arguments are required including `abbr_name` is the species acronym name, `tax_id` is its NCBI taxonomy ID, `/path/to/HaMStR` is where the sub-directories will be saved (genome_dir, blast_dir and weight_dir). Other arguments are optional, which are `-c` for calculating the BLAST DB (only needed if you need to include your new taxon into the list of taxa for compilating the core set), `-v` for identifying the genome/proteome version (default will be 1), and `-a` for turning off the annotation step (*not recommended*).
+in which, the first 3 arguments are required including `newTaxon.fa` is the gene set that need to be added, `tax_id` is its NCBI taxonomy ID, `/path/to/HaMStR` is where the sub-directories will be saved (genome_dir, blast_dir and weight_dir). Other arguments are optional, which are `-n` for specify your own taxon name (if not given, an abbriviate name will be suggested based on the NCBI taxon name of the input `tax_id`), `-c` for calculating the BLAST DB (only needed if you need to include your new taxon into the list of taxa for compilating the core set), `-v` for identifying the genome/proteome version (default will be 1), and `-a` for turning off the annotation step (*not recommended*).
 
 ### Adding a list of gene sets into HaMStR
 For adding **more than one gene set**, please use the `bin/addTaxaHamstr.py` script:
