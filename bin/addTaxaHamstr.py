@@ -42,7 +42,9 @@ def checkFileExist(file):
 def getTaxName(taxId):
     ncbi = NCBITaxa()
     try:
-        taxName = ncbi.get_taxid_translator([taxId])[int(taxId)].split()
+        ncbiName = ncbi.get_taxid_translator([taxId])[int(taxId)]
+        ncbiName = re.sub('[^a-zA-Z1-9\s]+', '', ncbiName)
+        taxName = ncbiName.split()
         name = taxName[0][:3].upper()+taxName[1][:2].upper()
     except:
         name = "UNK" + taxId
