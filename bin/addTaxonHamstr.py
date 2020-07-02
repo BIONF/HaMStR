@@ -29,7 +29,9 @@ import argparse
 from pathlib import Path
 from Bio import SeqIO
 import subprocess
+import multiprocessing as mp
 from ete3 import NCBITaxa
+import re
 
 def checkFileExist(file):
     if not os.path.exists(os.path.abspath(file)):
@@ -48,6 +50,17 @@ def checkTaxId(taxId):
     except:
         print('\033[92mWARNING: %s not found in NCBI taxonomy database!\033[0m' % taxId)
 
+def getTaxName(taxId):
+    ncbi = NCBITaxa()
+    try:
+        ncbiName = ncbi.get_taxid_translator([taxId])[int(taxId)]
+        ncbiName = re.sub('[^a-zA-Z1-9\s]+', '', ncbiName)
+        taxName = ncbiName.split()
+        name = taxName[0][:3].upper()+taxName[1][:2].upper()
+    except:
+        name = "UNK" + taxId
+    return(name)
+
 def runBlast(args):
     (specName, specFile, outPath) = args
     blastCmd = 'makeblastdb -dbtype prot -in %s -out %s/blast_dir/%s/%s' % (specFile, outPath, specName, specName)
@@ -60,16 +73,16 @@ def runBlast(args):
 
 
 def main():
-    version = '1.0.0'
+    version = '1.0.1'
     parser = argparse.ArgumentParser(description='You are running addTaxonHamstr version ' + str(version) + '.')
     required = parser.add_argument_group('required arguments')
     optional = parser.add_argument_group('optional arguments')
     required.add_argument('-f', '--fasta', help='FASTA file of input taxon', action='store', default='', required=True)
-    required.add_argument('-n', '--name', help='Acronym name of input taxon', action='store', default='', required=True, type=str)
     required.add_argument('-i', '--taxid', help='Taxonomy ID of input taxon', action='store', default='', required=True, type=int)
     required.add_argument('-o', '--outPath', help='Path to output directory', action='store', default='', required=True)
-    optional.add_argument('-c', '--coreTaxa', help='Include this taxon to core taxa (i.e. taxa in blast_dir folder)', action='store_true', default=False)
+    optional.add_argument('-n', '--name', help='Acronym name of input taxon', action='store', default='', type=str)
     optional.add_argument('-v', '--verProt', help='Proteome version', action='store', default=1, type=int)
+    optional.add_argument('-c', '--coreTaxa', help='Include this taxon to core taxa (i.e. taxa in blast_dir folder)', action='store_true', default=False)
     optional.add_argument('-a', '--noAnno', help='Do NOT annotate this taxon using annoFAS', action='store_true', default=False)
     optional.add_argument('--oldFAS', help='Use old verion of FAS (annoFAS ≤ 1.2.0)', action='store_true', default=False)
     optional.add_argument('--cpus', help='Number of CPUs used for annotation. Default = available cores - 1', action='store', default=0, type=int)
@@ -91,7 +104,10 @@ def main():
 
     ### species name after hamstr naming scheme
     checkTaxId(taxId)
+    if name == "":
+        name = getTaxName(taxId)
     specName = name+'@'+taxId+'@'+ver
+    print('Species name\t%s' % specName)
 
     ### create file in genome_dir
     print('Parsing FASTA file...')
@@ -134,12 +150,13 @@ def main():
         Path(outPath + '/weight_dir').mkdir(parents = True, exist_ok = True)
         annoCmd = 'annoFAS -i %s/%s.fa -o %s --cpus %s' % (genomePath, specName, outPath+'/weight_dir', cpus)
         if oldFAS:
+            print("here")
             annoCmd = 'annoFAS -i %s/%s.fa -o %s -n %s --cores %s' % (genomePath, specName, outPath+'/weight_dir', specName, cpus)
         try:
             subprocess.call([annoCmd], shell = True)
         except:
             print('\033[91mProblem with running annoFAS. You can check it with this command:\n%s\033[0m' % annoCmd)
-            
+
     print('Output can be found in %s within genome_dir [and blast_dir, weight_dir] folder[s]' % outPath)
 
 if __name__ == '__main__':

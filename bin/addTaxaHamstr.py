@@ -34,6 +34,7 @@ import multiprocessing as mp
 from ete3 import NCBITaxa
 import csv
 from io import StringIO
+import re
 
 def checkFileExist(file):
     if not os.path.exists(os.path.abspath(file)):
@@ -86,7 +87,7 @@ def runAddTaxon(args):
     subprocess.call([cmd], shell = True)
 
 def main():
-    version = '1.0.0'
+    version = '1.0.2'
     parser = argparse.ArgumentParser(description='You are running addTaxonHamstr version ' + str(version) + '.')
     required = parser.add_argument_group('required arguments')
     optional = parser.add_argument_group('optional arguments')
@@ -99,6 +100,7 @@ def main():
     optional.add_argument('-a', '--noAnno', help='Do NOT annotate these taxa using annoFAS', action='store_true', default=False)
     optional.add_argument('--oldFAS', help='Use old verion of FAS (annoFAS ≤ 1.2.0)', action='store_true', default=False)
     optional.add_argument('--cpus', help='Number of CPUs used for annotation. Default = available cores - 1', action='store', default=0, type=int)
+    optional.add_argument('-f', '--force', help='Force overwrite existing data', action='store_true', default=False)
 
     ### get arguments
     args = parser.parse_args()
@@ -112,10 +114,12 @@ def main():
     cpus = args.cpus
     if cpus == 0:
         cpus = mp.cpu_count()-2
+    force = args.force
 
 
     ### get existing genomes
     Path(outPath + "/genome_dir").mkdir(parents = True, exist_ok = True)
+    Path(outPath + "/weight_dir").mkdir(parents = True, exist_ok = True)
     genomeFiles = listdir(outPath + "/genome_dir")
 
     ### generate taxon names from mapping file
@@ -130,9 +134,19 @@ def main():
         if tmp[0] in nameDict:
             # check duplicated taxon name in existing data
             taxName = '@'.join(nameDict[tmp[0]])
+            flag = 1
             if taxName in genomeFiles:
+                if force:
+                    rmCmd = 'rm -rf %s/%s' % (outPath + "/genome_dir", taxName)
+                    subprocess.call([rmCmd], shell = True)
+                    if not noAnno:
+                        rmAnnoCmd = 'rm -rf %s/%s' % (outPath + "/weight_dir", taxName)
+                        subprocess.call([rmAnnoCmd], shell = True)
+                else:
+                    flag = 0
                 dupList[f] = taxName
-            else:
+
+            if flag == 1:
                 fasta = folIn + '/' + f
                 name = nameDict[tmp[0]][0]
                 taxid = nameDict[tmp[0]][1]
@@ -146,7 +160,10 @@ def main():
         print("These taxa are probably already present in %s:" % (outPath + "/genome_dir"))
         for f in dupList:
             print('\t'+f+'\t'+dupList[f])
-        sys.exit("Please remove them from the mapping file or use different Name/ID/Version!")
+        if force:
+            print('They will be deleted and re-compiled!')
+        else:
+            sys.exit("Please remove them from the mapping file or use different Name/ID/Version!")
 
     for job in jobs:
         print('@'.join([job[1],job[2],job[5]]) + '\t' + job[0])
