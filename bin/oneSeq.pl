@@ -111,8 +111,11 @@ my $startTime = time;
 ## Modified 16. Juni 2020 v1.7.1 (Vinh)
 ##									- replace greedyFAS by calcFAS
 
+## Modified 07. July 2020 v1.7.2 (Vinh)
+##									- check if FAS executable
+
 ############ General settings
-my $version = 'oneSeq v.1.7.1';
+my $version = 'oneSeq v.1.7.2';
 ##### configure for checking if the setup.sh script already run
 my $configure = 0;
 if ($configure == 0){
@@ -360,6 +363,13 @@ $blastPath = abs_path($blastPath)."/";
 $weightPath = abs_path($weightPath)."/";
 $genome_dir = abs_path($genome_dir)."/";
 $taxaPath = $genome_dir;
+
+############# check executable FAS
+my $fasCheckMsg = `prepareFAS -t ./ -c 2>&1`;
+if ($fasCheckMsg =~ /ERROR/) {
+	print "FAS cannot be used and will be turned off!\n";
+	$fasoff = 1;
+}
 
 ############# connect to the database
 if ($dbmode) {
