@@ -114,8 +114,11 @@ my $startTime = time;
 ## Modified 07. July 2020 v1.7.2 (Vinh)
 ##									- check if FAS executable
 
+## Modified 10. July 2020 v1.7.3 (Vinh)
+##									- solved problem when gene ID contains PIPE
+
 ############ General settings
-my $version = 'oneSeq v.1.7.2';
+my $version = 'oneSeq v.1.7.3';
 ##### configure for checking if the setup.sh script already run
 my $configure = 0;
 if ($configure == 0){
@@ -694,7 +697,6 @@ sub getCumulativeAlnScores{
 	my $candidatesFile = $outputFa . ".extended";
 	my $scorefile = $$ . ".scorefile";
 	my %scores;
-
 	########################
 	## step: 1
 	## setup
@@ -702,10 +704,9 @@ sub getCumulativeAlnScores{
 	#local      local:local    ssearch36   Smith-Waterman
 	#glocal     global:local   glsearch36  Needleman-Wunsch
 	#global     global:global  ggsearch36  Needleman-Wunsch
-	my $loclocCommand = "$localaligner " . $outputFa . " " . $candidatesFile . " -s " . $alignmentscoreMatrix . " -m 9 -d 0 -z -1 -E 100" . " > " . $scorefile;
-	my $globlocCommand = "$glocalaligner " . $outputFa . " " . $candidatesFile . " -s " . $alignmentscoreMatrix . " -m 9 -d 0 -z -1 -E 100" . " > " . $scorefile;
-	my $globglobCommand = "$globalaligner " . $outputFa . " " . $candidatesFile . " -s " . $alignmentscoreMatrix . " -m 9 -d 0 -z -1 -E 100" . " > " . $scorefile;
-
+	my $loclocCommand = "$localaligner \"" . $outputFa . "\" \"" . $candidatesFile . "\" -s " . $alignmentscoreMatrix . " -m 9 -d 0 -z -1 -E 100" . " > " . $scorefile;
+	my $globlocCommand = "$glocalaligner \"" . $outputFa . "\" \"" . $candidatesFile . "\" -s " . $alignmentscoreMatrix . " -m 9 -d 0 -z -1 -E 100" . " > " . $scorefile;
+	my $globglobCommand = "$globalaligner \"" . $outputFa . "\" \"" . $candidatesFile . "\" -s " . $alignmentscoreMatrix . " -m 9 -d 0 -z -1 -E 100" . " > " . $scorefile;
 	########################
 	## step: 2
 	## setup
@@ -724,7 +725,6 @@ sub getCumulativeAlnScores{
 	}elsif ($local){
 		system($loclocCommand);
 	}
-
 	########################
 	## step: 4
 	## collect alignment score
@@ -822,9 +822,10 @@ sub getFasScore{
 			print "ERROR: $weightPath/$gene_set.json not found! FAS Score will be set as zero.\n";
 			$fas_box{$candidateIds[0]} = 0.0;
 		} else {
-			my $lnCmd = "ln -fs $weightPath/$gene_set.json $coreOrthologsPath$seqName/fas_dir/annotation_dir/";
+			my $lnCmd = "ln -fs $weightPath/$gene_set.json \"$coreOrthologsPath$seqName/fas_dir/annotation_dir/\"";
 			system($lnCmd);
-			my $fasOutTmp = `$fas_prog -s $coreOrthologsPath$seqName/$seqName.fa -q $blastPath/$gene_set/$gene_set.fa --query_id $gene_id -a $coreOrthologsPath$seqName/fas_dir/annotation_dir/ -o $coreOrthologsPath$seqName/fas_dir/annotation_dir/ --raw --tsv --domain | grep "#" | cut -f 3,4`;
+			# print "$fas_prog -s \"$coreOrthologsPath$seqName/$seqName.fa\" -q $blastPath/$gene_set/$gene_set.fa --query_id \"$gene_id\" -a \"$coreOrthologsPath$seqName/fas_dir/annotation_dir/\" -o \"$coreOrthologsPath$seqName/fas_dir/annotation_dir/\" --raw --tsv --domain";<>;
+			my $fasOutTmp = `$fas_prog -s \"$coreOrthologsPath$seqName/$seqName.fa\" -q $blastPath/$gene_set/$gene_set.fa --query_id \"$gene_id\" -a \"$coreOrthologsPath$seqName/fas_dir/annotation_dir/\" -o \"$coreOrthologsPath$seqName/fas_dir/annotation_dir/\" --raw --tsv --domain | grep "#" | cut -f 3,4`;
 			my @fasOutTmp = split(/\t/,$fasOutTmp);
 			$fas_box{$candidateIds[0]} = $fasOutTmp[1];
 		}
@@ -944,16 +945,16 @@ sub runAutoCleanUp {
 	my $processID = $_[0];
 	print "\noneSeq.pl finished. Starting Auto Clean-up...\n\n";
 
-	my $delCommandMod = "rm -f $outputPath/*.mod";
-	system ($delCommandMod) == 0 or die "Error deleting result files\n";
-	print "--> $outputPath/*.mod deleted.\n";
-	foreach my $tax (keys %taxa) {
-		$delCommandMod = "rm -f $genome_dir/$tax/*.mod";
-		system ($delCommandMod) == 0 or die "Error deleting result files\n";
-	}
-	print "--> $genome_dir/*.mod deleted.\n";
+	# my $delCommandMod = "rm -f $outputPath/*.mod";
+	# system ($delCommandMod) == 0 or die "Error deleting result files\n";
+	# print "--> $outputPath/*.mod deleted.\n";
+	# foreach my $tax (keys %taxa) {
+	# 	$delCommandMod = "rm -f $genome_dir/$tax/*.mod";
+	# 	system ($delCommandMod) == 0 or die "Error deleting result files\n";
+	# }
+	# print "--> $genome_dir/*.mod deleted.\n";
 
-	my $delCommandTmp = "rm -rf $outputPath/tmp";
+	my $delCommandTmp = "rm -rf \"$outputPath/tmp\"";
 	system ($delCommandTmp) == 0 or die "Error deleting result files\n";
 	print "--> $outputPath/tmp deleted.\n";
 	my $seedName = $seqName . '_seed';
@@ -978,8 +979,12 @@ sub runAutoCleanUp {
 sub getAnnotation {
 	my ($seedseqFile) = ($_[0]);
 	# my $annotationCommand = "$annotation_prog --fasta=" . $seedseqFile . " --path=" . $coreOrthologsPath . $seqName . "/fas_dir" . "/annotation_dir" . " --name=" . $seqName . "_seed" . " --cores=". $annoCores;
-	my $annotationCommand = "$annotation_prog" . " -i $seedseqFile" . " -o $coreOrthologsPath" . $seqName . "/fas_dir" . "/annotation_dir" . " --cpus 1"; #" --name " . $seqName . "_seed" . " --cpus 1";
-	# print($annotationCommand,"\n");
+	my $inputAnno = $seedseqFile;
+	$inputAnno =~ s/\|/\\\|/g;
+	my $outputAnno = $coreOrthologsPath . $seqName . "/fas_dir/annotation_dir";
+	$outputAnno =~ s/\|/\\\|/g;
+	my $annotationCommand = "$annotation_prog" . " -i $inputAnno" . " -o $outputAnno --cpus 1" . " --name \"$seqName\""; #" --name " . $seqName . "_seed" . " --cpus 1";
+	# print($annotationCommand,"\n");<>;
 	system($annotationCommand);
 }
 
@@ -1134,7 +1139,7 @@ sub checkOptions {
 		if (length $seqFile > 0){
 			if (-e $seqFile) {
 				my @seqFileTMP = split(/\//, $seqFile);
-				system("ln -fs $seqFile $currDir/$seqFileTMP[@seqFileTMP-1]");
+				system("ln -fs \"$seqFile\" \"$currDir/$seqFileTMP[@seqFileTMP-1]\"");
 				$seqFile = $seqFileTMP[@seqFileTMP-1];
 			} else {
 				printOut("\nThe specified file $seqFile does not exist!\n",1);
@@ -1395,10 +1400,10 @@ sub checkRank {
 sub createAlnMsf {
 	my $linsiCommand = '';
 	if (!defined $aln or $aln eq 'mafft-linsi') {
-		my $linsiCommand = "mafft-linsi --anysymbol " . $outputFa . " > " . $outputAln;
+		my $linsiCommand = "mafft-linsi --anysymbol \"" . $outputFa . "\" > \"" . $outputAln . "\"";
 	}
 	elsif ($aln eq 'muscle') {
-		$linsiCommand = "muscle -quiet -in " . $outputFa . " -out " .$outputAln;
+		$linsiCommand = "muscle -quiet -in \"" . $outputFa . "\" -out \"" .$outputAln. "\"";
 	}
 	else {
 		die "issues with the msa. You need to select either mafft or muscle\n";
@@ -1912,7 +1917,7 @@ sub runHamstr {
 					$outputFa .= '.extended';
 				}
 				## Baustelle: check that this also works with the original hamstrcore module as here a tail command was used.
-				my $tailCommand = "$grepprog -A 1 '$taxon.*|[01]\$' " . $resultFile . "|sed -e 's/\\([^|]\\{1,\\}\\)|[^|]*|\\([^|]\\{1,\\}\\)|\\([^|]\\{1,\\}\\)|\\([01]\\)\$/\\1|\\2|\\3|\\4/' >>" . $outputFa;
+				my $tailCommand = "$grepprog -A 1 '$taxon.*|[01]\$' \"" . $resultFile . "\" |sed -e 's/\\([^|]\\{1,\\}\\)|[^|]*|\\([^|]\\{1,\\}\\)|\\([^|]\\{1,\\}\\)|\\([01]\\)\$/\\1|\\2|\\3|\\4/' >> \"" . $outputFa. "\"";
 				printDebug("Post-processing of HaMStR\n$tailCommand\n");
 				system($tailCommand);
 			}
@@ -1925,16 +1930,18 @@ sub runHamstr {
 		my $delCommandFa;
 		my $delCommandHmm;
 		my $delCommandHam;
-
+		# my $outputPathTmp = $outputPath; $outputPathTmp =~ s/\|/\\\|/g;
+		# my $taxonTmp = $taxon; $taxonTmp =~ s/\|/\\\|/g;
+		# my $seqNameTmp = $seqName; $seqNameTmp =~ s/\|/\\\|/g;
 		if (!$strict) {
-			$delCommandFa = "rm -rf " . $outputPath . "/fa_dir_" . $taxon . "_" . $seqName . "_" . $refSpec;
-			$delCommandHmm = "rm -rf " .  $outputPath . "/hmm_search_" . $taxon . "_" . $seqName;
-			$delCommandHam = "rm -f " . $outputPath . "/hamstrsearch_" . $taxon . "_" . $seqName . ".out";
+			$delCommandFa = "rm -rf  \"" . $outputPath . "/fa_dir_" . $taxon . "_" . $seqName . "_" . $refSpec . "\"";
+			$delCommandHmm = "rm -rf \"" .  $outputPath . "/hmm_search_" . $taxon . "_" . $seqName . "\"";
+			$delCommandHam = "rm -f \"" . $outputPath . "/hamstrsearch_" . $taxon . "_" . $seqName . ".out" . "\"";
 		}
 		else {
-			$delCommandFa = "rm -rf " . $outputPath . "/fa_dir_" . $taxon . "_" . $seqName . "_strict";
-			$delCommandHmm = "rm -rf " .  $outputPath . "/hmm_search_" . $taxon . "_" . $seqName;
-			$delCommandHam = "rm -f " . $outputPath . "/hamstrsearch_" . $taxon . "_" . $seqName . ".strict.out";
+			$delCommandFa = "rm -rf \"" . $outputPath . "/fa_dir_" . $taxon . "_" . $seqName . "_strict" . "\"";
+			$delCommandHmm = "rm -rf \"" .  $outputPath . "/hmm_search_" . $taxon . "_" . $seqName . "\"";
+			$delCommandHam = "rm -f \"" . $outputPath . "/hamstrsearch_" . $taxon . "_" . $seqName . ".strict.out" . "\"";
 		}
 		printDebug("executing $delCommandFa", "executing $delCommandHmm", "executing $delCommandHam");
 		if (!$debug) {

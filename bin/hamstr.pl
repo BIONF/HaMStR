@@ -186,11 +186,14 @@ use run_genewise_hamstr;
     ## hmmsearch output according to the best domain bit score. The current routine assumes that neither query nor
     ## hit has whitespaces in their names
 
-	## 14.04.2020 (Vinh)
+		## 14.04.2020 (Vinh)
     ## Bug fix (solved): existing symbolic link cannot recognized while checking the reference fasta file
 
+		## 10.07.2020 (v13.2.12 - vinh)
+		## solved problem when gene ID contains PIPE
+
 ######################## start main ###########################################
-my $version = "HaMStR v.13.2.11";
+my $version = "HaMStR v.13.2.12";
 ######################## checking whether the configure script has been run ###
 my $configure = 0;
 if ($configure == 0){
@@ -554,8 +557,11 @@ for (my $i = 0; $i < @hmms; $i++) {
   	## 3) run the hmm search
   	if (!(-e "$hmmsearch_dir/$hmmout")) {
     	printOUT("\n\nnow running $prog using $hmm\n");
-	print "$prog --noali --tblout $hmmsearch_dir/$hmmout -E $eval $hmm_dir/$hmm $dboutpath/$dbfile\n";
-    	`$prog --noali --tblout $hmmsearch_dir/$hmmout -E $eval $hmm_dir/$hmm $dboutpath/$dbfile` or die "Problem running hmmsearch as $prog --noali --tblout $hmmsearch_dir/$hmmout -E $eval $hmm_dir/$hmm $dboutpath/$dbfile. No output $hmmsearch_dir/$hmmout\n";
+			my $hmmOutFile = "$hmmsearch_dir/$hmmout";
+			my $hmmModel = "$hmm_dir/$hmm";
+			my $hmmInfile = "$dboutpath/$dbfile";
+			# print "$prog --noali --tblout \"$hmmOutFile\" -E $eval \"$hmmModel\" \"$hmmInfile\"\n";
+    	`$prog --noali --tblout \"$hmmOutFile\" -E $eval \"$hmmModel\" \"$hmmInfile\"` or die "Problem running hmmsearch as $prog --noali --tblout \"$hmmOutFile\" -E $eval \"$hmmModel\" \"$hmmInfile\". No output $hmmsearch_dir/$hmmout\n";
   	}
   	else {
     	printOUT("an hmmresult $hmmout already exists. Using this one!\n");
@@ -741,8 +747,10 @@ else {
   printOUT("no hits found\n\n");
 }
 ### WRAP UP #####
-my $ortholog_groups = `ls $fa_dir_neu |$grepprog -v 'cds.fa' |wc -l`;
-my $hmmsearched = `ls $hmmsearch_dir |wc -l`;
+my $fa_dir_neu_tmp = $fa_dir_neu; $fa_dir_neu_tmp =~ s/\|/\\\|/g;
+my $ortholog_groups = `ls $fa_dir_neu_tmp |$grepprog -v 'cds.fa' |wc -l`;
+my $hmmsearch_dir_tmp = $hmmsearch_dir; $hmmsearch_dir_tmp =~ s/\|/\\\|/g;
+my $hmmsearched = `ls $hmmsearch_dir_tmp |wc -l`;
 chomp ($ortholog_groups, $hmmsearched, $orthologs);
 
 print "\n\n
@@ -1035,35 +1043,34 @@ Please consult the installation manual for genewise and set this variable";
   		$fafile = "$hmmpath/$hmmset" . '.fa';
   		$hmm_dir = "$hmmpath/$hmm_dir";
   		$hmmsearch_dir = $outpath .'/hmm_search_' . $dbfile_short . '_' . $hmmset;
+
   		## 4b) check for the presence of the hmm-files and the fasta-file
   		if (!(-e "$hmm_dir")) {
   			push @log, "${bold}FATAL:${norm} Could not find $hmm_dir";
     		print "failed\n";
     		$check = 0;
-  		}
-  		else {
+  		} else {
   			if (defined $hmm) {
     			@hmms = split ',', $hmm;
     			chomp @hmms;
-				### check for the presence of all hmms
-				for (my $k = 0; $k < @hmms; $k++) {
-					if (! -e "$hmm_dir/$hmms[$k]") {
-						push @log, "${bold}FATAL:${norm} $hmms[$k] has been defined but could not be found in $hmm_dir/$hmms[$k]";
-						$check = 0;
-						last;
-      					}
-      				else {
-      					push @log, "\t$hmms[$k] has been found";
-     	 			}
-				}
-			}
-    		else {
-      			push @log, "\trunning HaMStR with all hmms in $hmm_dir";
-     	 		@hmms = `ls $hmm_dir`;
-    		}
-    		chomp @hmms;
-    		printOUT("\tsucceeded\n");
- 	 	}
+					### check for the presence of all hmms
+					for (my $k = 0; $k < @hmms; $k++) {
+						if (! -e "$hmm_dir/$hmms[$k]") {
+							push @log, "${bold}FATAL:${norm} $hmms[$k] has been defined but could not be found in $hmm_dir/$hmms[$k]";
+							$check = 0;
+							last;
+	      		} else {
+	      			push @log, "\t$hmms[$k] has been found";
+	     	 		}
+					}
+				} else {
+	      	push @log, "\trunning HaMStR with all hmms in $hmm_dir";
+					my $hmm_dir_tmp = $hmm_dir; $hmm_dir_tmp =~ s/\|/\\\|/g;
+	     	 	@hmms = `ls $hmm_dir_tmp`;
+	    	}
+	    	chomp @hmms;
+	    	printOUT("\tsucceeded\n");
+	 	 	}
   	}
   	## 6) Test for presence of the fasta file containing the sequences of the core-ortholog cluster
   	printOUT("checking for presence of the core-ortholog file:\t");
@@ -1431,6 +1438,7 @@ sub check4reciprocity {
 		my $orthocount = $refspec_final->[$k]->{orthocount};
 		## 1) Perform the blast search with the k-th reftaxon
 		printOUT("Reftaxon: $refspec_final->[$k]->{refspec}\n");
+		$tmpdir =~ s/\|/\\\|/g;
 		if ($blast_prog =~ /blast[px]/) {
 			!`$blast_prog -db $refspec_final->[$k]->{searchdb} -seg '$filter' -max_target_seqs 10 -evalue $eval_blast -outfmt 5 -query $tmpdir/$$.fa  -out $tmpdir/$$.blast` or die "Problem running $blast_prog\n";
  			### postprocess the outfile
@@ -1586,8 +1594,9 @@ sub getBestBlasthit {
     my $hits;
     my $count = 0;
     my ($file) = @_;
+		$file =~ s/\\//g;
     my $searchio = Bio::SearchIO->new(
-    				-file        => $file,
+    				-file        => "$file",
 				    -format      => $outputfmt)
 				    or die "parse failed";
     while(my $result = $searchio->next_result){
@@ -1977,10 +1986,12 @@ sub parseHmmer4pm {
 	my @rest;
         my %tmphash;
 	my $hitcount = 0;
-        if (!defined $path){
+	if (!defined $path){
                 $path = '.';
         }
         $file = $path . '/' . $file;
+
+	$file =~ s/\|/\\\|/g;
 	my @hmmout = `$grepprog -v '#' $file |sort -rnk 9 |sed -e 's/ /@/g'`;
 	for (my $i = 0; $i < @hmmout; $i++) {
 		($hmmhits->[$i]->{target_name}, $hmmhits->[$i]->{target_accession}, $hmmhits->[$i]->{query_name}, $hmmhits->[$i]->{query_accession},  $hmmhits->[$i]->{total_evalue},  $hmmhits->[$i]->{total_score},  $hmmhits->[$i]->{total_bias},  $hmmhits->[$i]->{domain_evalue}, $hmmhits->[$i]->{domain_score},  $hmmhits->[$i]->{domain_bias}, @rest) = split(/@+/, $hmmout[$i]);
@@ -2079,6 +2090,7 @@ sub determineRefspecFinal {
   my @original;
   my $ac = 0;
   for (my $i = 0; $i < @refspec; $i++) {
+		$fafile =~ s/\|/\\\|/g;
     @original = `$grepprog -A 1 "^>$query_name|$refspec[$i]" $fafile |$sedprog -e "s/.*$refspec[$i]\|//"`;
     chomp @original;
 
@@ -2139,26 +2151,27 @@ sub identifyCoorthologsProt{
 		push @out, ">" . $spec .'|' . $genes2check[$i];
 		push @out, $seq;
 	}
-    ## writing sequences to file
-	open (OUT, ">$tmpdir/$localid.orth.fa") or die "failed to open $localid.orth.fa\n";
+  ## writing sequences to file
+	my $tmpdirTmp = $tmpdir; $tmpdirTmp =~ s/\\//g;
+	open (OUT, ">$tmpdirTmp/$localid.orth.fa") or die "failed to open $localid.orth.fa\n";
 	print OUT join "\n", @out;
 	close OUT;
     ## aligning sequences
 	if ($alignmentprog_co eq 'mafft-linsi'){
-		`$alignmentprog_co --anysymbol --quiet $tmpdir/$localid.orth.fa > "$tmpdir/$localid.orth.aln"`;
+		`$alignmentprog_co --anysymbol --quiet $tmpdir/$localid.orth.fa > "$tmpdirTmp/$localid.orth.aln"`;
 	}
 	elsif ($alignmentprog_co eq 'muscle') {
-		`$alignmentprog_co -quiet -in $tmpdir/$localid.orth.fa -out "$tmpdir/$localid.orth.aln"`;
+		`$alignmentprog_co -quiet -in $tmpdir/$localid.orth.fa -out "$tmpdirTmp/$localid.orth.aln"`;
 	}
 	else {
 		die "$alignmentprog_co is neither mafft-linsi nor muscle\n";
 	}
-	if (! -e "$tmpdir/$localid.orth.aln") {
+	if (! -e "$tmpdirTmp/$localid.orth.aln") {
 		die "something wrong running $alignmentprog_co\n";
 	}
     ## do the matrix caluclation
 	my $in = Bio::AlignIO->new(-format => 'fasta',
-                               -file   => "$tmpdir/$localid.orth.aln");
+                               -file   => "$tmpdirTmp/$localid.orth.aln");
 	my $aln = $in->next_aln;
 	my $pepstats = Bio::Align::ProteinStatistics->new();
 	my $kimura = $pepstats->distance(-align => $aln,
