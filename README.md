@@ -189,7 +189,6 @@ _**Note: After having all these dependencies installed, you still need to run th
 * build-essential
 * curl (curl)
 * locales
-* lib32ncurses6
 * lib32z1
 
 *(In parentheses are Mac's alternative tools)*
