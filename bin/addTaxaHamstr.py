@@ -72,7 +72,7 @@ def parseMapFile(mappingFile):
     return(nameDict)
 
 def runAddTaxon(args):
-    (f,n,i,o,c,v,a,cpus,oldFAS) = args
+    (f,n,i,o,c,v,a,cpus,replace,oldFAS) = args
     script = os.path.realpath(__file__).replace('addTaxaHamstr', 'addTaxonHamstr')
     cmd = 'python3 %s -f %s -n %s -i %s -o %s -v %s --cpus %s' % (script, f,n,i,o,v,cpus)
     if c == True:
@@ -81,13 +81,15 @@ def runAddTaxon(args):
         cmd = cmd + ' -a'
     if oldFAS == True:
         cmd = cmd + ' --oldFAS'
+    if replace == True:
+        cmd = cmd + ' --replace'
     # print(cmd)
     logFile = o + '/addTaxaHamstr.log'
     cmd = cmd + ' >> ' + logFile
     subprocess.call([cmd], shell = True)
 
 def main():
-    version = '1.0.2'
+    version = '1.0.3'
     parser = argparse.ArgumentParser(description='You are running addTaxonHamstr version ' + str(version) + '.')
     required = parser.add_argument_group('required arguments')
     optional = parser.add_argument_group('optional arguments')
@@ -100,6 +102,7 @@ def main():
     optional.add_argument('-a', '--noAnno', help='Do NOT annotate these taxa using annoFAS', action='store_true', default=False)
     optional.add_argument('--oldFAS', help='Use old verion of FAS (annoFAS ≤ 1.2.0)', action='store_true', default=False)
     optional.add_argument('--cpus', help='Number of CPUs used for annotation. Default = available cores - 1', action='store', default=0, type=int)
+    optional.add_argument('--replace', help='Replace special characters in sequences by "X"', action='store_true', default=False)
     optional.add_argument('-f', '--force', help='Force overwrite existing data', action='store_true', default=False)
 
     ### get arguments
@@ -114,6 +117,7 @@ def main():
     cpus = args.cpus
     if cpus == 0:
         cpus = mp.cpu_count()-2
+    replace = args.replace
     force = args.force
 
 
@@ -153,7 +157,7 @@ def main():
                 verProt = nameDict[tmp[0]][2]
                 jobs.append([
                     folIn + '/' + f, nameDict[tmp[0]][0], nameDict[tmp[0]][1],
-                    outPath, coreTaxa, nameDict[tmp[0]][2], noAnno, cpus, oldFAS
+                    outPath, coreTaxa, nameDict[tmp[0]][2], noAnno, cpus, replace, oldFAS
                 ])
 
     if len(dupList) > 0:

@@ -73,7 +73,7 @@ def runBlast(args):
 
 
 def main():
-    version = '1.0.1'
+    version = '1.0.2'
     parser = argparse.ArgumentParser(description='You are running addTaxonHamstr version ' + str(version) + '.')
     required = parser.add_argument_group('required arguments')
     optional = parser.add_argument_group('optional arguments')
@@ -86,6 +86,8 @@ def main():
     optional.add_argument('-a', '--noAnno', help='Do NOT annotate this taxon using annoFAS', action='store_true', default=False)
     optional.add_argument('--oldFAS', help='Use old verion of FAS (annoFAS ≤ 1.2.0)', action='store_true', default=False)
     optional.add_argument('--cpus', help='Number of CPUs used for annotation. Default = available cores - 1', action='store', default=0, type=int)
+    optional.add_argument('--replace', help='Replace special characters in sequences by "X"', action='store_true', default=False)
+    optional.add_argument('--force', help='Force overwrite existing data', action='store_true', default=False)
 
     args = parser.parse_args()
 
@@ -101,6 +103,8 @@ def main():
     cpus = args.cpus
     if cpus == 0:
         cpus = mp.cpu_count()-2
+    replace = args.replace
+    force = args.force
 
     ### species name after hamstr naming scheme
     checkTaxId(taxId)
@@ -117,7 +121,7 @@ def main():
     # load fasta seq
     inSeq = SeqIO.to_dict((SeqIO.parse(open(faIn), 'fasta')))
     specFile = genomePath + '/' + specName + '.fa'
-    if (not os.path.exists(os.path.abspath(specFile))) or (os.stat(specFile).st_size == 0):
+    if (not os.path.exists(os.path.abspath(specFile))) or (os.stat(specFile).st_size == 0) or force:
         f = open(specFile, 'w')
         index = 0
         tmpDict = {}
@@ -128,7 +132,14 @@ def main():
                 index = index + 1
                 id = str(id) + '|' + str(index)
                 tmpDict[id] = 1
-            f.write('>%s\n%s\n' % (id, inSeq[id].seq))
+            seq = str(inSeq[id].seq)
+            for c in seq:
+                if not c.isalnum():
+                    if replace:
+                        seq = seq.replace(c, "X")
+                    else:
+                        sys.exit('%s sequence contains special character: "%s"\nPlease check it, or use --replace to automatically replace it by "X".\n' % (id, c))
+            f.write('>%s\n%s\n' % (id, seq))
         f.close()
     else:
         print(genomePath + '/' + specName + '.fa already exists!')
@@ -137,7 +148,7 @@ def main():
     if coreTaxa:
         print('Creating Blast DB...')
         Path(outPath + '/blast_dir').mkdir(parents = True, exist_ok = True)
-        if not os.path.exists(os.path.abspath(outPath + '/blast_dir/' + specName + '/' + specName + '.phr')):
+        if (not os.path.exists(os.path.abspath(outPath + '/blast_dir/' + specName + '/' + specName + '.phr'))) or force:
             try:
                 runBlast([specName, specFile, outPath])
             except:
@@ -149,8 +160,10 @@ def main():
     if not noAnno:
         Path(outPath + '/weight_dir').mkdir(parents = True, exist_ok = True)
         annoCmd = 'annoFAS -i %s/%s.fa -o %s --cpus %s' % (genomePath, specName, outPath+'/weight_dir', cpus)
+        if force:
+            annoCmd = annoCmd + " --force"
         if oldFAS:
-            print("here")
+            print("running old version of FAS...")
             annoCmd = 'annoFAS -i %s/%s.fa -o %s -n %s --cores %s' % (genomePath, specName, outPath+'/weight_dir', specName, cpus)
         try:
             subprocess.call([annoCmd], shell = True)
