@@ -1,9 +1,12 @@
 #!/usr/bin/perl
 use strict;
 use warnings;
+use File::Copy;
 use File::Copy qw(move);
 use File::Basename;
+use File::Path;
 use File::Path 'rmtree';
+use File::Which;
 use lib dirname(__FILE__);
 use Parallel::ForkManager;
 use IO::Handle;
@@ -16,19 +19,15 @@ use Bio::SeqIO;
 use Bio::SearchIO;
 use Term::Cap;
 use POSIX;
-use File::Path;
 
 use Capture::Tiny qw/capture/;
 use IPC::Run qw( run timeout );
 use Time::HiRes;
-use File::Path;
-use File::Basename;
-use File::Which;
 use List::Util qw(shuffle);
-use File::Copy;
 use Cwd;
 use Cwd 'abs_path';
 use Array::Utils qw(:all);
+use Try::Tiny;
 
 my $startTime = time;
 
@@ -139,6 +138,7 @@ printDebug("Path is $path");
 #### Programs and output
 my $sedprog = 'sed';
 my $grepprog = 'grep';
+my $readlinkprog = 'readlink';
 
 my $globalaligner = 'ggsearch36';
 my $glocalaligner = 'glsearch36';
@@ -194,21 +194,23 @@ my $tmpdir = "$path/tmp";
 my $dataDir = $path . '/data';
 my $weightPath = "$path/weight_dir/";
 
-my @defaultRanks = ('superkingdom', 'kingdom',
-					'superphylum', 'phylum', 'subphylum',
-					'superclass', 'class', 'subclass', 'infraclass',
-					'superorder', 'order', 'suborder', 'parvorder', 'infraorder',
-					'superfamily', 'family', 'subfamily',
-					'tribe', 'subtribe',
-					'genus', 'subgenus',
-					'species group', 'species subgroup', 'species');
+my @defaultRanks = (
+	'superkingdom', 'kingdom',
+	'superphylum', 'phylum', 'subphylum',
+	'superclass', 'class', 'subclass', 'infraclass',
+	'superorder', 'order', 'suborder', 'parvorder', 'infraorder',
+	'superfamily', 'family', 'subfamily',
+	'tribe', 'subtribe',
+	'genus', 'subgenus',
+	'species group', 'species subgroup', 'species'
+);
 #switched from online version to flatfile because it is much faster
 #taxon files can be downloaded from: ftp://ftp.ncbi.nih.gov/pub/taxonomy/
 print "Please wait while the taxonomy database is indexing...\n";
 my $db = Bio::DB::Taxonomy->new(-source    => 'flatfile',
-								-nodesfile => $idx_dir . 'nodes.dmp',
-								-namesfile => $idx_dir . 'names.dmp',
-								-directory => $idx_dir);
+	-nodesfile => $idx_dir . 'nodes.dmp',
+	-namesfile => $idx_dir . 'names.dmp',
+	-directory => $idx_dir);
 print "indexing done!\n";
 ################## some variables
 my $finalOutput;
@@ -300,64 +302,66 @@ my $breakAfter = 5; 		## Number of Significantly bad candidates after which the 
 my %hashTree;
 my $aln = 'muscle';
 ################# Command line options
-GetOptions ("h"                 => \$help,
-			"append"	=> \$append,
-			"showTaxa"          => \$showTaxa,
-			"refSpec=s"         => \$refSpec,
-			"db"                => \$dbmode,
-			"filter=s"          => \$filter,
-			"seqFile=s"   => \$seqFile,
-			"seqId=s"           => \$seqId,
-			"seqName=s"         => \$seqName,
-			"silent"            => \$silent,
-			"minDist=s"         => \$minDist,
-			"maxDist=s"         => \$maxDist,
-			"coreOrth=i"        => \$minCoreOrthologs,
-			"coreTaxa=s"        => \$coreTaxa,
-			"strict"            => \$strict,
-			"rbh"               => \$rbh,
-			"evalBlast=s"      => \$eval_blast,
-			"evalHmmer=s"      => \$eval_hmmer,
-			"evalRelaxfac=s"       => \$eval_relaxfac,
-			"checkCoorthologsRef"       => \$checkcoorthologsref,
-			"coreCheckCoorthologsRef"   => \$cccr,
-			"hitlimitHamstr=s"          => \$hitlimit,
-			"coreHitlimitHamstr=s"      => \$core_hitlimit,
-			"autoLimitHamstr"	=> \$autoLimit,
-			"scoreCutoff=s" => \$scoreCutoff,
-			"scoreThreshold" => \$scoreThreshold,
-			"coreRep"           => \$core_rep,
-			"coreStrict"        => \$corestrict,
-			"coreOnly"          => \$coreOnly,
-			"group=s"           => \$group,
-			"blast"             => \$blast,
-			"batch=s"           => \$batch,
-			"fas"               => \$fas_support,
-			"countercheck"      => \$countercheck,
-			"fasoff"            => \$fasoff,
-			"coreFilter=s"     => \$core_filter_mode,
-			"minScore=s"        => \$fas_T,
-			"local"             => \$local,
-			"global"            => \$global,
-			"glocal"            => \$glocal,
-			"rep"               => \$representative,
-			"cpu=s"             => \$cpu,
-			"outpath=s"         => \$outputPath,
-			"hmmpath=s"         => \$coreOrthologsPath,
-			"blastpath=s"         => \$blastPath,
-			"searchpath=s"         => \$genome_dir,
-			"weightpath=s"         => \$weightPath,
-			"debug"             => \$debug,
-			"coreHitlimit=s"   => \$core_hitlimit,
-			"hitlimit=s"        => \$hitlimit,
-			"force"             => \$force,
-			"cleanup"           => \$autoclean,
-			"addenv=s"          => \$addenv,
-			"version"           => \$getversion,
-			"reuseCore"        => \$coreex,
-			"ignoreDistance"	=> \$ignoreDistance,
-			"distDeviation=s"	=> \$distDeviation,
-			"aligner=s"	=> \$aln);
+GetOptions (
+	"h"                 => \$help,
+	"append"	=> \$append,
+	"showTaxa"          => \$showTaxa,
+	"refSpec=s"         => \$refSpec,
+	"db"                => \$dbmode,
+	"filter=s"          => \$filter,
+	"seqFile=s"   => \$seqFile,
+	"seqId=s"           => \$seqId,
+	"seqName=s"         => \$seqName,
+	"silent"            => \$silent,
+	"minDist=s"         => \$minDist,
+	"maxDist=s"         => \$maxDist,
+	"coreOrth=i"        => \$minCoreOrthologs,
+	"coreTaxa=s"        => \$coreTaxa,
+	"strict"            => \$strict,
+	"rbh"               => \$rbh,
+	"evalBlast=s"      => \$eval_blast,
+	"evalHmmer=s"      => \$eval_hmmer,
+	"evalRelaxfac=s"       => \$eval_relaxfac,
+	"checkCoorthologsRef"       => \$checkcoorthologsref,
+	"coreCheckCoorthologsRef"   => \$cccr,
+	"hitlimitHamstr=s"          => \$hitlimit,
+	"coreHitlimitHamstr=s"      => \$core_hitlimit,
+	"autoLimitHamstr"	=> \$autoLimit,
+	"scoreCutoff=s" => \$scoreCutoff,
+	"scoreThreshold" => \$scoreThreshold,
+	"coreRep"           => \$core_rep,
+	"coreStrict"        => \$corestrict,
+	"coreOnly"          => \$coreOnly,
+	"group=s"           => \$group,
+	"blast"             => \$blast,
+	"batch=s"           => \$batch,
+	"fas"               => \$fas_support,
+	"countercheck"      => \$countercheck,
+	"fasoff"            => \$fasoff,
+	"coreFilter=s"     => \$core_filter_mode,
+	"minScore=s"        => \$fas_T,
+	"local"             => \$local,
+	"global"            => \$global,
+	"glocal"            => \$glocal,
+	"rep"               => \$representative,
+	"cpu=s"             => \$cpu,
+	"outpath=s"         => \$outputPath,
+	"hmmpath=s"         => \$coreOrthologsPath,
+	"blastpath=s"         => \$blastPath,
+	"searchpath=s"         => \$genome_dir,
+	"weightpath=s"         => \$weightPath,
+	"debug"             => \$debug,
+	"coreHitlimit=s"   => \$core_hitlimit,
+	"hitlimit=s"        => \$hitlimit,
+	"force"             => \$force,
+	"cleanup"           => \$autoclean,
+	"addenv=s"          => \$addenv,
+	"version"           => \$getversion,
+	"reuseCore"        => \$coreex,
+	"ignoreDistance"	=> \$ignoreDistance,
+	"distDeviation=s"	=> \$distDeviation,
+	"aligner=s"	=> \$aln
+);
 
 $outputPath = abs_path($outputPath);
 $coreOrthologsPath = abs_path($coreOrthologsPath)."/";
@@ -435,7 +439,7 @@ if (!$coreex) {
 	#### moved from above
 	my $starttime = time;
 	print "Building up the taxonomy tree. Start $starttime\n";
-    push @logOUT, "Building up the taxonomy tree. Start $starttime\n";
+	push @logOUT, "Building up the taxonomy tree. Start $starttime\n";
 	$tree = getRefTree();
 	$treeDelFlag = 0;
 	if($group) {
@@ -448,7 +452,7 @@ if (!$coreex) {
 	}
 	my $endtime = time;
 	print "Finished building the taxonomy tree: $endtime\n";
-    push @logOUT, "Finished building the taxonomy tree: $endtime\n";
+	push @logOUT, "Finished building the taxonomy tree: $endtime\n";
 	## Tree without deletions
 	$wholeTree = getRefTree();
 	if($group) {
@@ -547,8 +551,8 @@ if (!$coreex) {
 if (!$coreOnly) {
 	$coremode = 0;
 	my $CoreEndTime = time - $startTime;
-        push @logOUT, "Core set compilation finished after $CoreEndTime sec! Performing the final HaMStR search on all taxa";
-        print "Core set compilation finished after $CoreEndTime! Performing the final HaMStR search on all taxa\n";
+	push @logOUT, "Core set compilation finished after $CoreEndTime sec! Performing the final HaMStR search on all taxa";
+	print "Core set compilation finished after $CoreEndTime! Performing the final HaMStR search on all taxa\n";
 	%taxa = getTaxa();
 	my $tree = getTree();
 	#using $eval_relaxfac to relax the evalues for final hamstr
@@ -579,8 +583,8 @@ push @logOUT, "Ortholog search completed after $time2add sec!";
 if(!$coreOnly){ #} and $fas_support){
 	my $FASTime = time;
 	$time2add = $FASTime - $startTime;
-  push @logOUT, "Starting FAS evaluation after $time2add sec!";
-  print "Ortholog search completed after $HamstrTime sec! Starting the feature architecture similarity score computation.\n";
+	push @logOUT, "Starting FAS evaluation after $time2add sec!";
+	print "Ortholog search completed after $HamstrTime sec! Starting the feature architecture similarity score computation.\n";
 	my $processID = $$;
 
 	unless (-e $finalOutput) {
@@ -641,13 +645,13 @@ if (($outputPath ne './') and !$autoclean) {
 
 my $endTime = time - $startTime;
 print "OneSeq finished after $endTime seconds\n";
-        push @logOUT, "OneSeq finished after $endTime seconds\n";
+push @logOUT, "OneSeq finished after $endTime seconds\n";
 
-        #### writing the log
-        open (LOGOUT, ">$outputPath/oneSeq.log") or warn "Failed to open oneSeq.log for writing";
-        print LOGOUT join "\n", @logOUT;
-        close LOGOUT;
-        exit;
+#### writing the log
+open (LOGOUT, ">$outputPath/oneSeq.log") or warn "Failed to open oneSeq.log for writing";
+print LOGOUT join "\n", @logOUT;
+close LOGOUT;
+exit;
 ######################## SUBROUTINES ########################
 
 #################################
@@ -737,7 +741,7 @@ sub getCumulativeAlnScores{
 	my $min = 10000000;
 
 	%scores = cumulativeAlnScore($scorefile, \%candicontent);
-return %scores;
+	return %scores;
 }
 
 #################################
@@ -787,16 +791,16 @@ sub getAlnScores{
 
 	%scores = cumulativeAlnScore($scorefile, \%candicontent);
 
-## Normalize Alignment scores (unity-based)
-printDebug("Normalize alignment scores:\n");
-foreach my $key (keys %scores){
-	my $score = $scores{$key};
-	print "Cumulative alignmentscore is: $score\n";
-	$scores{$key} = $scores{$key} / $maxAlnScore;
-	$score = $scores{$key};
-	print "Normalised alignmentscore is: $score\n";
-}
-return %scores;
+	## Normalize Alignment scores (unity-based)
+	printDebug("Normalize alignment scores:\n");
+	foreach my $key (keys %scores){
+		my $score = $scores{$key};
+		print "Cumulative alignmentscore is: $score\n";
+		$scores{$key} = $scores{$key} / $maxAlnScore;
+		$score = $scores{$key};
+		print "Normalised alignmentscore is: $score\n";
+	}
+	return %scores;
 }
 
 #################################
@@ -820,9 +824,9 @@ sub getFasScore{
 	## get FAS score
 	## fas support: on/off
 	if ($fas_support){
-			my @candidateIds = keys(%candicontent);
-			my ($name,$gene_set,$gene_id,$rep_id) = split(/\|/, $candidateIds[0]);
-			unless (-e "$weightPath/$gene_set.json") {
+		my @candidateIds = keys(%candicontent);
+		my ($name,$gene_set,$gene_id,$rep_id) = split(/\|/, $candidateIds[0]);
+		unless (-e "$weightPath/$gene_set.json") {
 			print "ERROR: $weightPath/$gene_set.json not found! FAS Score will be set as zero.\n";
 			$fas_box{$candidateIds[0]} = 0.0;
 		} else {
@@ -1223,67 +1227,67 @@ sub checkOptions {
 	}
 	## check whether a result file already exists:
 	$finalOutput = $outputPath . '/' . $seqName . '.extended.fa';
-        if ($outputPath && -e "$finalOutput"){
-                ## an ouput file is already existing
-                if (!$force && !$append){
-                ## The user was not aware of an existing output file. Let's ask him
-                        my $input = '';
-                        my $breaker = 0;
+	if ($outputPath && -e "$finalOutput"){
+		## an ouput file is already existing
+		if (!$force && !$append){
+			## The user was not aware of an existing output file. Let's ask him
+			my $input = '';
+			my $breaker = 0;
 
-                        while (($input !~ /^[aor]/i) and ($breaker < 4)) {
-                                $breaker++;
-                                $input = getInput("\nAn outputfile $finalOutput already exists. Shall I overwrite it [o], or rename it [r], or [a] append to it?", 1);
-                                if (($breaker > 3) and ($input !~ /[aor]/i)){
-                                        print "Please consider option -force or option -append.\n";
-                                        die "No proper answer is given: Quitting\n";
-                                }
-                        }
-                        if ($input =~ /[aA]/) {
-                                $append = 1;
-                                $force = 0;
-                        }
-                        elsif ($input =~ /[oO]/){
-                                $append = 0;
-                                $force = 1;
-                        }
-                        else {
-                                $append = 0;
-                                $force = 0;
-                        }
-                }
-                if ($force){
-                        ## the user wants to overwrite
-                        printOut("Removing existing output directory $outputPath", 1);
-                        rmtree ([ "$outputPath" ]) or die "could not remove existing output directory $outputPath\n";
-                        mkdir $outputPath or die "could not re-create the output directory $outputPath\n";
-                }
-                elsif ($append) {
-                        printOut("Appending output to $finalOutput\n", 1);
-                        if (-e "$outputPath/$seqName.extended.profile") {
-                                ## read in the content for latter appending
-                                printOut("Appending output to $outputPath/$seqName.extended.profile", 1);
-                                open (IN, "<$outputPath/$seqName.extended.profile") or die "failed to open $outputPath/$seqName.extended.profile after selection of option -append\n";
-                                while (<IN>) {
-                                        chomp $_;
-                                        my @keys = split '\|', $_;
-                                        $profile{$keys[1]} = 1;
-                                }
-                        }
+			while (($input !~ /^[aor]/i) and ($breaker < 4)) {
+				$breaker++;
+				$input = getInput("\nAn outputfile $finalOutput already exists. Shall I overwrite it [o], or rename it [r], or [a] append to it?", 1);
+				if (($breaker > 3) and ($input !~ /[aor]/i)){
+					print "Please consider option -force or option -append.\n";
+					die "No proper answer is given: Quitting\n";
+				}
+			}
+			if ($input =~ /[aA]/) {
+				$append = 1;
+				$force = 0;
+			}
+			elsif ($input =~ /[oO]/){
+				$append = 0;
+				$force = 1;
+			}
+			else {
+				$append = 0;
+				$force = 0;
+			}
+		}
+		if ($force){
+			## the user wants to overwrite
+			printOut("Removing existing output directory $outputPath", 1);
+			rmtree ([ "$outputPath" ]) or die "could not remove existing output directory $outputPath\n";
+			mkdir $outputPath or die "could not re-create the output directory $outputPath\n";
+		}
+		elsif ($append) {
+			printOut("Appending output to $finalOutput\n", 1);
+			if (-e "$outputPath/$seqName.extended.profile") {
+				## read in the content for latter appending
+				printOut("Appending output to $outputPath/$seqName.extended.profile", 1);
+				open (IN, "<$outputPath/$seqName.extended.profile") or die "failed to open $outputPath/$seqName.extended.profile after selection of option -append\n";
+				while (<IN>) {
+					chomp $_;
+					my @keys = split '\|', $_;
+					$profile{$keys[1]} = 1;
+				}
+			}
 			elsif ($fasoff) {
 				## no extended.profile file exists but not necessary, because user switched off FAS support -> do nothing
 			}
-                        else {
-                                printOut("Option -append was selected, but the existing output was incomplete. Please restart with the -force option to overwrite the output");
-                                exit;
-                        }
-                }
-                else {
-                        printOut("Renaming existing output file to $finalOutput.old", 2);
-                        my $bu_dir = $outputPath.'_bkp';
-                        !`mv $outputPath $bu_dir` or die "Could not rename existing output file $outputPath to $bu_dir\n";
+			else {
+				printOut("Option -append was selected, but the existing output was incomplete. Please restart with the -force option to overwrite the output");
+				exit;
+			}
+		}
+		else {
+			printOut("Renaming existing output file to $finalOutput.old", 2);
+			my $bu_dir = $outputPath.'_bkp';
+			!`mv $outputPath $bu_dir` or die "Could not rename existing output file $outputPath to $bu_dir\n";
 			mkdir $outputPath or die "could not recreate $outputPath after renaming the old output\n"
-                }
-        }
+		}
+	}
 
 	my $node;
 	$node = $db->get_taxon(-taxonid => $refTaxa{$refSpec});
@@ -1540,73 +1544,73 @@ sub getBestOrtholog {
 						my $newRankScore = getFilteredRankScore($alnScores{$candiKey}, $fas_box{$candiKey});
 						## candidate is significantly better, than the last one
 						if ($newRankScore > $rankScore * (1 + $distDeviation)){ #uninit
-							$bestTaxon = ">" . $candiKey;
-							$rankScore = $newRankScore;
-							($header, $seq) = getHeaderSeq($bestTaxon);
-							$newNoRankDistNode = $currentNoRankDistNode;
-							$newChildsToIgnoreNode = $currentChildsToIgnoreNode;
-							my $newNodeId = $key->id;
-							## set new distance nodes, which will replace the old ones given, that this candidate will remain the best
-							while (!defined $hashTree{$newNoRankDistNode}{$newNodeId}){
-								$newNoRankDistNode = $newNoRankDistNode->ancestor;
-								$newChildsToIgnoreNode = $newChildsToIgnoreNode->ancestor;
-							}
-							print "New Best Taxon: $bestTaxon\n";
+						$bestTaxon = ">" . $candiKey;
+						$rankScore = $newRankScore;
+						($header, $seq) = getHeaderSeq($bestTaxon);
+						$newNoRankDistNode = $currentNoRankDistNode;
+						$newChildsToIgnoreNode = $currentChildsToIgnoreNode;
+						my $newNodeId = $key->id;
+						## set new distance nodes, which will replace the old ones given, that this candidate will remain the best
+						while (!defined $hashTree{$newNoRankDistNode}{$newNodeId}){
+							$newNoRankDistNode = $newNoRankDistNode->ancestor;
+							$newChildsToIgnoreNode = $newChildsToIgnoreNode->ancestor;
 						}
-					}
-					## candidate has the same distance, as the last one and could be better, with a fasScore of one
-					elsif (defined $hashTree{$newNoRankDistNode}{$key->id} and $alnScores{$candiKey} > $rankScore - 1){
-						if (!$gotFasScore and $fas_support){
-							%fas_box = getFasScore();
-							$gotFasScore = 1;
-						}
-						## get rankscore
-						my $newRankScore = getFilteredRankScore($alnScores{$candiKey}, $fas_box{$candiKey});
-						## candidate is better, than the last one
-						if ($newRankScore > $rankScore){
-							$bestTaxon = ">" . $candiKey;
-							$rankScore = $newRankScore;
-							($header, $seq) = getHeaderSeq($bestTaxon);
-							printDebug("New Taxon has the same distance, choosing the one with higher score");
-							print "New Best Taxon: $bestTaxon\n";
-						}
+						print "New Best Taxon: $bestTaxon\n";
 					}
 				}
-				## candidate reached the maximum score, no need to evaluate further
-				if ($rankScore >= $maxScore){
-					$sufficientlyClose = 1;
-					printDebug("Rankscore is at maximum. Breaking loop...");
-					last;
+				## candidate has the same distance, as the last one and could be better, with a fasScore of one
+				elsif (defined $hashTree{$newNoRankDistNode}{$key->id} and $alnScores{$candiKey} > $rankScore - 1){
+					if (!$gotFasScore and $fas_support){
+						%fas_box = getFasScore();
+						$gotFasScore = 1;
+					}
+					## get rankscore
+					my $newRankScore = getFilteredRankScore($alnScores{$candiKey}, $fas_box{$candiKey});
+					## candidate is better, than the last one
+					if ($newRankScore > $rankScore){
+						$bestTaxon = ">" . $candiKey;
+						$rankScore = $newRankScore;
+						($header, $seq) = getHeaderSeq($bestTaxon);
+						printDebug("New Taxon has the same distance, choosing the one with higher score");
+						print "New Best Taxon: $bestTaxon\n";
+					}
 				}
-				## rankscore got sufficiently close to the maximum, only evaluate candidates with the same distance now
-				elsif ($rankScore >= $maxScore * (1 - $distDeviation) and !$ignoreDistance){
-					printDebug("Sufficiently close to max score. Only evaluating leafs with same distance now.");
-					print "MaxScore: $maxScore\n";
-					print "RankScore: $rankScore\n";
-					$sufficientlyClose = 1;
-				}
-				clearTmpFiles();
 			}
-			## no candidate file was created -> so no candidate was found
-			else{
-				print "No Candidate was found for $keyName\n";
+			## candidate reached the maximum score, no need to evaluate further
+			if ($rankScore >= $maxScore){
+				$sufficientlyClose = 1;
+				printDebug("Rankscore is at maximum. Breaking loop...");
+				last;
 			}
+			## rankscore got sufficiently close to the maximum, only evaluate candidates with the same distance now
+			elsif ($rankScore >= $maxScore * (1 - $distDeviation) and !$ignoreDistance){
+				printDebug("Sufficiently close to max score. Only evaluating leafs with same distance now.");
+				print "MaxScore: $maxScore\n";
+				print "RankScore: $rankScore\n";
+				$sufficientlyClose = 1;
+			}
+			clearTmpFiles();
+		}
+		## no candidate file was created -> so no candidate was found
+		else{
+			print "No Candidate was found for $keyName\n";
 		}
 	}
+}
 
-	my @best = (split '\|', $bestTaxon);
-	$currentNoRankDistNode = $newNoRankDistNode;
-	$currentChildsToIgnoreNode = $newChildsToIgnoreNode;
-	clearTmpFiles();
+my @best = (split '\|', $bestTaxon);
+$currentNoRankDistNode = $newNoRankDistNode;
+$currentChildsToIgnoreNode = $newChildsToIgnoreNode;
+clearTmpFiles();
 
-	if ($bestTaxon ne ''){
-		open (COREORTHOLOGS, ">>$outputFa") or die "Error: Could not open file: " . $outputFa . "\n";
-		print COREORTHOLOGS "\n" . $header . "\n" . $seq;
-		close COREORTHOLOGS;
-		return $best[1];
-	}else{
-		return '';
-	}
+if ($bestTaxon ne ''){
+	open (COREORTHOLOGS, ">>$outputFa") or die "Error: Could not open file: " . $outputFa . "\n";
+	print COREORTHOLOGS "\n" . $header . "\n" . $seq;
+	close COREORTHOLOGS;
+	return $best[1];
+}else{
+	return '';
+}
 }
 
 ######################
@@ -1860,8 +1864,8 @@ sub runHamstr {
 		if($seqFile ne "") {
 			my $taxon_id = substr($taxon, 6, length($taxon));
 			my @hamstr = ($hamstrPath, "-sequence_file=".$seqfile, "-fasta_file=".$outputFa, "-hmmpath=".$coreOrthologsPath , "-outpath=".$outputPath,
-						  "-blastpath=".$blastPath , "-protein", "-hmmset=".$seqName, "-taxon=".$taxon, "-force",
-						  "-eval_blast=".$ev_blst, "-eval_hmmer=".$ev_hmm, "-central", "-aligner=".$aln);
+			"-blastpath=".$blastPath , "-protein", "-hmmset=".$seqName, "-taxon=".$taxon, "-force",
+			"-eval_blast=".$ev_blst, "-eval_hmmer=".$ev_hmm, "-central", "-aligner=".$aln);
 
 			my $resultFile;
 			if (defined $autoLimit) {
@@ -2091,14 +2095,14 @@ sub removeMinDist {
 		}
 		$node = $tree->find_node(-ncbi_taxid => $ncbiId);
 		my $lastToCompare = $toCompare[$#toCompare];
-									   	foreach(@toCompare) {
-									   		while($node->rank eq "no rank") {
-									   			$node = $node->ancestor;
-									   		}
-									   		if($node->rank ne $lastToCompare && $node->rank eq $_) {
-									   			$node = $node->ancestor;
-									   		}
-									   	}
+		foreach(@toCompare) {
+			while($node->rank eq "no rank") {
+				$node = $node->ancestor;
+			}
+			if($node->rank ne $lastToCompare && $node->rank eq $_) {
+				$node = $node->ancestor;
+			}
+		}
 	}
 	$delFlag = remove_branch($node);
 	return $delFlag;
@@ -2221,7 +2225,7 @@ sub getProteome {
 			print "create directory failed\n";
 		}
 	}
-	#
+
 	### This is the sql statement required for fetching the sequence information from the database
 	## Using Here Documents #######
 	my $sql = <<"________END_OF_STATEMENT";
@@ -2335,8 +2339,8 @@ sub getBestBlasthit {
 	my ($inpath, $resultfile) = @_;
 	printDebug("Sub getBestBlasthit running on $inpath/$resultfile");
 	my $searchio = Bio::SearchIO->new(
-		-file        => "$inpath/$resultfile",
-		-format      => $outputfmt)
+	-file        => "$inpath/$resultfile",
+	-format      => $outputfmt)
 	or die "parse failed";
 	while(my $result = $searchio->next_result){
 		my $sig;
@@ -2392,13 +2396,27 @@ sub printOut {
 ###########################
 sub initialCheck {
 	my ($seed, $ogName, $blastDir, $genomeDir, $weightDir, $fasoff) = @_;
+	# check tools exist
+	my @tools = ("hmmsearch", "muscle", "mafft-linsi", "clustalw", $globalaligner, $localaligner, $glocalaligner);
+	my $flag = 1;
+	foreach my $tool (@tools) {
+		my $check = `which $tool`;
+		if (length($check) < 1) {
+			print "$tool not found\n";
+			$flag = 0;
+		}
+	}
+	if ($flag < 1) {
+		die "Some required tools not found or not executable! Please install HaMStR-oneSeq again!\n";
+	}
+
 	# check seed fasta file
 	unless (-e $seed) {
 		$seed = "$dataDir/$seed";
 	}
 	my $seqio = Bio::SeqIO->new(-file => $seed, '-format' => 'Fasta');
 	while(my $seq = $seqio->next_seq) {
-	    my $string = $seq->seq;
+		my $string = $seq->seq;
 		if ($string =~ /[^a-zA-Z]/) {
 			die "ERROR: $seed contains special characters!\n";
 		}
@@ -2439,9 +2457,9 @@ sub initialCheck {
 
 sub getGenomeFile {
 	my ($folder, $filename) = @_;
-	chomp(my $faFile = `ls $folder/$filename.fa* | grep -v \"checked\"`);
+	chomp(my $faFile = `ls $folder/$filename.fa* | grep -v \"checked\\|mod\\|tmp\"`);
 	my $out = $faFile;
-	chomp(my $link = `readlink -f $faFile`);
+	chomp(my $link = `$readlinkprog -f $faFile`);
 	if ($link ne "") {
 		$out = $link;
 	}
