@@ -26,7 +26,9 @@ use File::Basename;
 use File::Which;
 use List::Util qw(shuffle);
 use File::Copy;
+use Cwd;
 use Cwd 'abs_path';
+use Array::Utils qw(:all);
 
 my $startTime = time;
 
@@ -108,17 +110,13 @@ my $startTime = time;
 ##									- no need for profile_prog, architecture_prog and visualsPath
 ##									- final FAS score calculation is done using hamstrFAS
 
-## Modified 16. Juni 2020 v1.7.1 (Vinh)
-##									- replace greedyFAS by calcFAS
-
-## Modified 07. July 2020 v1.7.2 (Vinh)
-##									- check if FAS executable
-
-## Modified 10. July 2020 v1.7.3 (Vinh)
-##									- solved problem when gene ID contains PIPE
+## Modified 16. Juni 2020 v1.7.1 (Vinh)	- replace greedyFAS by calcFAS
+## Modified 07. July 2020 v1.7.2 (Vinh)	- check if FAS executable
+## Modified 10. July 2020 v1.7.3 (Vinh)	- solved problem when gene ID contains PIPE
+## Modified 13. July 2020 v1.8.0 (Vinh)	- added initial check, no longer use .mod files
 
 ############ General settings
-my $version = 'oneSeq v.1.7.3';
+my $version = 'oneSeq v.1.8.0';
 ##### configure for checking if the setup.sh script already run
 my $configure = 0;
 if ($configure == 0){
@@ -152,7 +150,8 @@ if ( !(defined $fasta36Path) || $fasta36Path eq "") {
 	$glocalaligner = $path.'/bin/aligner/bin/'.'glsearch36';
 	$localaligner = $path.'/bin/aligner/bin/'.'ssearch36';
 	unless (-e $globalaligner) {
-		exit("fasta36 not found! Please install it before using HaMStR!");
+		print "fasta36 not found! Please install it before using HaMStR!\n";
+		exit();
 	}
 }
 
@@ -373,6 +372,11 @@ if ($fasCheckMsg =~ /ERROR/) {
 	print "FAS cannot be used and will be turned off!\n";
 	$fasoff = 1;
 }
+
+############# do initial check
+print "Validity checking....\n";
+initialCheck($seqFile, $seqName, $blastPath, $taxaPath, $weightPath, $fasoff);
+print "done!\n";
 
 ############# connect to the database
 if ($dbmode) {
@@ -606,21 +610,21 @@ if (($outputPath ne './') and !$autoclean) {
 	my $answer = '';
 	my $breaker = 0;
 	my $del_check = 0;
-	while (($answer !~ /[yn]/i) and ($breaker < 4)) {
-		$breaker++;
-		$answer = getInput("Do you want to remove the modified input files *.mod? [Y|N]");
-		if (($breaker > 3) and ($answer !~ /[yn]/i)){
-			print "No proper answer is given: Removing modified input files *.mod\n";
-			$del_check = 1;
-		}
-	}
-	if (($answer =~ /y/i) or ($del_check == 1)) {
-		my $delcommandMod = "rm -f $outputPath/*.mod";
-		system ($delcommandMod) == 0 or die "Error deleting result files\n";
-	}
-	$answer = '';
-	$breaker = 0;
-	$del_check = 0;
+	# while (($answer !~ /[yn]/i) and ($breaker < 4)) {
+	# 	$breaker++;
+	# 	$answer = getInput("Do you want to remove the modified input files *.mod? [Y|N]");
+	# 	if (($breaker > 3) and ($answer !~ /[yn]/i)){
+	# 		print "No proper answer is given: Removing modified input files *.mod\n";
+	# 		$del_check = 1;
+	# 	}
+	# }
+	# if (($answer =~ /y/i) or ($del_check == 1)) {
+	# 	my $delcommandMod = "rm -f $outputPath/*.mod";
+	# 	system ($delcommandMod) == 0 or die "Error deleting result files\n";
+	# }
+	# $answer = '';
+	# $breaker = 0;
+	# $del_check = 0;
 	while (($answer !~ /[yn]/i) and ($breaker < 4)) {
 		$breaker++;
 		$answer = getInput("Do you want to remove the tmp dir? [Y|N]");
@@ -945,15 +949,6 @@ sub runAutoCleanUp {
 	my $processID = $_[0];
 	print "\noneSeq.pl finished. Starting Auto Clean-up...\n\n";
 
-	# my $delCommandMod = "rm -f $outputPath/*.mod";
-	# system ($delCommandMod) == 0 or die "Error deleting result files\n";
-	# print "--> $outputPath/*.mod deleted.\n";
-	# foreach my $tax (keys %taxa) {
-	# 	$delCommandMod = "rm -f $genome_dir/$tax/*.mod";
-	# 	system ($delCommandMod) == 0 or die "Error deleting result files\n";
-	# }
-	# print "--> $genome_dir/*.mod deleted.\n";
-
 	my $delCommandTmp = "rm -rf \"$outputPath/tmp\"";
 	system ($delCommandTmp) == 0 or die "Error deleting result files\n";
 	print "--> $outputPath/tmp deleted.\n";
@@ -1031,22 +1026,23 @@ sub checkGroup {
 ## check in oneSeq environment for presence of required directories
 ## blast_dir, genome_dir, weight_dir
 ## changing global variables !
-sub checkEnv {
-	if ($addenv){
-		print "Checking additional environment ".$addenv."\nPlease note that this option is in developmental status.\n";
-		if ((-d "$path/weight_dir_".$addenv) and (-d "$path/genome_dir_".$addenv) and (-d "$path/blast_dir_".$addenv)){
-			print "\nThe given additional environment ".$addenv." exists.\n";
-		}else{
-			print "\nThe given additional environment ". $addenv . " was not found...exiting.\n";
-			exit;
-		}
-		$genome_dir = "$path/genome_dir"."_".$addenv;
-		$taxaPath = $genome_dir; #"$path/$genome_dir/";
-		$blastPath = "$path/blast_dir"."_".$addenv."/";
-		$weightPath = "$path/weight_dir"."_".$addenv."/";
-		print "Environment set to ".$addenv."\nUsing taxa in \n\t$taxaPath\n\t$blastPath\n\t$weightPath\n\n";
-	}
-}
+# sub checkEnv {
+# 	if ($addenv){
+# 		print "Checking additional environment ".$addenv."\nPlease note that this option is in developmental status.\n";
+# 		if ((-d "$path/weight_dir_".$addenv) and (-d "$path/genome_dir_".$addenv) and (-d "$path/blast_dir_".$addenv)){
+# 			print "\nThe given additional environment ".$addenv." exists.\n";
+# 		}else{
+# 			print "\nThe given additional environment ". $addenv . " was not found...exiting.\n";
+# 			exit;
+# 		}
+# 		$genome_dir = "$path/genome_dir"."_".$addenv;
+# 		$taxaPath = $genome_dir; #"$path/$genome_dir/";
+# 		$blastPath = "$path/blast_dir"."_".$addenv."/";
+# 		$weightPath = "$path/weight_dir"."_".$addenv."/";
+# 		print "Environment set to ".$addenv."\nUsing taxa in \n\t$taxaPath\n\t$blastPath\n\t$weightPath\n\n";
+# 	}
+# }
+
 #################################
 sub checkOptions {
 	#### check for help
@@ -2392,6 +2388,119 @@ sub printOut {
 		}
 	}
 }
+
+###########################
+sub initialCheck {
+	my ($seed, $ogName, $blastDir, $genomeDir, $weightDir, $fasoff) = @_;
+	# check seed fasta file
+	unless (-e $seed) {
+		$seed = "$dataDir/$seed";
+	}
+	my $seqio = Bio::SeqIO->new(-file => $seed, '-format' => 'Fasta');
+	while(my $seq = $seqio->next_seq) {
+	    my $string = $seq->seq;
+		if ($string =~ /[^a-zA-Z]/) {
+			die "ERROR: $seed contains special characters!\n";
+		}
+	}
+	# check ortholog group name
+	if ($ogName =~ /\|/) {
+		die "ERROR: Ortholog group name (-seqName) cannot contain PIPE!\n";
+	}
+	# check genome_dir
+	my @genomeDir = checkValidFolderName($genomeDir);
+	foreach my $genomeFd (@genomeDir) {
+		unless ($genomeFd =~ /^\./) {
+			my $genome = getGenomeFile("$genomeDir/$genomeFd", $genomeFd);
+			checkFastaFile($genome);
+		}
+	}
+	# check blast_dir
+	my @blastDir = checkValidFolderName($blastDir);
+	foreach my $blastFd (@blastDir) {
+		unless ($blastFd =~ /^\./) {
+			my $genome = getGenomeFile("$blastDir/$blastFd", $blastFd);
+			checkFastaFile($genome);
+		}
+	}
+	# check weight_dir
+	if ($fasoff != 1) {
+		my %seen;
+		my @allTaxa = grep( !$seen{$_}++, @genomeDir, @blastDir);
+		chomp(my $allAnno = `ls weight_dir | sed \'s/\\.json//\'`);
+		my @allAnno = split(/\n/, $allAnno);
+		my @missingAnno = array_minus(@allTaxa, @allAnno);
+		if (scalar @missingAnno > 0) {
+			my $missingAnno = join("\n", @missingAnno);
+			die "ERROR: Some taxa do not have annotation! Please turn off FAS calculation (with -fasoff), or annotate their genomes before continue.\n$missingAnno\n";
+		}
+	}
+}
+
+sub getGenomeFile {
+	my ($folder, $filename) = @_;
+	chomp(my $faFile = `ls $folder/$filename.fa* | grep -v \"checked\"`);
+	my $out = $faFile;
+	chomp(my $link = `readlink -f $faFile`);
+	if ($link ne "") {
+		$out = $link;
+	}
+	return($out);
+}
+
+sub checkValidFolderName {
+	my $folder = $_[0];
+	# check if folder and its subfolders contain illegal character (e.g. pipe)
+	opendir(my $dh, $folder) || die "Can't open $folder: $!";
+	if ($folder =~ /\|/) {
+		die "ERROR: $folder contains illegal character (e.g. PIPE)!\n";
+	}
+	my @folders = readdir($dh);
+	foreach my $fd (@folders) {
+		next if ($fd eq "." or $fd eq "..");
+		if ($fd =~ /\|/) {
+			die "ERROR: $folder/$fd contains illegal character (e.g. PIPE)!\n";
+		}
+	}
+	closedir $dh;
+	my @notFd = (".", "..");
+	return(array_minus(@folders, @notFd));
+}
+
+sub checkFastaFile {
+	my $infile = $_[0];
+	unless (-e $infile) {
+		die "ERROR: $infile not found!\n";
+	} else {
+		if (!-e "$infile.checked") {
+			# check if input fasta file a fasta file
+			chomp(my $fasSymbol = `head -n 1 $infile | egrep -c \">\"`);
+			if ($fasSymbol == 0) {
+				die "ERROR: $infile doesn't look like a fasta file!\n";
+			}
+			# check if IDs contain space/tab
+			chomp(my $idsHaveSpace = `egrep \">\" $infile | egrep \"\\s\" | sed \'s/>//\'`);
+			if (length($idsHaveSpace) > 0) {
+				die "ERROR: $infile has some sequence IDs containing spaces/tabs:\n$idsHaveSpace\n";
+			}
+			# check if sequences are written in one line
+			chomp(my $countIdLines = `egrep -v -e \"^\$\" $infile | egrep -c \">\"`);
+			chomp(my $countSeqLines = `egrep -v -e \"^\$\" $infile | egrep -v -c \">\"`);
+			if ($countIdLines ne $countSeqLines) {
+				die "ERROR: $infile contains sequences in multiple lines!\n";
+			}
+			# check if sequences contain illegal characters
+			chomp(my $illegalChr = `egrep -v -e \"^\$\" $infile | grep -v \">\" | egrep -i -o \'[^a-z]\' | sort -u`);
+			if (length($illegalChr) > 0) {
+				die "ERROR: $infile contains special characters:\n$illegalChr\n";
+			}
+			# save to .checked file
+			system("ln -fs $infile $infile.checked");
+			print $infile,"\n";
+		}
+	}
+}
+
 ###########################
 sub helpMessage {
 	my $helpmessage = "
