@@ -2422,8 +2422,8 @@ sub initialCheck {
 		}
 	}
 	# check ortholog group name
-	if ($ogName =~ /\|/) {
-		die "ERROR: Ortholog group name (-seqName) cannot contain PIPE!\n";
+	if ($ogName =~ /[\|\s+]/) {
+		die "ERROR: Ortholog group name (-seqName) cannot contain PIPE or space!\n";
 	}
 	# check genome_dir
 	my @genomeDir = checkValidFolderName($genomeDir);
@@ -2470,14 +2470,14 @@ sub checkValidFolderName {
 	my $folder = $_[0];
 	# check if folder and its subfolders contain illegal character (e.g. pipe)
 	opendir(my $dh, $folder) || die "Can't open $folder: $!";
-	if ($folder =~ /\|/) {
-		die "ERROR: $folder contains illegal character (e.g. PIPE)!\n";
+	if ($folder =~ /[\|\s+]/) {
+		die "ERROR: $folder contains illegal character (e.g. PIPE or space)!\n";
 	}
 	my @folders = readdir($dh);
 	foreach my $fd (@folders) {
 		next if ($fd eq "." or $fd eq "..");
-		if ($fd =~ /\|/) {
-			die "ERROR: $folder/$fd contains illegal character (e.g. PIPE)!\n";
+		if ($fd =~ /[\|\s+]/) {
+			die "ERROR: $folder/$fd contains illegal character (e.g. PIPE or space)!\n";
 		}
 	}
 	closedir $dh;
