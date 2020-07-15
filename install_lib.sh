@@ -4,6 +4,9 @@ sys="$(uname)" # Linux for Linux or Darwin for MacOS
 
 flag=0
 
+### update GPG key (Google signature key for signing and authenticating packages)
+wget -q -O - https://dl.google.com/linux/linux_signing_key.pub | sudo apt-key add -
+
 ### check grep, sed and wget availability
 grepprog='grep'
 sedprog='sed'

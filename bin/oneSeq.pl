@@ -115,7 +115,7 @@ my $startTime = time;
 ## Modified 13. July 2020 v1.8.0 (Vinh)	- added initial check, no longer use .mod files
 
 ############ General settings
-my $version = 'oneSeq v.1.8.0';
+my $version = 'oneSeq v.1.8.1';
 ##### configure for checking if the setup.sh script already run
 my $configure = 0;
 if ($configure == 0){
@@ -370,17 +370,22 @@ $weightPath = abs_path($weightPath)."/";
 $genome_dir = abs_path($genome_dir)."/";
 $taxaPath = $genome_dir;
 
-############# check executable FAS
-my $fasCheckMsg = `prepareFAS -t ./ -c 2>&1`;
-if ($fasCheckMsg =~ /ERROR/) {
-	print "FAS cannot be used and will be turned off!\n";
-	$fasoff = 1;
-}
-
 ############# do initial check
 print "Validity checking....\n";
 initialCheck($seqFile, $seqName, $blastPath, $taxaPath, $weightPath, $fasoff);
 print "done!\n";
+
+if (!grep(/$minDist/, @defaultRanks)) {
+	die "ERROR: minDist $minDist invalid!\n";
+}
+
+if (!grep(/$maxDist/, @defaultRanks)) {
+	die "ERROR: maxDist $maxDist invalid!\n";
+}
+
+if (!defined $minCoreOrthologs) {
+	die "ERROR: coreOrth not defined (must be integer)!";
+}
 
 ############# connect to the database
 if ($dbmode) {
@@ -2407,7 +2412,13 @@ sub initialCheck {
 		}
 	}
 	if ($flag < 1) {
-		die "Some required tools not found or not executable! Please install HaMStR-oneSeq again!\n";
+		die "ERROR: Some required tools not found! Please install HaMStR-oneSeq again!\n";
+	}
+
+	# check executable FAS
+	my $fasCheckMsg = `prepareFAS -t ./ -c 2>&1`;
+	if ($fasoff != 1 && $fasCheckMsg =~ /ERROR/) {
+		die "ERROR: greedyFAS not ready to use! Please check https://github.com/BIONF/FAS/wiki/prepareFAS\n";
 	}
 
 	# check seed fasta file
@@ -2422,9 +2433,14 @@ sub initialCheck {
 		}
 	}
 	# check ortholog group name
-	if ($ogName =~ /[\|\s+]/) {
-		die "ERROR: Ortholog group name (-seqName) cannot contain PIPE or space!\n";
+	if (!defined $ogName) {
+		die "ERROR: Ortholog group name (-seqName) invalid!\n";
+	} else {
+		if ($ogName =~ /[\|\s+\"\'\`\´\!\^]/) {
+			die "ERROR: Ortholog group name (-seqName) cannot contain PIPE|space or \" \' \` \´ \! \^\n";
+		}
 	}
+
 	# check genome_dir
 	my @genomeDir = checkValidFolderName($genomeDir);
 	foreach my $genomeFd (@genomeDir) {
@@ -2445,7 +2461,7 @@ sub initialCheck {
 	if ($fasoff != 1) {
 		my %seen;
 		my @allTaxa = grep( !$seen{$_}++, @genomeDir, @blastDir);
-		chomp(my $allAnno = `ls weight_dir | sed \'s/\\.json//\'`);
+		chomp(my $allAnno = `ls $weightDir | $sedprog \'s/\\.json//\'`);
 		my @allAnno = split(/\n/, $allAnno);
 		my @missingAnno = array_minus(@allTaxa, @allAnno);
 		if (scalar @missingAnno > 0) {
@@ -2457,7 +2473,7 @@ sub initialCheck {
 
 sub getGenomeFile {
 	my ($folder, $filename) = @_;
-	chomp(my $faFile = `ls $folder/$filename.fa* | grep -v \"checked\\|mod\\|tmp\"`);
+	chomp(my $faFile = `ls $folder/$filename.fa* | $grepprog -v \"checked\\|mod\\|tmp\"`);
 	my $out = $faFile;
 	chomp(my $link = `$readlinkprog -f $faFile`);
 	if ($link ne "") {
@@ -2497,7 +2513,7 @@ sub checkFastaFile {
 				die "ERROR: $infile doesn't look like a fasta file!\n";
 			}
 			# check if IDs contain space/tab
-			chomp(my $idsHaveSpace = `egrep \">\" $infile | egrep \"\\s\" | sed \'s/>//\'`);
+			chomp(my $idsHaveSpace = `egrep \">\" $infile | egrep \"\\s\" | $sedprog \'s/>//\'`);
 			if (length($idsHaveSpace) > 0) {
 				die "ERROR: $infile has some sequence IDs containing spaces/tabs:\n$idsHaveSpace\n";
 			}
