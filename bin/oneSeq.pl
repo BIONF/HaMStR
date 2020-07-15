@@ -371,20 +371,22 @@ $genome_dir = abs_path($genome_dir)."/";
 $taxaPath = $genome_dir;
 
 ############# do initial check
-print "Validity checking....\n";
-initialCheck($seqFile, $seqName, $blastPath, $taxaPath, $weightPath, $fasoff);
-print "done!\n";
+if (!defined $help) {
+	print "Validity checking....\n";
+	initialCheck($seqFile, $seqName, $blastPath, $taxaPath, $weightPath, $fasoff);
+	print "done!\n";
 
-if (!grep(/$minDist/, @defaultRanks)) {
-	die "ERROR: minDist $minDist invalid!\n";
-}
+	if (!grep(/$minDist/, @defaultRanks)) {
+		die "ERROR: minDist $minDist invalid!\n";
+	}
 
-if (!grep(/$maxDist/, @defaultRanks)) {
-	die "ERROR: maxDist $maxDist invalid!\n";
-}
+	if (!grep(/$maxDist/, @defaultRanks)) {
+		die "ERROR: maxDist $maxDist invalid!\n";
+	}
 
-if (!defined $minCoreOrthologs) {
-	die "ERROR: coreOrth not defined (must be integer)!";
+	if (!defined $minCoreOrthologs) {
+		die "ERROR: coreOrth not defined (must be integer)!";
+	}
 }
 
 ############# connect to the database
@@ -2432,6 +2434,7 @@ sub initialCheck {
 			die "ERROR: $seed contains special characters!\n";
 		}
 	}
+
 	# check ortholog group name
 	if (!defined $ogName) {
 		die "ERROR: Ortholog group name (-seqName) invalid!\n";
