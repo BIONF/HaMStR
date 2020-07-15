@@ -115,7 +115,7 @@ my $startTime = time;
 ## Modified 13. July 2020 v1.8.0 (Vinh)	- added initial check, no longer use .mod files
 
 ############ General settings
-my $version = 'oneSeq v.1.8.1';
+my $version = 'oneSeq v.1.8.2';
 ##### configure for checking if the setup.sh script already run
 my $configure = 0;
 if ($configure == 0){
@@ -2449,7 +2449,9 @@ sub initialCheck {
 	foreach my $genomeFd (@genomeDir) {
 		unless ($genomeFd =~ /^\./) {
 			my $genome = getGenomeFile("$genomeDir/$genomeFd", $genomeFd);
-			checkFastaFile($genome);
+			unless (-e "$genome.checked") {
+				die "ERROR: $genome.checked not found!\nPlease run checkDataHamstr.py before running HaMStR-oneSeq!\n";
+			}
 		}
 	}
 	# check blast_dir
@@ -2457,7 +2459,9 @@ sub initialCheck {
 	foreach my $blastFd (@blastDir) {
 		unless ($blastFd =~ /^\./) {
 			my $genome = getGenomeFile("$blastDir/$blastFd", $blastFd);
-			checkFastaFile($genome);
+			unless (-e "$genome.checked") {
+				die "ERROR: $genome.checked not found!\nPlease run checkDataHamstr.py before running HaMStR-oneSeq!";
+			}
 		}
 	}
 	# check weight_dir
@@ -2504,39 +2508,39 @@ sub checkValidFolderName {
 	return(array_minus(@folders, @notFd));
 }
 
-sub checkFastaFile {
-	my $infile = $_[0];
-	unless (-e $infile) {
-		die "ERROR: $infile not found!\n";
-	} else {
-		if (!-e "$infile.checked") {
-			# check if input fasta file a fasta file
-			chomp(my $fasSymbol = `head -n 1 $infile | egrep -c \">\"`);
-			if ($fasSymbol == 0) {
-				die "ERROR: $infile doesn't look like a fasta file!\n";
-			}
-			# check if IDs contain space/tab
-			chomp(my $idsHaveSpace = `egrep \">\" $infile | egrep \"\\s\" | $sedprog \'s/>//\'`);
-			if (length($idsHaveSpace) > 0) {
-				die "ERROR: $infile has some sequence IDs containing spaces/tabs:\n$idsHaveSpace\n";
-			}
-			# check if sequences are written in one line
-			chomp(my $countIdLines = `egrep -v -e \"^\$\" $infile | egrep -c \">\"`);
-			chomp(my $countSeqLines = `egrep -v -e \"^\$\" $infile | egrep -v -c \">\"`);
-			if ($countIdLines ne $countSeqLines) {
-				die "ERROR: $infile contains sequences in multiple lines!\n";
-			}
-			# check if sequences contain illegal characters
-			chomp(my $illegalChr = `egrep -v -e \"^\$\" $infile | grep -v \">\" | egrep -i -o \'[^a-z]\' | sort -u`);
-			if (length($illegalChr) > 0) {
-				die "ERROR: $infile contains special characters:\n$illegalChr\n";
-			}
-			# save to .checked file
-			system("ln -fs $infile $infile.checked");
-			print $infile,"\n";
-		}
-	}
-}
+# sub checkFastaFile {
+# 	my $infile = $_[0];
+# 	unless (-e $infile) {
+# 		die "ERROR: $infile not found!\n";
+# 	} else {
+# 		if (!-e "$infile.checked") {
+# 			# check if input fasta file a fasta file
+# 			chomp(my $fasSymbol = `head -n 1 $infile | egrep -c \">\"`);
+# 			if ($fasSymbol == 0) {
+# 				die "ERROR: $infile doesn't look like a fasta file!\n";
+# 			}
+# 			# check if IDs contain space/tab
+# 			chomp(my $idsHaveSpace = `egrep \">\" $infile | egrep \"\\s\" | $sedprog \'s/>//\'`);
+# 			if (length($idsHaveSpace) > 0) {
+# 				die "ERROR: $infile has some sequence IDs containing spaces/tabs:\n$idsHaveSpace\n";
+# 			}
+# 			# check if sequences are written in one line
+# 			chomp(my $countIdLines = `egrep -v -e \"^\$\" $infile | egrep -c \">\"`);
+# 			chomp(my $countSeqLines = `egrep -v -e \"^\$\" $infile | egrep -v -c \">\"`);
+# 			if ($countIdLines ne $countSeqLines) {
+# 				die "ERROR: $infile contains sequences in multiple lines!\n";
+# 			}
+# 			# check if sequences contain illegal characters
+# 			chomp(my $illegalChr = `egrep -v -e \"^\$\" $infile | grep -v \">\" | egrep -i -o \'[^a-z]\' | sort -u`);
+# 			if (length($illegalChr) > 0) {
+# 				die "ERROR: $infile contains special characters:\n$illegalChr\n";
+# 			}
+# 			# save to .checked file
+# 			system("ln -fs $infile $infile.checked");
+# 			print $infile,"\n";
+# 		}
+# 	}
+# }
 
 ###########################
 sub helpMessage {
