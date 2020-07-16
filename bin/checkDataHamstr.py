@@ -160,9 +160,9 @@ def checkOptConflict(concat, replace, delete):
 def main():
     version = '1.0.0'
     parser = argparse.ArgumentParser(description='You are running checkDataHamstr version ' + str(version) + '.')
-    parser.add_argument('-g', '--genomeDir', help='Path to search taxa directory (e.g. HaMStR/genome_dir)', action='store_true', default=False)
-    parser.add_argument('-b', '--blastDir', help='Path to blastDB directory (e.g. HaMStR/blast_dir)', action='store_true', default=False)
-    parser.add_argument('-w', '--weightDir', help='Path to feature annotation directory (e.g. HaMStR/weight_dir)', action='store_true', default=False)
+    parser.add_argument('-g', '--genomeDir', help='Path to search taxa directory (e.g. HaMStR/genome_dir)', action='store', default='')
+    parser.add_argument('-b', '--blastDir', help='Path to blastDB directory (e.g. HaMStR/blast_dir)', action='store', default='')
+    parser.add_argument('-w', '--weightDir', help='Path to feature annotation directory (e.g. HaMStR/weight_dir)', action='store', default='')
     parser.add_argument('--replace', help='Replace special characters in sequences by "X"', action='store_true', default=False)
     parser.add_argument('--delete', help='Delete special characters in sequences', action='store_true', default=False)
     parser.add_argument('--concat', help='Concatenate multiple-line sequences into single-line', action='store_true', default=False)
@@ -170,9 +170,9 @@ def main():
     ### get arguments
     args = parser.parse_args()
 
-    genomeDir = args.genomeDir
-    blastDir = args.blastDir
-    weightDir = args.weightDir
+    genomeDir = os.path.abspath(args.genomeDir)
+    blastDir = os.path.abspath(args.blastDir)
+    weightDir = os.path.abspath(args.weightDir)
     replace = args.replace
     delete = args.delete
     concat = args.concat
