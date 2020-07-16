@@ -23,10 +23,9 @@ from os import listdir
 from os.path import isfile, join
 from pathlib import Path
 import subprocess
-import multiprocessing as mp
-from io import StringIO
 from Bio import SeqIO
 import re
+from datetime import datetime
 
 def checkFileExist(file):
     if not os.path.exists(os.path.abspath(file)):
@@ -98,13 +97,16 @@ def rewriteSeqs(faFile, replace, delete):
             tmpOut.write('>%s\n%s\n' % (id, seq))
     os.replace(faFile + '.mod', faFile)
 
+def writeCheckedFile(faFile):
+    with open(faFile+'.checked', 'w') as f:
+        f.write(str(datetime.now()))
+
 def checkDataFolder(checkDir, replace, delete, concat):
     taxaList = []
     for fd in listdir(checkDir):
         if not fd.startswith('.'):
             taxon = fd
             checkValidFolderName(checkDir+'/'+taxon)
-            # print(checkDir+'/'+taxon)
             getFaCmd = 'ls %s/%s/%s.fa*' % (checkDir, taxon, taxon)
             try:
                 faFiles = subprocess.check_output([getFaCmd], shell=True).decode(sys.stdout.encoding).strip().split('\n')
@@ -113,7 +115,6 @@ def checkDataFolder(checkDir, replace, delete, concat):
                         faFile = os.path.realpath(faFile)
                     if not '.checked' in faFile:
                         if not os.path.exists(faFile+".checked"):
-                            print(faFile)
                             checkFaFile = checkValidFasta(faFile)
                             if checkFaFile == 'notFasta':
                                 sys.exit('*** ERROR: %s does not look like a fasta file!' % faFile)
@@ -130,7 +131,7 @@ def checkDataFolder(checkDir, replace, delete, concat):
                                     checkValidSeqs(faFile)
                                 else:
                                     rewriteSeqs(faFile, replace, delete)
-                            os.symlink(faFile, faFile+'.checked')
+                            writeCheckedFile(faFile)
                             taxaList.append(fd)
                             print(fd)
             except subprocess.CalledProcessError as e:
@@ -170,9 +171,9 @@ def main():
     ### get arguments
     args = parser.parse_args()
 
-    genomeDir = os.path.abspath(args.genomeDir)
-    blastDir = os.path.abspath(args.blastDir)
-    weightDir = os.path.abspath(args.weightDir)
+    genomeDir = args.genomeDir
+    blastDir = args.blastDir
+    weightDir = args.weightDir
     replace = args.replace
     delete = args.delete
     concat = args.concat
@@ -190,8 +191,8 @@ def main():
         weightDir = hamstrDir + "/weight_dir"
 
     ### check genomeDir and blastDir
-    genomeTaxa = checkDataFolder(genomeDir, replace, delete, concat)
-    blastTaxa = checkDataFolder(blastDir, replace, delete, concat)
+    genomeTaxa = checkDataFolder(os.path.abspath(genomeDir), replace, delete, concat)
+    blastTaxa = checkDataFolder(os.path.abspath(blastDir), replace, delete, concat)
 
     ### check weightDir
     missingAnno = checkCompleteAnno(weightDir, join2Lists(genomeTaxa, blastTaxa))
