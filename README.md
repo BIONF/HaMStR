@@ -99,7 +99,7 @@ The main input file for *PhyloProfile* is `test.phyloprofile`, which contains li
 You can combine multiple HaMStR runs into a single phylogenetic profile input for data visualisation and data exploration:
 
 ```
-python /path/to/HaMStR/bin/visuals/mergePhyloprofileData.py /path/to/hamstr/output/directory /path/output/outName
+python bin/visuals/mergePhyloprofileData.py /path/to/hamstr/output/directory /path/output/outName
 ```
 
 in which `/path/to/hamstr/output/directory` is a directory where all `*.phyloprofile`, `*.domains`, `*.extended.fa` can be found.
@@ -151,7 +151,7 @@ Please check this [wiki page](https://github.com/BIONF/HaMStR/wiki/Add-new-taxa-
 Normally all data come together with HaMStR-oneSeq and data resulted from `bin/addTaxonHamstr.py` or `bin/addTaxaHamstr.py` are ready to use. However, if you manually add taxa into HaMStR, you should check for their validity by running this command:
 
 ```
-python3 checkDataHamstr.py [-g GENOMEDIR] [-b BLASTDIR] [-w WEIGHTDIR]
+python3 bin/checkDataHamstr.py [-g GENOMEDIR] [-b BLASTDIR] [-w WEIGHTDIR]
 ```
 `GENOMEDIR`, `BLASTDIR` and `WEIGHTDIR` are only needed if they are not placed in the same directory of HaMStR-oneSeq.
 
