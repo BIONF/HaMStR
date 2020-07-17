@@ -376,18 +376,22 @@ if (!defined $help) {
 	initialCheck($seqFile, $seqName, $blastPath, $taxaPath, $weightPath, $fasoff);
 	print "done!\n";
 
-	if (!grep(/$minDist/, @defaultRanks)) {
-		die "ERROR: minDist $minDist invalid!\n";
-	}
+	if (!defined $coreex) {
+		if (!grep(/$minDist/, @defaultRanks)) {
+			die "ERROR: minDist $minDist invalid!\n";
+		}
 
-	if (!grep(/$maxDist/, @defaultRanks)) {
-		die "ERROR: maxDist $maxDist invalid!\n";
-	}
+		if (!grep(/$maxDist/, @defaultRanks)) {
+			die "ERROR: maxDist $maxDist invalid!\n";
+		}
 
-	if (!defined $minCoreOrthologs) {
-		die "ERROR: coreOrth not defined (must be integer)!";
+		if (!defined $minCoreOrthologs) {
+			die "ERROR: coreOrth not defined (must be integer)!";
+		}
 	}
 }
+
+die "DONE\n";
 
 ############# connect to the database
 if ($dbmode) {
