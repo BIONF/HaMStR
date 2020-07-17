@@ -4,7 +4,7 @@ from os import listdir as ldir
 from os.path import isfile
 
 '''
-merges all Phyloprofile files (.phyloprofile, _0.domains, _1.domains) in a given directory (argument 1) as well the
+merges all Phyloprofile files (.phyloprofile, _forward.domains, _reverse.domains) in a given directory (argument 1) as well the
 extended.fa files into one file  each. The output name and directory are given in the second argument.
 '''
 

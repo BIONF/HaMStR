@@ -86,7 +86,7 @@ The output consist of these text files (*note: `test` is your defined -seqName p
 1) `test.extended.fa`: a multiple FASTA file containing ortholog sequences and the query gene
 2) `test.extended.profile`: a tab-delimited file containing list of orthologous sequences and their correspoding similarity scores by comparing their feature architectures with the one of the query gene (for more info about this score, please read [this document](https://bionf.github.io/FAS))
 3) `test.phyloprofile`: an input file for visualisation the phylogenetic profile of the query gene using [PhyloProfile tool](https://github.com/BIONF/phyloprofile)
-4) `test_1.domains` (and optional, `test_0.domains`): a protein domain annotation file for all the sequences present in the orthologous group. The `_0` or `_1` suffix indicates the direction of the feature architecture comparison, in which `_1` (forward) means that the query gene is used as *seed* and it orthologs as *target* for the comparison, while `_0` (backward) is vice versa.
+4) `test_forward.domains` (and optional, `test_reverse.domains`): a protein domain annotation file for all the sequences present in the orthologous group. The `_forward` or `_reverse` suffix indicates the direction of the feature architecture comparison, in which `_forward` means that the query gene is used as *seed* and it orthologs as *target* for the comparison, while `_reverse` is vice versa.
 
 ## HaMStR and the utilisation of FAS
 HaMStR integrates the prediction of orthologs and the calculation of the Feature Architecture Similarty (FAS) scores. FAS scores are computed pairwise between the query gene and it's predicted orthologous genes using [FAS tool](https://github.com/BIONF/FAS), which will be automatically installed during the setup of HaMStR.
@@ -94,39 +94,30 @@ HaMStR integrates the prediction of orthologs and the calculation of the Feature
 ## Output visualization using PhyloProfile
 For a rich visualisation of the provided information from the HaMStR outputs, you can plug them into the [Phyloprofile tool](https://github.com/BIONF/phyloprofile).
 
-The main input file for *PhyloProfile* is `seqname.phyloprofile`, which contains list of all orthologous gene names and the taxonomy IDs of their taxa together with the FAS scores (if available). For analysing more information such as the FASTA sequences or the domain annotations, you can optionally input `seqname.extended.fa` and `seqname_1.domains` (or `seqname_0.domains`) to *PhyloProfile*.
+The main input file for *PhyloProfile* is `test.phyloprofile`, which contains list of all orthologous gene names and the taxonomy IDs of their taxa together with the FAS scores (if available). For analysing more information such as the FASTA sequences or the domain annotations, you can optionally input `test.extended.fa` and `test_forward.domains` (or `test_reverse.domains`) to *PhyloProfile*. *Note: `test` is your defined -seqName parameter*.
 
-You can combine multiple HaMStR runs into a single phylogenetic profile input for data visualisation and data exploration. Each run is identified by the given seqname (opt -seqname=<>). This is either given by the user or randomly assigned. The following steps are necessary:
-
-```
-# concatenate all desired profile files into one combined profile
-
-cat *.extended.profile > combined.extended.profile
-
-# re-run the parsing script from your current data directory with the combined profile
-
-perl /path/to/HaMStR/bin/visuals/parseOneSeq.pl -i combined.extended.profile -o combined.phyloprofile
-```
-
-To prepare the additional input file (*.domains) you just need to concatenate them with each other (please mind the distinction between forward (1) and backward (0) FAS comparisons and do not mix them up).
+You can combine multiple HaMStR runs into a single phylogenetic profile input for data visualisation and data exploration:
 
 ```
-cat *_0.domains > combined_0.domains
-cat *_1.domains > combined_1.domains
+python /path/to/HaMStR/bin/visuals/mergePhyloprofileData.py /path/to/hamstr/output/directory /path/output/outName
 ```
 
-The resulting file `combined.phyloprofile`, `combined_0.matrix` and `combined_1.domains` can be then plugged into the *Phyloprofile tool* for further investigation.
+in which `/path/to/hamstr/output/directory` is a directory where all `*.phyloprofile`, `*.domains`, `*.extended.fa` can be found.
+
+The resulting file `/path/output/outName.phyloprofile`, `/path/output/outName.extended.fa`, `/path/output/outName_forward.matrix` and `/path/output/outName_backward.domains` can be then plugged into the *Phyloprofile tool* for further investigation.
 
 
 ## Pre-calculated data set
 
-Within the data package (https://fasta.bioch.virginia.edu/fasta_www2/fasta_list2.shtml) we provide a set of 78 reference taxa (gene sets in genome_dir, annotations in weight_dir, blast databases in blast_dir). They can be automatically downloaded during the setup. This data comes "ready to use" with the HaMStR-OneSeq framework. Species data must be present in the three directories listed below. For each species/taxon there is a sub-directory named in accordance to the naming schema ([Species acronym]@[NCBI ID]@[Proteome version]):
+Within the data package (https://fasta.bioch.virginia.edu/fasta_www2/fasta_list2.shtml) we provide a set of 78 reference taxa (gene sets in *genome_dir*, annotations in *weight_dir*, blast databases in *blast_dir*). They can be automatically downloaded during the setup. This data comes "ready to use" with the HaMStR-OneSeq framework. Species data must be present in the three directories listed below:
 
 * genome_dir (Contains sub-directories for proteome fasta files for each species)
 * blast_dir (Contains sub-directories for BLAST databases made with makeblastdb out of your proteomes)
-* weight_dir (Contains sub-directories for feature annotation files for each proteome)
+* weight_dir (Contains feature annotation files for each proteome)
 
-However, if needed the user can manually add further gene sets (multifasta format) using provided python scripts.
+For each species/taxon there is a sub-directory named in accordance to the naming schema ([Species acronym]@[NCBI ID]@[Proteome version])
+
+HaMStR-oneSeq is not limited to those 78 taxa. If needed the user can manually add further gene sets (multifasta format) using provided python scripts.
 
 ### Adding a new gene set into HaMStR
 For adding **one gene set**, please use the `bin/addTaxonHamstr.py` script:
@@ -134,7 +125,7 @@ For adding **one gene set**, please use the `bin/addTaxonHamstr.py` script:
 python3 bin/addTaxonHamstr.py -f newTaxon.fa -i tax_id -o /path/to/HaMStR [-n abbr_tax_name] [-c] [-v protein_version] [-a]
 ```
 
-in which, the first 3 arguments are required including `newTaxon.fa` is the gene set that need to be added, `tax_id` is its NCBI taxonomy ID, `/path/to/HaMStR` is where the sub-directories will be saved (genome_dir, blast_dir and weight_dir). Other arguments are optional, which are `-n` for specify your own taxon name (if not given, an abbriviate name will be suggested based on the NCBI taxon name of the input `tax_id`), `-c` for calculating the BLAST DB (only needed if you need to include your new taxon into the list of taxa for compilating the core set), `-v` for identifying the genome/proteome version (default will be 1), and `-a` for turning off the annotation step (*not recommended*).
+in which, the first 3 arguments are required including `newTaxon.fa` is the gene set that need to be added, `tax_id` is its NCBI taxonomy ID, `/path/to/HaMStR` is where the sub-directories can be found (*genome_dir*, *blast_dir* and *weight_dir*). Other arguments are optional, which are `-n` for specify your own taxon name (if not given, an abbriviate name will be suggested based on the NCBI taxon name of the input `tax_id`), `-c` for calculating the BLAST DB (only needed if you need to include your new taxon into the list of taxa for compilating the core set), `-v` for identifying the genome/proteome version (default will be 1), and `-a` for turning off the annotation step (*not recommended*).
 
 ### Adding a list of gene sets into HaMStR
 For adding **more than one gene set**, please use the `bin/addTaxaHamstr.py` script:
@@ -154,6 +145,15 @@ filename3	4932	my_fungi
 The header line (started with #) is a Must. The values of the last 2 columns (abbr. taxon name and genome version) are, however, optional. If you want to specify a new version for a genome, you need to define also the abbr. taxon name, so that the genome version is always at the 4th column in the mapping file.
 
 Please check this [wiki page](https://github.com/BIONF/HaMStR/wiki/Add-new-taxa-to-HaMStR) for more details.
+
+## Check for valid data
+
+Normally all data come together with HaMStR-oneSeq and data resulted from `bin/addTaxonHamstr.py` or `bin/addTaxaHamstr.py` are ready to use. However, if you manually add taxa into HaMStR, you should check for their validity by running this command:
+
+```
+python3 checkDataHamstr.py [-g GENOMEDIR] [-b BLASTDIR] [-w WEIGHTDIR]
+```
+`GENOMEDIR`, `BLASTDIR` and `WEIGHTDIR` are only needed if they are not placed in the same directory of HaMStR-oneSeq.
 
 ## Dependencies
 HaMStR has some dependencies, that either will be automatically installed via the setup script, or must be installed by your system admin if you don't have the root privileges. In the following you will find the full list of HaMStR's dependencies for Ubuntu system as well as the alternatives for MacOS. In Ubuntu, you can install those system and bioinformatics tools/libraries using `apt-get` tool
