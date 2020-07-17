@@ -23,12 +23,12 @@ def main(directory, out):
                 for line in lines:
                     if not line == 'geneID\tncbiID\torthoID\tFAS_F\tFAS_B\n':
                         phyloprofile.write(line)
-        elif infile.endswith('_forward.domains') and not infile == out + '_0.domains':
+        elif infile.endswith('_forward.domains') and not infile == out + '_forward.domains':
             with open(directory + infile, 'r') as reader:
                 lines = reader.readlines()
                 for line in lines:
                     domains_0.write(line)
-        elif infile.endswith('_reverse.domains') and not infile == out + '_1.domains':
+        elif infile.endswith('_reverse.domains') and not infile == out + '_reverse.domains':
             with open(directory + infile, 'r') as reader:
                 lines = reader.readlines()
                 for line in lines:
