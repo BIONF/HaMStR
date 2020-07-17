@@ -15,11 +15,11 @@ def main(directory, out):
     domains_0 = None
     domains_1 = None
     ex_fasta = None
-    phyloprofile.write('geneID\tncbiID\torthoID\tFAS_F\tFAS_B\n')
     for infile in ldir(directory):
         if infile.endswith('.phyloprofile') and not infile == out + '.phyloprofile':
             if not phyloprofile:
-                domains_0 = open(out + '_forward.domains', 'w')
+                phyloprofile = open(out + '.phyloprofile', 'w')
+                phyloprofile.write('geneID\tncbiID\torthoID\tFAS_F\tFAS_B\n')
             with open(directory + infile, 'r') as reader:
                 lines = reader.readlines()
                 for line in lines:
