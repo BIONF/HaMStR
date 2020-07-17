@@ -86,7 +86,10 @@ def runAddTaxon(args):
     # print(cmd)
     logFile = o + '/addTaxaHamstr.log'
     cmd = cmd + ' >> ' + logFile
-    subprocess.call([cmd], shell = True)
+    try:
+        subprocess.call([cmd], shell = True)
+    except:
+        sys.exit('Problem running\n%s' % (cmd))
 
 def main():
     version = '1.0.3'

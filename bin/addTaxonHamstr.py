@@ -32,10 +32,19 @@ import subprocess
 import multiprocessing as mp
 from ete3 import NCBITaxa
 import re
+from datetime import datetime
 
 def checkFileExist(file):
     if not os.path.exists(os.path.abspath(file)):
         sys.exit('%s not found' % file)
+
+def checkOptConflict(replace, delete):
+    if delete:
+        if replace:
+            sys.exit('*** ERROR: only one option can be choose between "--replace" and "--delete"')
+    if replace:
+        if delete:
+            sys.exit('*** ERROR: only one option can be choose between "--replace" and "--delete"')
 
 def checkTaxId(taxId):
     ncbi = NCBITaxa()
@@ -87,6 +96,7 @@ def main():
     optional.add_argument('--oldFAS', help='Use old verion of FAS (annoFAS ≤ 1.2.0)', action='store_true', default=False)
     optional.add_argument('--cpus', help='Number of CPUs used for annotation. Default = available cores - 1', action='store', default=0, type=int)
     optional.add_argument('--replace', help='Replace special characters in sequences by "X"', action='store_true', default=False)
+    optional.add_argument('--delete', help='Delete special characters in sequences', action='store_true', default=False)
     optional.add_argument('--force', help='Force overwrite existing data', action='store_true', default=False)
 
     args = parser.parse_args()
@@ -104,6 +114,8 @@ def main():
     if cpus == 0:
         cpus = mp.cpu_count()-2
     replace = args.replace
+    delete = args.delete
+    checkOptConflict(replace, delete)
     force = args.force
 
     ### species name after hamstr naming scheme
@@ -133,14 +145,23 @@ def main():
                 id = str(id) + '|' + str(index)
                 tmpDict[id] = 1
             seq = str(inSeq[id].seq)
-            for c in seq:
-                if not c.isalnum():
+            specialChr = 'no'
+            if any(c for c in seq if not c.isalpha()):
+                specialChr = 'yes'
+            if specialChr == 'yes':
+                if replace or delete:
                     if replace:
-                        seq = seq.replace(c, "X")
-                    else:
-                        sys.exit('%s sequence contains special character: "%s"\nPlease check it, or use --replace to automatically replace it by "X".\n' % (id, c))
+                        seq = re.sub('[^a-zA-Z]', 'X', seq)
+                    if delete:
+                        seq = re.sub('[^a-zA-Z]', '', seq)
+                else:
+                    sys.exit('\033[91mERROR: %s sequence contains special character!\033[0m\nYou can use --replace or --delete to solve it.' % (id))
             f.write('>%s\n%s\n' % (id, seq))
         f.close()
+        # write .checked file
+        cf = open(specFile+'.checked', 'w')
+        cf.write(str(datetime.now()))
+        cf.close()
     else:
         print(genomePath + '/' + specName + '.fa already exists!')
 
