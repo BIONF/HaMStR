@@ -391,8 +391,6 @@ if (!defined $help) {
 	}
 }
 
-die "DONE\n";
-
 ############# connect to the database
 if ($dbmode) {
 	$dbHandle = DBI->connect($database, $username, $pw)
