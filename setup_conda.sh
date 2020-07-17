@@ -248,8 +248,8 @@ echo "done!"
 echo "-------------------------------------"
 echo "Getting pre-calculated data"
 
-data_HaMStR_file="data_HaMStR-2019b.tar.gz"
-checkSumData="883696907 626983801 $data_HaMStR_file"
+data_HaMStR_file="data_HaMStR-2019c.tar.gz"
+checkSumData="1748371655 621731824 $data_HaMStR_file"
 
 if ! [ "$(ls -A $CURRENT/genome_dir)" ]; then
   echo "Processing $CURRENT ..."
