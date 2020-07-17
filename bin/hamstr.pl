@@ -2161,7 +2161,7 @@ sub identifyCoorthologsProt{
 	close OUT;
 	## aligning sequences
 	if ($alignmentprog_co eq 'mafft-linsi'){
-		`$alignmentprog_co --anysymbol --quiet $tmpdir/$localid.orth.fa > "$tmpdirTmp/$localid.orth.aln"`;
+		`mafft --maxiterate 1000 --localpair --anysymbol --quiet $tmpdir/$localid.orth.fa > "$tmpdirTmp/$localid.orth.aln"`;
 	}
 	elsif ($alignmentprog_co eq 'muscle') {
 		`$alignmentprog_co -quiet -in $tmpdir/$localid.orth.fa -out "$tmpdirTmp/$localid.orth.aln"`;
@@ -2224,7 +2224,7 @@ sub checkCoorthologRef {
 	close OUT;
 	## aligning sequences
 	if ($alignmentprog_co eq 'mafft-linsi'){
-		`$alignmentprog_co --anysymbol --quiet $tmpdir/$localid.co.fa > "$tmpdir/$localid.co.aln"`;
+		`mafft --maxiterate 1000 --localpair --anysymbol --quiet $tmpdir/$localid.co.fa > "$tmpdir/$localid.co.aln"`;
 	}
 	elsif ($alignmentprog_co eq 'muscle') {
 		`$alignmentprog_co -in $tmpdir/$localid.co.fa -out "$tmpdir/$localid.co.aln"`;

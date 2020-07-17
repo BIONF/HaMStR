@@ -1407,7 +1407,7 @@ sub checkRank {
 sub createAlnMsf {
 	my $linsiCommand = '';
 	if (!defined $aln or $aln eq 'mafft-linsi') {
-		my $linsiCommand = "mafft-linsi --anysymbol \"" . $outputFa . "\" > \"" . $outputAln . "\"";
+		my $linsiCommand = "mafft --maxiterate 1000 --localpair --anysymbol --quiet \"" . $outputFa . "\" > \"" . $outputAln . "\"";
 	}
 	elsif ($aln eq 'muscle') {
 		$linsiCommand = "muscle -quiet -in \"" . $outputFa . "\" -out \"" .$outputAln. "\"";
@@ -1415,7 +1415,7 @@ sub createAlnMsf {
 	else {
 		die "issues with the msa. You need to select either mafft or muscle\n";
 	}
-	system($linsiCommand) == 0 or die "Could not run mafft-linsi\n";
+	system($linsiCommand) == 0 or die "Could not run alignment\n$linsiCommand\n";
 }
 
 ################ creating folders for fas support usage
@@ -2404,7 +2404,7 @@ sub printOut {
 sub initialCheck {
 	my ($seed, $ogName, $blastDir, $genomeDir, $weightDir, $fasoff) = @_;
 	# check tools exist
-	my @tools = ("hmmsearch", "muscle", "mafft-linsi", "clustalw", $globalaligner, $localaligner, $glocalaligner);
+	my @tools = ("hmmsearch", "muscle", "mafft", "clustalw", $globalaligner, $localaligner, $glocalaligner);
 	my $flag = 1;
 	foreach my $tool (@tools) {
 		my $check = `which $tool`;
