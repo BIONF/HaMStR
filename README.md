@@ -102,7 +102,7 @@ You can combine multiple HaMStR runs into a single phylogenetic profile input fo
 python bin/visuals/mergePhyloprofileData.py /path/to/hamstr/output/directory /path/output/outName
 ```
 
-in which `/path/to/hamstr/output/directory` is a directory where all `*.phyloprofile`, `*.domains`, `*.extended.fa` can be found.
+in which `/path/to/hamstr/output/directory` is a directory where all single `*.phyloprofile`, `*.domains`, `*.extended.fa` file can be found.
 
 The resulting file `/path/output/outName.phyloprofile`, `/path/output/outName.extended.fa`, `/path/output/outName_forward.matrix` and `/path/output/outName_backward.domains` can be then plugged into the *Phyloprofile tool* for further investigation.
 
