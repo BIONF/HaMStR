@@ -26,6 +26,7 @@ import subprocess
 from Bio import SeqIO
 import re
 from datetime import datetime
+import csv
 
 def checkFileExist(file):
     if not os.path.exists(os.path.abspath(file)):
@@ -49,6 +50,17 @@ def join2Lists(first_list, second_list):
     in_second_but_not_in_first = in_second - in_first
     out = first_list + list(in_second_but_not_in_first)
     return(out)
+
+def checkOptConflict(concat, replace, delete):
+    if concat:
+        if not (delete or replace):
+            sys.exit('*** ERROR: for rewrite sequences, you need to set either "--delete" or "--replace"!')
+    if delete:
+        if replace:
+            sys.exit('*** ERROR: only one option can be choose between "--replace" and "--delete"')
+    if replace:
+        if delete:
+            sys.exit('*** ERROR: only one option can be choose between "--replace" and "--delete"')
 
 def checkValidFasta(file):
     spaceChr = (' ', '\t')
@@ -113,6 +125,7 @@ def checkDataFolder(checkDir, replace, delete, concat):
                 for faFile in faFiles:
                     if os.path.islink(faFile):
                         faFile = os.path.realpath(faFile)
+                    checkFileExist(faFile)
                     if not '.checked' in faFile:
                         if not os.path.exists(faFile+".checked"):
                             checkFaFile = checkValidFasta(faFile)
@@ -132,8 +145,8 @@ def checkDataFolder(checkDir, replace, delete, concat):
                                 else:
                                     rewriteSeqs(faFile, replace, delete)
                             writeCheckedFile(faFile)
-                            taxaList.append(fd)
                             print(fd)
+                taxaList.append(fd)
             except subprocess.CalledProcessError as e:
                 print('*** ERROR: Problem while searching for fasta file')
                 print(e.output.decode(sys.stdout.encoding))
@@ -147,16 +160,28 @@ def checkCompleteAnno(weightDir, taxaList):
     missingAnno = [x for x in taxaAnno if x not in s]
     return(missingAnno)
 
-def checkOptConflict(concat, replace, delete):
-    if concat:
-        if not (delete or replace):
-            sys.exit('*** ERROR: for rewrite sequences, you need to set either "--delete" or "--replace"!')
-    if delete:
-        if replace:
-            sys.exit('*** ERROR: only one option can be choose between "--replace" and "--delete"')
-    if replace:
-        if delete:
-            sys.exit('*** ERROR: only one option can be choose between "--replace" and "--delete"')
+def checkMissingNcbiID(namesDmp, taxaList):
+    ncbiId = {}
+    with open(namesDmp, 'r') as f:
+        lines = f.readlines()
+        for x in lines:
+            taxId = x.split('\t')[0]
+            if not taxId in ncbiId:
+                ncbiId[taxId] = 1
+    f.close()
+    missingTaxa = {}
+    presentTaxa = {}
+    dupTaxa = []
+    for t in taxaList:
+        taxId = t.split('@')[1]
+        if not taxId in ncbiId:
+            if not t+'\t'+str(taxId) in missingTaxa:
+                missingTaxa[t+'\t'+str(taxId)] = 1
+        if not taxId in presentTaxa:
+            presentTaxa[taxId] = t
+        else:
+            dupTaxa.append('%s\t%s' % (t, presentTaxa[taxId]))
+    return(missingTaxa.keys(), dupTaxa)
 
 def main():
     version = '1.0.0'
@@ -179,6 +204,7 @@ def main():
     concat = args.concat
 
     checkOptConflict(concat, replace, delete)
+    caution = 0
 
     ### get hamstr dir and assign genomeDir, blastDir, weightDir if not given
     whereIsHamstr = 'which oneSeq'
@@ -191,18 +217,41 @@ def main():
         weightDir = hamstrDir + "/weight_dir"
 
     ### check genomeDir and blastDir
+    print('=> Checking %s...' % genomeDir)
     genomeTaxa = checkDataFolder(os.path.abspath(genomeDir), replace, delete, concat)
+    print('=> Checking %s...' % blastDir)
     blastTaxa = checkDataFolder(os.path.abspath(blastDir), replace, delete, concat)
 
     ### check weightDir
+    print('=> Checking %s...' % weightDir)
     missingAnno = checkCompleteAnno(weightDir, join2Lists(genomeTaxa, blastTaxa))
     if len(missingAnno) > 0:
-        print('*** WARNING: Annotations for these taxa not found in %s:' % weightDir)
+        print('\033[92m*** WARNING: Annotations not found for:\033[0m')
         print(*missingAnno, sep = "\n")
-        print('*** NOTE: You still can run HaMStR-oneSeq without FAS using the option "-fasoff"')
+        print('NOTE: You still can run HaMStR-oneSeq without FAS using the option "-fasoff"')
+        caution = 1
+
+    ### check ncbi IDs
+    print('=> Checking NCBI taxonomy IDs...')
+    namesDmp = hamstrDir + '/taxonomy/names.dmp'
+    checkFileExist(namesDmp)
+    missingTaxa, dupTaxa = checkMissingNcbiID(namesDmp, join2Lists(genomeTaxa, blastTaxa))
+    if (len(missingTaxa) > 0):
+        print('\033[92m*** WARNING: Taxa not found in current HaMStR-oneSeq\'s NCBI taxonomy database:\033[0m')
+        print(*missingTaxa, sep = "\n")
+        print('NOTE: You still can run HaMStR-oneSeq, but they will not be included in the core set compilation!')
+        caution = 1
+    if (len(dupTaxa) > 0):
+        print('\033[92m*** WARNING: These taxa have the same NCBI taxonomy IDs:\033[0m')
+        print(*dupTaxa, sep = "\n")
+        print('NOTE: This could lead to some conflicts!')
+        caution = 1
 
     print('---------------------------------')
-    print('*** Done! Data are ready to use!')
+    if caution == 1:
+        print('Done! Data are ready to use with caution!')
+    else:
+        print('Done! Data are ready to use!')
 
 if __name__ == '__main__':
     main()
