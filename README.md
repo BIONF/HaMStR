@@ -155,6 +155,14 @@ python3 checkDataHamstr.py [-g GENOMEDIR] [-b BLASTDIR] [-w WEIGHTDIR]
 ```
 `GENOMEDIR`, `BLASTDIR` and `WEIGHTDIR` are only needed if they are not placed in the same directory of HaMStR-oneSeq.
 
+This script will check for:
+* valid folder name (must not contain PIPE, space or some other special characters)
+* valid fasta file (no space/tab allowed, no special characters or numbers in the sequences, each sequence must be written in single line)
+* missing annotations (all taxa present in *genome_dir* and *blast_dir* must have annotations in *weight_dir*)
+* missing or duplicated NCBI taxonomy IDs
+
+You will have options to process the fasta files if they are not in the right format, such as delete special characters in the sequences, or replace them with "X", or convert multi-line sequences into single-line sequences.
+
 ## Dependencies
 HaMStR has some dependencies, that either will be automatically installed via the setup script, or must be installed by your system admin if you don't have the root privileges. In the following you will find the full list of HaMStR's dependencies for Ubuntu system as well as the alternatives for MacOS. In Ubuntu, you can install those system and bioinformatics tools/libraries using `apt-get` tool
 ```
