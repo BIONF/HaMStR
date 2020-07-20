@@ -46,11 +46,14 @@ def main(directory, out):
                 lines = reader.readlines()
                 for line in lines:
                     ex_fasta.write(line)
-    phyloprofile.close()
-    domains_0.close()
+    if phyloprofile:
+        phyloprofile.close()
+    if domains_0:
+        domains_0.close()
     if domains_1:
         domains_1.close()
-    ex_fasta.close()
+    if ex_fasta:
+        ex_fasta.close()
 
 
 if __name__ == "__main__":
