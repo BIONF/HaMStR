@@ -177,13 +177,11 @@ CURRENT="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
 
 # create required folders
 folders=(
-blast_dir
-core_orthologs
-genome_dir
-weight_dir
-taxonomy
-output
-tmp
+  blast_dir
+  core_orthologs
+  genome_dir
+  weight_dir
+  taxonomy
 )
 
 for i in "${folders[@]}"; do
@@ -332,7 +330,6 @@ $sedprog -i -e "s/\(my \$readlinkprog = '\).*/\1$readlinkprog';/" $CURRENT/bin/o
 path2perl=`which perl`
 echo "path to perl: $path2perl"
 $sedprog -i -e "s|\#\!.*|\#\!$path2perl|g" $CURRENT/bin/hamstr.pl
-$sedprog -i -e "s|\#\!.*|\#\!$path2perl|g" $CURRENT/bin/nentferner.pl
 $sedprog -i -e "s|\#\!.*|\#\!$path2perl|g" $CURRENT/bin/translate.pl
 $sedprog -i -e "s|\#\!.*|\#\!$path2perl|g" $CURRENT/bin/oneSeq.pl
 

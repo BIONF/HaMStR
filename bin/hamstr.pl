@@ -191,9 +191,10 @@ use run_genewise_hamstr;
 
 ## 10.07.2020 (v13.2.12 - vinh) solved problem when gene ID contains PIPE
 ## 13.07.2020 (v13.3.0 - vinh) solved problem when gene ID contains PIPE
+## 13.07.2020 (v13.3.0 - vinh) moved tmp blast files to output folder and delete them when finished
 
 ######################## start main ###########################################
-my $version = "HaMStR v.13.3.0";
+my $version = "HaMStR v.13.4.0";
 ######################## checking whether the configure script has been run ###
 my $configure = 0;
 if ($configure == 0){
@@ -218,7 +219,7 @@ $path =~ s/\/bin//;
 my $hmmpath = "$path/core_orthologs"; #path where the hmms are located
 my $blastpath = "$path/blast_dir"; #path to the blast-dbs
 my $outpath = '.';
-my $tmpdir = 'tmp';
+my $tmpdir = "$outpath/tmp";
 my $idsep = '__'; #character used to replace whitespaces in the sequence header with (flag -longhead)
 my $hmm_dir = 'hmm_dir';
 my $fa_dir  = 'fa_dir';

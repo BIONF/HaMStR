@@ -5,6 +5,7 @@ use File::Copy;
 use File::Copy qw(move);
 use File::Basename;
 use File::Path;
+use File::Path qw/make_path/;
 use File::Path 'rmtree';
 use File::Which;
 use lib dirname(__FILE__);
@@ -113,9 +114,10 @@ my $startTime = time;
 ## Modified 07. July 2020 v1.7.2 (Vinh)	- check if FAS executable
 ## Modified 10. July 2020 v1.7.3 (Vinh)	- solved problem when gene ID contains PIPE
 ## Modified 13. July 2020 v1.8.0 (Vinh)	- added initial check, no longer use .mod files
+## Modified 22. July 2020 v1.9.0 (Vinh)	- moved tmp blast files to output folder and delete them when finished
 
 ############ General settings
-my $version = 'oneSeq v.1.8.2';
+my $version = 'oneSeq v.1.9.0';
 ##### configure for checking if the setup.sh script already run
 my $configure = 0;
 if ($configure == 0){
@@ -189,8 +191,6 @@ my $genome_dir = "$path/genome_dir";
 my $taxaPath = "$genome_dir/";
 my $blastPath = "$path/blast_dir/";
 my $idx_dir = "$path/taxonomy/";
-my $tmp_dir = "$path/tmp";
-my $tmpdir = "$path/tmp";
 my $dataDir = $path . '/data';
 my $weightPath = "$path/weight_dir/";
 
@@ -364,6 +364,9 @@ GetOptions (
 );
 
 $outputPath = abs_path($outputPath);
+unless (-d $coreOrthologsPath) {
+	make_path($coreOrthologsPath);
+}
 $coreOrthologsPath = abs_path($coreOrthologsPath)."/";
 $blastPath = abs_path($blastPath)."/";
 $weightPath = abs_path($weightPath)."/";
@@ -416,12 +419,13 @@ printDebug("receiving hash of taxa with $taxcount elements from sub getTaxa");
 for (keys %taxa){
 	printDebug("value of $_ is $taxa{$_}");
 }
-checkOptions();
 
 my $outputFa =  $coreOrthologsPath . $seqName . "/" . $seqName . ".fa";
 my $outputAln = $coreOrthologsPath . $seqName . "/" . $seqName . ".aln";
-$tmpdir = $tmpdir . '/' . $seqName . '/tmp';
-createFoldersAndFiles($outputFa, $seqName, $inputSeq, $refSpec, $tmpdir);
+my $tmpdir = $outputPath . '/' . $seqName . '/tmp';
+make_path($tmpdir);
+checkOptions();
+createFoldersAndFiles($outputFa, $seqName, $inputSeq, $refSpec);
 
 my $curCoreOrthologs = 0;
 my $hamstrSpecies = $refSpec;
@@ -597,10 +601,11 @@ if(!$coreOnly){ #} and $fas_support){
 	my $processID = $$;
 
 	unless (-e $finalOutput) {
-		die "Error: Could not find $finalOutput\n";
+		die "ERROR: Could not find $finalOutput\n";
 	}
+
 	if ($fas_support) {
-		my $hamstrFAScmd = "$hamstrFAS_prog -i $finalOutput -n $seqName -w $weightPath -t $tmp_dir -o $outputPath -s $seqId -a $refSpec --cores $cpu";
+		my $hamstrFAScmd = "$hamstrFAS_prog -i $finalOutput -n $seqName -w $weightPath -t $tmpdir -o $outputPath -s $seqId -a $refSpec --cores $cpu";
 		if ($countercheck) {
 			$hamstrFAScmd .= " --bidirectional"
 		}
@@ -618,38 +623,30 @@ if(!$coreOnly){ #} and $fas_support){
 
 ## clean up the mess...
 ## checking for autocleanup option
-if (($outputPath ne './') and !$autoclean) {
-	print "\noneSeq.pl finished. Cleaning up...\n\n";
-	my $answer = '';
-	my $breaker = 0;
-	my $del_check = 0;
-	# while (($answer !~ /[yn]/i) and ($breaker < 4)) {
-	# 	$breaker++;
-	# 	$answer = getInput("Do you want to remove the modified input files *.mod? [Y|N]");
-	# 	if (($breaker > 3) and ($answer !~ /[yn]/i)){
-	# 		print "No proper answer is given: Removing modified input files *.mod\n";
-	# 		$del_check = 1;
-	# 	}
-	# }
-	# if (($answer =~ /y/i) or ($del_check == 1)) {
-	# 	my $delcommandMod = "rm -f $outputPath/*.mod";
-	# 	system ($delcommandMod) == 0 or die "Error deleting result files\n";
-	# }
-	# $answer = '';
-	# $breaker = 0;
-	# $del_check = 0;
-	while (($answer !~ /[yn]/i) and ($breaker < 4)) {
-		$breaker++;
-		$answer = getInput("Do you want to remove the tmp dir? [Y|N]");
-		if (($breaker > 3) and ($answer !~ /[yn]/i)){
-			print "No proper answer is given: Removing the tmp dir\n";
-			$del_check = 1;
-		}
-	}
-	if (($answer =~ /y/i) or ($del_check == 1)) {
-		my $delcommandTmp = "rm -rf $outputPath/tmp";
-		system ($delcommandTmp) == 0 or die "Error deleting result files\n";
-	}
+# if (($outputPath ne './') and !$autoclean) {
+# 	print "\noneSeq.pl finished. Cleaning up...\n\n";
+# 	my $answer = '';
+# 	my $breaker = 0;
+# 	my $del_check = 0;
+# 	while (($answer !~ /[yn]/i) and ($breaker < 4)) {
+# 		$breaker++;
+# 		$answer = getInput("Do you want to remove the tmp dir? [Y|N]");
+# 		if (($breaker > 3) and ($answer !~ /[yn]/i)){
+# 			print "No proper answer is given: Removing the tmp dir\n";
+# 			$del_check = 1;
+# 		}
+# 	}
+# 	if (($answer =~ /y/i) or ($del_check == 1)) {
+# 		my $delcommandTmp = "rm -rf $outputPath/tmp";
+# 		system ($delcommandTmp) == 0 or die "Error deleting result files\n";
+# 	}
+# }
+
+unless ($debug) {
+	my $delTmp = "rm -rf $tmpdir";
+	system ($delTmp) == 0 or die "Error deleting tmp files in $tmpdir\n";
+	my $delcommandTmp = "rm -rf $outputPath/tmp";
+	system ($delcommandTmp) == 0 or die "Error deleting tmp files in $outputPath/tmp\n";
 }
 
 my $endTime = time - $startTime;
@@ -1429,7 +1426,7 @@ sub createWeightFolder{
 
 ################
 sub createFoldersAndFiles {
-	my ($outputFa, $seqName, $inputSeq, $refSpec, $tmpdir) = (@_);
+	my ($outputFa, $seqName, $inputSeq, $refSpec) = (@_);
 	#create core orthologs directory
 	my $dir = $coreOrthologsPath . $seqName;
 	if (!$coreex){
@@ -1459,11 +1456,7 @@ sub createFoldersAndFiles {
 
 		my $annodir = $fasdir."/annotation_dir";
 		mkdir "$annodir", 0777 unless -d "$annodir";
-
-		# my $scoredir = $fasdir."/fasscore_dir";
-		# mkdir "$scoredir", 0777 unless -d "$scoredir";
 	}
-	mkdir "$tmpdir", 0755 unless -d "$tmpdir";
 }
 #################
 sub fetchSequence {
