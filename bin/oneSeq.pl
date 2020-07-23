@@ -145,7 +145,6 @@ my $readlinkprog = 'readlink';
 my $globalaligner = 'ggsearch36';
 my $glocalaligner = 'glsearch36';
 my $localaligner = 'ssearch36';
-
 my $fasta36Path = which('fasta36');
 if ( !(defined $fasta36Path) || $fasta36Path eq "") {
 	$globalaligner = $path.'/bin/aligner/bin/'.'ggsearch36';
@@ -157,7 +156,6 @@ if ( !(defined $fasta36Path) || $fasta36Path eq "") {
 	}
 }
 
-# my $blast_prog = 'blastall';
 my $algorithm = "blastp";
 my $blast_prog = 'blastp';
 my $outputfmt = 'blastxml';
@@ -204,14 +202,7 @@ my @defaultRanks = (
 	'genus', 'subgenus',
 	'species group', 'species subgroup', 'species'
 );
-#switched from online version to flatfile because it is much faster
-#taxon files can be downloaded from: ftp://ftp.ncbi.nih.gov/pub/taxonomy/
-print "Please wait while the taxonomy database is indexing...\n";
-my $db = Bio::DB::Taxonomy->new(-source    => 'flatfile',
-	-nodesfile => $idx_dir . 'nodes.dmp',
-	-namesfile => $idx_dir . 'names.dmp',
-	-directory => $idx_dir);
-print "indexing done!\n";
+
 ################## some variables
 my $finalOutput;
 my $dbHandle;
@@ -374,7 +365,7 @@ $genome_dir = abs_path($genome_dir)."/";
 $taxaPath = $genome_dir;
 
 ############# do initial check
-if (!defined $help) {
+if (!defined $help && !defined $getversion) {
 	print "Validity checking....\n";
 	initialCheck($seqFile, $seqName, $blastPath, $taxaPath, $weightPath, $fasoff);
 	print "done!\n";
@@ -394,13 +385,27 @@ if (!defined $help) {
 	}
 }
 
+############# show version
+if ($getversion){
+	print "You are running $version\n";
+	print "This version supports FAS comparison.\n";
+	exit;
+}
+
+#switched from online version to flatfile because it is much faster
+#taxon files can be downloaded from: ftp://ftp.ncbi.nih.gov/pub/taxonomy/
+print "Please wait while the taxonomy database is indexing...\n";
+my $db = Bio::DB::Taxonomy->new(-source    => 'flatfile',
+	-nodesfile => $idx_dir . 'nodes.dmp',
+	-namesfile => $idx_dir . 'names.dmp',
+	-directory => $idx_dir);
+print "indexing done!\n";
+
 ############# connect to the database
 if ($dbmode) {
 	$dbHandle = DBI->connect($database, $username, $pw)
 	or die "Can not open the database!";
 }
-# check additional environment
-# checkEnv(); # turn off by Vinh
 
 ############# show all taxa
 if ($showTaxa) {
@@ -621,27 +626,7 @@ if(!$coreOnly){ #} and $fas_support){
 	}
 }
 
-## clean up the mess...
-## checking for autocleanup option
-# if (($outputPath ne './') and !$autoclean) {
-# 	print "\noneSeq.pl finished. Cleaning up...\n\n";
-# 	my $answer = '';
-# 	my $breaker = 0;
-# 	my $del_check = 0;
-# 	while (($answer !~ /[yn]/i) and ($breaker < 4)) {
-# 		$breaker++;
-# 		$answer = getInput("Do you want to remove the tmp dir? [Y|N]");
-# 		if (($breaker > 3) and ($answer !~ /[yn]/i)){
-# 			print "No proper answer is given: Removing the tmp dir\n";
-# 			$del_check = 1;
-# 		}
-# 	}
-# 	if (($answer =~ /y/i) or ($del_check == 1)) {
-# 		my $delcommandTmp = "rm -rf $outputPath/tmp";
-# 		system ($delcommandTmp) == 0 or die "Error deleting result files\n";
-# 	}
-# }
-
+## Delete tmp folder
 unless ($debug) {
 	my $delTmp = "rm -rf $tmpdir";
 	system ($delTmp) == 0 or die "Error deleting tmp files in $tmpdir\n";
@@ -658,6 +643,8 @@ open (LOGOUT, ">$outputPath/oneSeq.log") or warn "Failed to open oneSeq.log for 
 print LOGOUT join "\n", @logOUT;
 close LOGOUT;
 exit;
+
+
 ######################## SUBROUTINES ########################
 
 #################################
@@ -838,7 +825,6 @@ sub getFasScore{
 		} else {
 			my $lnCmd = "ln -fs $weightPath/$gene_set.json \"$coreOrthologsPath$seqName/fas_dir/annotation_dir/\"";
 			system($lnCmd);
-			# print "$fas_prog -s \"$coreOrthologsPath$seqName/$seqName.fa\" -q $blastPath/$gene_set/$gene_set.fa --query_id \"$gene_id\" -a \"$coreOrthologsPath$seqName/fas_dir/annotation_dir/\" -o \"$coreOrthologsPath$seqName/fas_dir/annotation_dir/\" --raw --tsv --domain";<>;
 			my $fasOutTmp = `$fas_prog -s \"$coreOrthologsPath$seqName/$seqName.fa\" -q $blastPath/$gene_set/$gene_set.fa --query_id \"$gene_id\" -a \"$coreOrthologsPath$seqName/fas_dir/annotation_dir/\" -o \"$coreOrthologsPath$seqName/fas_dir/annotation_dir/\" --raw --tsv --domain | grep "#" | cut -f 3,4`;
 			my @fasOutTmp = split(/\t/,$fasOutTmp);
 			$fas_box{$candidateIds[0]} = $fasOutTmp[1];
@@ -983,13 +969,11 @@ sub runAutoCleanUp {
 # $seedseqFile: fasta file with seed sequence
 sub getAnnotation {
 	my ($seedseqFile) = ($_[0]);
-	# my $annotationCommand = "$annotation_prog --fasta=" . $seedseqFile . " --path=" . $coreOrthologsPath . $seqName . "/fas_dir" . "/annotation_dir" . " --name=" . $seqName . "_seed" . " --cores=". $annoCores;
 	my $inputAnno = $seedseqFile;
 	$inputAnno =~ s/\|/\\\|/g;
 	my $outputAnno = $coreOrthologsPath . $seqName . "/fas_dir/annotation_dir";
 	$outputAnno =~ s/\|/\\\|/g;
 	my $annotationCommand = "$annotation_prog" . " -i $inputAnno" . " -o $outputAnno --cpus 1" . " --name \"$seqName\""; #" --name " . $seqName . "_seed" . " --cpus 1";
-	# print($annotationCommand,"\n");<>;
 	system($annotationCommand);
 }
 
@@ -1032,26 +1016,6 @@ sub checkGroup {
 		exit;
 	}
 }
-#################################
-## check in oneSeq environment for presence of required directories
-## blast_dir, genome_dir, weight_dir
-## changing global variables !
-# sub checkEnv {
-# 	if ($addenv){
-# 		print "Checking additional environment ".$addenv."\nPlease note that this option is in developmental status.\n";
-# 		if ((-d "$path/weight_dir_".$addenv) and (-d "$path/genome_dir_".$addenv) and (-d "$path/blast_dir_".$addenv)){
-# 			print "\nThe given additional environment ".$addenv." exists.\n";
-# 		}else{
-# 			print "\nThe given additional environment ". $addenv . " was not found...exiting.\n";
-# 			exit;
-# 		}
-# 		$genome_dir = "$path/genome_dir"."_".$addenv;
-# 		$taxaPath = $genome_dir; #"$path/$genome_dir/";
-# 		$blastPath = "$path/blast_dir"."_".$addenv."/";
-# 		$weightPath = "$path/weight_dir"."_".$addenv."/";
-# 		print "Environment set to ".$addenv."\nUsing taxa in \n\t$taxaPath\n\t$blastPath\n\t$weightPath\n\n";
-# 	}
-# }
 
 #################################
 sub checkOptions {
@@ -1059,11 +1023,6 @@ sub checkOptions {
 	if($help) {
 		my $helpmessage = helpMessage();
 		print $helpmessage;
-		exit;
-	}
-	if ($getversion){
-		print "You are running $version\n";
-		print "This version supports FAS comparison.\n";
 		exit;
 	}
 	if($eval_relaxfac < 1){
@@ -1731,13 +1690,13 @@ sub getTaxa {
 	}
 	else {
 		## removal of misplaced files in genome_dir
-		if (-e "$genome_dir/query.sql"){ # "$path/$genome_dir/query.sql"){
-			unlink("$genome_dir/query.sql"); #unlink("$path/$genome_dir/query.sql");
+		if (-e "$genome_dir/query.sql"){
+			unlink("$genome_dir/query.sql");
 		}
-		if (-e "$genome_dir/@@.fa"){ # if (-e "$path/$genome_dir/@@.fa"){
-			unlink("$genome_dir/@@.fa"); # unlink("$path/$genome_dir/@@.fa");
+		if (-e "$genome_dir/@@.fa"){
+			unlink("$genome_dir/@@.fa");
 		}
-		@taxonlist = `ls $genome_dir`; # `ls $path/$genome_dir`;
+		@taxonlist = `ls $genome_dir`;
 		chomp @taxonlist;
 		for (my $i = 0; $i < @taxonlist; $i++) {
 			my ($taxon_name, $ncbi_id, $src_id) = split /@/, $taxonlist[$i];
@@ -1810,11 +1769,11 @@ sub getTree {
 sub getRefTree {
 	# the full lineages of the species are merged into a single tree
 	my $tree;
-	foreach my $key (sort {lc $a cmp lc $b} keys %refTaxa) { #%taxa) {
-		my $node = $db->get_taxon(-taxonid => $refTaxa{$key}); #$taxa{$key});
-		printDebug("\$key in sub getRefTree is $key and taxid is $refTaxa{$key}\n"); # $taxa{$key}\n");
+	foreach my $key (sort {lc $a cmp lc $b} keys %refTaxa) {
+		my $node = $db->get_taxon(-taxonid => $refTaxa{$key});
+		printDebug("\$key in sub getRefTree is $key and taxid is $refTaxa{$key}\n");
 		if (!defined $node){
-			print "ISSUE in sub getRefTree. No correspodence found in taxonomy file for $key and taxid $refTaxa{$key}. Skipping...\n"; # $taxa{$key}. Skipping...\n";
+			print "ISSUE in sub getRefTree. No correspodence found in taxonomy file for $key and taxid $refTaxa{$key}. Skipping...\n";
 			next;
 		}
 		else {
@@ -2012,7 +1971,7 @@ sub printTaxa {
 	else {
 		print "Taxon_Name\tNCBI_ID\n";
 		print "-------------\t------------\n";
-		my $taxacall= "ls $genome_dir |$sedprog -e 's/@/\t/'"; # $path/$genome_dir |$sedprog -e 's/@/\t/'";
+		my $taxacall= "ls $genome_dir |$sedprog -e 's/@/\t/'";
 		@result = `$taxacall`;
 		chomp @result;
 		print join "\n", @result;
@@ -2502,40 +2461,6 @@ sub checkValidFolderName {
 	my @notFd = (".", "..");
 	return(array_minus(@folders, @notFd));
 }
-
-# sub checkFastaFile {
-# 	my $infile = $_[0];
-# 	unless (-e $infile) {
-# 		die "ERROR: $infile not found!\n";
-# 	} else {
-# 		if (!-e "$infile.checked") {
-# 			# check if input fasta file a fasta file
-# 			chomp(my $fasSymbol = `head -n 1 $infile | egrep -c \">\"`);
-# 			if ($fasSymbol == 0) {
-# 				die "ERROR: $infile doesn't look like a fasta file!\n";
-# 			}
-# 			# check if IDs contain space/tab
-# 			chomp(my $idsHaveSpace = `egrep \">\" $infile | egrep \"\\s\" | $sedprog \'s/>//\'`);
-# 			if (length($idsHaveSpace) > 0) {
-# 				die "ERROR: $infile has some sequence IDs containing spaces/tabs:\n$idsHaveSpace\n";
-# 			}
-# 			# check if sequences are written in one line
-# 			chomp(my $countIdLines = `egrep -v -e \"^\$\" $infile | egrep -c \">\"`);
-# 			chomp(my $countSeqLines = `egrep -v -e \"^\$\" $infile | egrep -v -c \">\"`);
-# 			if ($countIdLines ne $countSeqLines) {
-# 				die "ERROR: $infile contains sequences in multiple lines!\n";
-# 			}
-# 			# check if sequences contain illegal characters
-# 			chomp(my $illegalChr = `egrep -v -e \"^\$\" $infile | grep -v \">\" | egrep -i -o \'[^a-z]\' | sort -u`);
-# 			if (length($illegalChr) > 0) {
-# 				die "ERROR: $infile contains special characters:\n$illegalChr\n";
-# 			}
-# 			# save to .checked file
-# 			system("ln -fs $infile $infile.checked");
-# 			print $infile,"\n";
-# 		}
-# 	}
-# }
 
 ###########################
 sub helpMessage {

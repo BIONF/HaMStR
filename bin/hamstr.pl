@@ -191,7 +191,7 @@ use run_genewise_hamstr;
 
 ## 10.07.2020 (v13.2.12 - vinh) solved problem when gene ID contains PIPE
 ## 13.07.2020 (v13.3.0 - vinh) solved problem when gene ID contains PIPE
-## 13.07.2020 (v13.3.0 - vinh) moved tmp blast files to output folder and delete them when finished
+## 22.07.2020 (v13.4.0 - vinh) moved tmp blast files to output folder and delete them when finished
 
 ######################## start main ###########################################
 my $version = "HaMStR v.13.4.0";
@@ -209,7 +209,6 @@ my $readlinkprog = 'readlink';
 my $alignmentprog = 'clustalw';
 my $alignmentprog_co = 'muscle';
 ########## EDIT THE FOLLOWING TWO LINES TO CHOOSE YOUR BLAST PROGRAM ##########
-#my $blast_prog = 'blastall';
 my $blast_prog = 'blastp';
 my $filter = 'F'; # low complexity filter switch. Default 'on'. Set of 'F' to turn off permanently.
 my $eval_blast = 10; # default evalue cutoff for the blast search
@@ -564,7 +563,6 @@ for (my $i = 0; $i < @hmms; $i++) {
 		my $hmmOutFile = "$hmmsearch_dir/$hmmout";
 		my $hmmModel = "$hmm_dir/$hmm";
 		my $hmmInfile = "$dboutpath/$dbfile";
-		# print "$prog --noali --tblout \"$hmmOutFile\" -E $eval \"$hmmModel\" \"$hmmInfile\"\n";
 		`$prog --noali --tblout \"$hmmOutFile\" -E $eval \"$hmmModel\" \"$hmmInfile\"` or die "Problem running hmmsearch as $prog --noali --tblout \"$hmmOutFile\" -E $eval \"$hmmModel\" \"$hmmInfile\". No output $hmmsearch_dir/$hmmout\n";
 	}
 	else {
@@ -767,7 +765,10 @@ Number of orthologous sequences: $orthologs
 ##############################\n\n";
 
 exit;
+
+
 ##################### start sub ###############
+
 ####### checkInput performs a number of checks whether sufficient information
 ### and all data are available to run HaMStR
 sub checkInput {
@@ -876,32 +877,7 @@ sub checkInput {
 	##
 	## 0) Check for presence of the file with the sequences that should be hamstered
 	if (-e "$dbpath/$dbfile") {
-		#the file exists
-		# push @log, "INFILE PROCESSING\n";
-		# if (-e "$dboutpath/$dbfile.mod") {
-		# 	push  @log, "\tA modified infile $dbfile.mod already exists. Using this one";
-		# }
-		# else {
-		# 	push @log, "\tRemoving line breaks from $dbpath/$dbfile.";
-		# 	printOUT("removing newlines from the infile $dbfile such that a sequence forms a consecutive string\n");
-		#                 # *.tmp will replace the original FASTA file (keeping the original file name).
-		#                 # creating a sym link named *.mod (used to check for removed linebreaks)
-		#                 system("$path/bin/nentferner.pl -in=$dbpath/$dbfile -out=$dboutpath/$dbfile.tmp -replace");
-		#                 system("ln -s $dboutpath/$dbfile $dboutpath/$dbfile.mod")
-		# }
-		# if 	(! -e "$dboutpath/$dbfile.mod") {
-		# 	push @log, "${bold}FATAL:${norm} Problems running the script nentferner.pl";
-		# 	$check = 0;
-		# }
-		# else {
-		# 	printOUT("\nnentferner.pl succeeded.\n");
-		# 	push @log, "\tNewlines from the infile have been removed";
-		# 	#$dbfile = $dbfile . '.mod';
-		# 		if (defined $longhead) {
-		# 		`$sedprog -i -e "s/[[:space:]]\\+/$idsep/g" -e 's/\\(>.\\{20\\}\\).*/\\1/' $dboutpath/$dbfile`;
-		# 		push @log, "\tOption -longhead was chosen. Replaced whitespaces in the sequence identifier with '$idsep'";
-		# 	}
-		# }
+		push  @log, "\t$dbfile ready";
 	}
 	else {
 		#the provided infile does not exist:
@@ -1186,63 +1162,9 @@ sub checkInput {
 		# my $ref_location = $referencedb; # not used anywhere else
 		chomp($link);
 		if (-e $referencedb || -e $link) {
-			# if (defined $link){
-			#     # link to file (.fa)
-			#     my $cwd = cwd();
-			#     chdir($ref_dir);
-			#     $referencedb = abs_path($link);
-			#     chdir($cwd);
-			# }
-			# if (-e "$referencedb.mod") {
-			#     push  @log, "\tA infile is already modified: linked $referencedb.mod existst. Using this one";
-			# }
-			# else {
-			#     push @log, "\tRemoving line breaks from $referencedb.";
-			#     printOUT("\nremoving newlines from $referencedb such that a sequence forms a consecutive string\n");
-			#     # *.tmp will replace the original FASTA file (keeping the original file name).
-			#     # creating a sym link named *.mod (used to check for removed linebreaks)
-			#     system("$path/bin/nentferner.pl -in=$referencedb -out=$referencedb.tmp -replace");
-			#     system("ln -s $referencedb $referencedb.mod");
-			# }
-			# if 	(! -e "$referencedb.mod") {
-			#     push @log, "${bold}FATAL:${norm} Problems running the script nentferner.pl";
-			#     $check = 0;
-			# }
-			# else {
-			#     printOUT("nentferner.pl succeeded.\n");
-			#     push @log, "\tNewlines from the reference FASTA file have been removed";
-			#     if (defined $longhead) {
-			#         `$sedprog -i -e "s/[[:space:]]\\+/$idsep/g" -e 's/\\(>.\\{20\\}\\).*/\\1/' $referencedb`;
-			#         push @log, "\tOption -longhead was chosen. Replaced whitespaces in the sequence identifier with '$idsep'";
-			#     }
-			# }
-
+			push  @log, "\tinfile ready";
 		} elsif (-e "$referencedb_prot"){
-			#checking files
-			# if (-e "$referencedb_prot.mod") {
-			#     push  @log, "\tA infile is already modified: linked $referencedb.mod existst. Using this one";
-			# }
-			# else {
-			#     push @log, "\tRemoving line breaks from $referencedb_prot.";
-			#     printOUT("\nremoving newlines from $referencedb_prot such that a sequence forms a consecutive string\n");
-			#     # *.tmp will replace the original FASTA file (keeping the original file name).
-			#     # creating a sym link named *.mod (used to check for removed linebreaks)
-			#     system("$path/bin/nentferner.pl -in=$referencedb_prot -out=$referencedb_prot.tmp -replace");
-			#     system("ln -s $referencedb_prot $referencedb_prot.mod");
-			# }
-			# if 	(! -e "$referencedb_prot.mod") {
-			#     push @log, "${bold}FATAL:${norm} Problems running the script nentferner.pl";
-			#     $check = 0;
-			# }
-			# else {
-			#     printOUT("nentferner.pl succeeded.\n");
-			#     push @log, "\tNewlines from the reference FASTA file have been removed";
-			#     if (defined $longhead) {
-			#         `$sedprog -i -e "s/[[:space:]]\\+/$idsep/g" -e 's/\\(>.\\{20\\}\\).*/\\1/' $referencedb_prot`;
-			#         push @log, "\tOption -longhead was chosen. Replaced whitespaces in the sequence identifier with '$idsep'";
-			#     }
-			# }
-
+			push  @log, "\tinfile ready";
 		} else {
 			#the provided reference fasta file does not exist or link to file does not exist:
 			push @log, "${bold}FATAL:${norm} FASTA file for the specified reference $refspec[$i] does not exist. PLEASE PROVIDE A VALID REFERENCE SPECIES!\n";
