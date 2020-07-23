@@ -164,7 +164,9 @@ This script will check for:
 You will have options to process the fasta files if they are not in the right format, such as delete special characters in the sequences, or replace them with "X", or convert multi-line sequences into single-line sequences.
 
 ## Dependencies
-HaMStR has some dependencies, that either will be automatically installed via the setup script, or must be installed by your system admin if you don't have the root privileges. In the following you will find the full list of HaMStR's dependencies for Ubuntu system as well as the alternatives for MacOS. In Ubuntu, you can install those system and bioinformatics tools/libraries using `apt-get` tool
+HaMStR has some dependencies, that either will be automatically installed via the setup script, or must be installed by your system admin if you don't have the root privileges. In [our wiki](https://github.com/BIONF/HaMStR/wiki/Dependencies) you will find the full list of HaMStR's dependencies for Ubuntu system as well as the alternatives for MacOS. 
+
+In Ubuntu, you can install those system and bioinformatics tools/libraries using `apt-get` tool
 ```
 sudo apt-get update -y
 sudo apt-get install tool_name -y
@@ -189,62 +191,6 @@ sudo ./install_lib.sh
 ```
 
 _**Note: After having all these dependencies installed, you still need to run the setup script to configure HaMStR!!!**_
-
-### System tools/libraries
-* grep (ggrep)
-* sed (gsed)
-* wget (wget)
-* build-essential
-* curl (curl)
-* locales
-* lib32z1
-
-*(In parentheses are Mac's alternative tools)*
-
-### Bioinformatics tools
-* wise (brewsci/bio/genewise)
-* hmmer (hmmer)
-* ncbi-blast+ (blast)
-* blast2
-* clustalw (brewsci/bio/clustal-w)
-* mafft (mafft)
-* muscle (brewsci/bio/muscle)
-
-*(In parentheses are Mac's alternative tools)*
-
-### Perl modules
-* libdbi-perl
-* libipc-run-perl
-* perl-doc
-* DBI
-* DB_File
-* File::Copy
-* File::Path
-* File::Basename
-* File::Which
-* List::Util
-* Parallel::ForkManager
-* POSIX
-* XML::SAX
-* XML::NamespaceSupport
-* XML::Parser
-* Getopt::Long
-* IO::Handle
-* IPC::Run
-* Statistics::R
-* Term::Cap
-* Time::HiRes
-* Bio::AlignIO
-* Bio::Align::ProteinStatistics
-* Bio::DB::Taxonomy
-* Bio::SearchIO
-* Bio::SearchIO::blastxml
-* Bio::Search::Hit::BlastHit
-* Bio::Seq
-* Bio::SeqIO
-* Bio::SeqUtils
-* Bio::Tree::Tree
-* Bio::Tools::Run::StandAloneBlast
 
 ## How to cite
 Ebersberger, I., Strauss, S. & von Haeseler, A. HaMStR: Profile hidden markov model based search for orthologs in ESTs. BMC Evol Biol 9, 157 (2009), [doi:10.1186/1471-2148-9-157](https://doi.org/10.1186/1471-2148-9-157)
