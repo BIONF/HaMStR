@@ -16,13 +16,13 @@
 * [Contributors](#contributors)
 * [Contact](#contact)
 
-## How to install
+# How to install
 
-### 0. Basic system tools requirement
+## 0. Basic system tools requirement
 You need to have `wget`, `grep` and `sed` (or `gsed` for **MacOS**) to install HaMStR. So please install them if they are missing. For MacOS users, we recommend using [Homebrew](https://brew.sh) to install those command line tools.
 To use [FAS tool](https://github.com/BIONF/FAS) (a dependency of HaMStR), you also need [Python 3](https://www.python.org/downloads/).
 
-### 1. Dependencies
+## 1. Dependencies
 
 *HaMStR-oneSeq* has some dependencies, that either will be automatically installed via the setup script, or must be installed by your system admin if you don't have the root privileges. In [our wiki](https://github.com/BIONF/HaMStR/wiki/Dependencies) you will find the full list of HaMStR-oneSeq's dependencies for Ubuntu system as well as the alternatives for MacOS. 
 
@@ -50,7 +50,7 @@ cd HaMStR
 sudo ./install_lib.sh
 ```
 
-### 2a. Install using Anaconda
+## 2a. Install using Anaconda
 
 Follow [this link](https://docs.conda.io/projects/conda/en/latest/user-guide/install/index.html) to install conda (anaconda or miniconda) to your system.
 
@@ -74,7 +74,7 @@ setup_hamstr
 HaMStR will be installed under the subfolder **HaMStR** in side your current working directory.
 After the setup run successfully, you can start using HaMStR (in some cases you should restart the terminal).
 
-### 2b. Install in Ubuntu/MacOS
+## 2b. Install in Ubuntu/MacOS
 
 Get HaMStR source code from GitHub
 ```
@@ -92,7 +92,7 @@ After the setup run successfully, you can start using HaMStR (in some cases you 
 
 *For debugging the installation, please create a log file by running the setup as e.g. `bin/setup.sh | tee log.txt` for Linux/MacOS or `setup_hamstr | tee log.txt` for Anaconda and send us that log file, so that we can trouble shoot the issues. Most of the problems can be solved by just re-running the setup.*
 
-## Usage
+# Usage
 HaMStR will run smoothly with the provided sample input file in 'HaMStR/data/infile.fa' if everything is set correctly.
 
 ```
@@ -112,7 +112,7 @@ The output consist of these text files (*note: `test` is your defined -seqName p
 3) `test.phyloprofile`: an input file for visualisation the phylogenetic profile of the query gene using [PhyloProfile tool](https://github.com/BIONF/phyloprofile)
 4) `test_forward.domains` (and optional, `test_reverse.domains`): a protein domain annotation file for all the sequences present in the orthologous group. The `_forward` or `_reverse` suffix indicates the direction of the feature architecture comparison, in which `_forward` means that the query gene is used as *seed* and it orthologs as *target* for the comparison, while `_reverse` is vice versa.
 
-## Output visualization using PhyloProfile
+# Output visualization using PhyloProfile
 For a rich visualisation of the provided information from the HaMStR outputs, you can plug them into the [Phyloprofile tool](https://github.com/BIONF/phyloprofile).
 
 The main input file for *PhyloProfile* is `test.phyloprofile`, which contains list of all orthologous gene names and the taxonomy IDs of their taxa together with the FAS scores (if available). For analysing more information such as the FASTA sequences or the domain annotations, you can optionally input `test.extended.fa` and `test_forward.domains` (or `test_reverse.domains`) to *PhyloProfile*. *Note: `test` is your defined -seqName parameter*.
@@ -127,7 +127,7 @@ in which `/path/to/hamstr/output/directory` is a directory where all single `*.p
 
 The resulting file `/path/output/outName.phyloprofile`, `/path/output/outName.extended.fa`, `/path/output/outName_forward.matrix` and `/path/output/outName_backward.domains` can be then plugged into the *Phyloprofile tool* for further investigation.
 
-## Pre-calculated data set
+# Pre-calculated data set
 
 Within the data package (https://fasta.bioch.virginia.edu/fasta_www2/fasta_list2.shtml) we provide a set of 78 reference taxa (gene sets in *genome_dir*, annotations in *weight_dir*, blast databases in *blast_dir*). They can be automatically downloaded during the setup. This data comes "ready to use" with the HaMStR-OneSeq framework. Species data must be present in the three directories listed below:
 
@@ -139,7 +139,7 @@ For each species/taxon there is a sub-directory named in accordance to the namin
 
 HaMStR-oneSeq is not limited to those 78 taxa. If needed the user can manually add further gene sets (multifasta format) using provided python scripts.
 
-### Adding a new gene set into HaMStR
+## Adding a new gene set into HaMStR
 For adding **one gene set**, please use the `bin/addTaxonHamstr.py` script:
 ```
 python3 bin/addTaxonHamstr.py -f newTaxon.fa -i tax_id -o /path/to/HaMStR [-n abbr_tax_name] [-c] [-v protein_version] [-a]
@@ -147,7 +147,7 @@ python3 bin/addTaxonHamstr.py -f newTaxon.fa -i tax_id -o /path/to/HaMStR [-n ab
 
 in which, the first 3 arguments are required including `newTaxon.fa` is the gene set that need to be added, `tax_id` is its NCBI taxonomy ID, `/path/to/HaMStR` is where the sub-directories can be found (*genome_dir*, *blast_dir* and *weight_dir*). Other arguments are optional, which are `-n` for specify your own taxon name (if not given, an abbriviate name will be suggested based on the NCBI taxon name of the input `tax_id`), `-c` for calculating the BLAST DB (only needed if you need to include your new taxon into the list of taxa for compilating the core set), `-v` for identifying the genome/proteome version (default will be 1), and `-a` for turning off the annotation step (*not recommended*).
 
-### Adding a list of gene sets into HaMStR
+## Adding a list of gene sets into HaMStR
 For adding **more than one gene set**, please use the `bin/addTaxaHamstr.py` script:
 ```
 python3 bin/addTaxaHamstr.py -i /path/to/newtaxa/fasta -m mapping_file -o /path/to/HaMStR [-c]
@@ -166,7 +166,7 @@ The header line (started with #) is a Must. The values of the last 2 columns (ab
 
 Please check this [wiki page](https://github.com/BIONF/HaMStR/wiki/Add-new-taxa-to-HaMStR) for more details.
 
-## Check for valid data
+# Check for valid data
 
 Normally all data come together with HaMStR-oneSeq and data resulted from `bin/addTaxonHamstr.py` or `bin/addTaxaHamstr.py` are ready to use. However, if you manually add taxa into HaMStR, you should check for their validity by running this command:
 
@@ -183,7 +183,10 @@ This script will check for:
 
 You will have options to process the fasta files if they are not in the right format, such as delete special characters in the sequences, or replace them with "X", or convert multi-line sequences into single-line sequences.
 
-## How to cite
+# Bugs
+Any bug reports or comments, suggestions are highly appreciated. Please [open an issue on GitHub](https://github.com/BIONF/HaMStR/issues/new) or be in touch via email.
+
+# How to cite
 Ebersberger, I., Strauss, S. & von Haeseler, A. HaMStR: Profile hidden markov model based search for orthologs in ESTs. BMC Evol Biol 9, 157 (2009), [doi:10.1186/1471-2148-9-157](https://doi.org/10.1186/1471-2148-9-157)
 
 # Contributors
@@ -191,5 +194,5 @@ Ebersberger, I., Strauss, S. & von Haeseler, A. HaMStR: Profile hidden markov mo
 - [Vinh Tran](https://github.com/trvinh)
 - [Holger Bergmann](https://github.com/holgerbgm)
 
-## Contact
+# Contact
 For further support or bug reports please contact: ebersberger@bio.uni-frankfurt.de
