@@ -70,30 +70,30 @@ echo "-------------------------------------"
 echo "Installing dependencies..."
 
 dependenciesUbuntu=(
-build-essential # for make
-curl
-r-base # for Statistics::R
-wise
-hmmer # hmmer (for both hmmsearch and hmmbuild)
-clustalw
-mafft
-muscle
-blast2 # blast
-ncbi-blast+
-libdbi-perl
-libipc-run-perl
-perl-doc
-locales
-lib32z1
+  build-essential # for make
+  curl
+  r-base # for Statistics::R
+  wise
+  hmmer # hmmer (for both hmmsearch and hmmbuild)
+  clustalw
+  mafft
+  muscle
+  blast2 # blast
+  ncbi-blast+
+  libdbi-perl
+  libipc-run-perl
+  perl-doc
+  locales
+  lib32z1
 )
 
 dependenciesMac=(
-brewsci/bio/genewise
-hmmer # hmmer (for both hmmsearch and hmmbuild)
-brewsci/bio/clustal-w
-mafft
-brewsci/bio/muscle
-blast
+  brewsci/bio/genewise
+  hmmer # hmmer (for both hmmsearch and hmmbuild)
+  brewsci/bio/clustal-w
+  mafft
+  brewsci/bio/muscle
+  blast
 )
 
 if [ "$sys" == "Darwin" ]; then
@@ -113,12 +113,12 @@ else
 fi
 
 dependencies=(
-genewise
-hmmsearch
-hmmbuild
-mafft
-muscle
-blastn
+  genewise
+  hmmsearch
+  hmmbuild
+  mafft
+  muscle
+  blastn
 )
 
 for i in "${dependencies[@]}"; do
@@ -136,37 +136,37 @@ fi
 
 echo "Installing Perl modules..."
 perlModules=(
-Array::Utils
-Capture::Tiny
-DBI
-DB_File
-File::Copy
-File::Path
-File::Basename
-File::Which
-List::Util
-Parallel::ForkManager
-POSIX
-XML::SAX
-XML::NamespaceSupport
-XML::Parser
-Getopt::Long
-IO::Handle
-IPC::Run
-Statistics::R
-Term::Cap
-Time::HiRes
-Bio::AlignIO
-Bio::Align::ProteinStatistics
-Bio::DB::Taxonomy
-Bio::SearchIO
-Bio::SearchIO::blastxml
-Bio::Search::Hit::BlastHit
-Bio::Seq
-Bio::SeqIO
-Bio::SeqUtils
-Bio::Tree::Tree
-Bio::Tools::Run::StandAloneBlast
+  Array::Utils
+  Capture::Tiny
+  DBI
+  DB_File
+  File::Copy
+  File::Path
+  File::Basename
+  File::Which
+  List::Util
+  Parallel::ForkManager
+  POSIX
+  XML::SAX
+  XML::NamespaceSupport
+  XML::Parser
+  Getopt::Long
+  IO::Handle
+  IPC::Run
+  Statistics::R
+  Term::Cap
+  Time::HiRes
+  Bio::AlignIO
+  Bio::Align::ProteinStatistics
+  Bio::DB::Taxonomy
+  Bio::SearchIO
+  Bio::SearchIO::blastxml
+  Bio::Search::Hit::BlastHit
+  Bio::Seq
+  Bio::SeqIO
+  Bio::SeqUtils
+  Bio::Tree::Tree
+  Bio::Tools::Run::StandAloneBlast
 )
 
 if [ -z "$(which cpanm)" ]; then

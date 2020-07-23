@@ -89,13 +89,13 @@ if [[ -z $(conda list | $grepprog "perl-bioperl ") ]]; then
 fi
 
 dependencies=(
-blastp # blast
-genewise # wise2
-hmmsearch # hmmer (for both hmmsearch and hmmbuild)
-clustalw
-mafft # for linsi
-muscle
-fasta36
+  blastp # blast
+  genewise # wise2
+  hmmsearch # hmmer (for both hmmsearch and hmmbuild)
+  clustalw
+  mafft # for linsi
+  muscle
+  fasta36
 )
 
 for i in "${dependencies[@]}"; do
@@ -129,36 +129,37 @@ done
 if [ "$flag" == 1 ]; then exit 1; fi
 
 perlModules=(
-Capture::Tiny
-DBI
-DB_File
-File::Copy
-File::Path
-File::Basename
-File::Which
-List::Util
-Parallel::ForkManager
-POSIX
-XML::SAX
-XML::NamespaceSupport
-XML::Parser
-Getopt::Long
-IO::Handle
-IPC::Run
-Statistics::R
-Term::Cap
-Time::HiRes
-Bio::AlignIO
-Bio::Align::ProteinStatistics
-Bio::DB::Taxonomy
-Bio::SearchIO
-Bio::SearchIO::blastxml
-Bio::Search::Hit::BlastHit
-Bio::Seq
-Bio::SeqIO
-Bio::SeqUtils
-Bio::Tree::Tree
-Bio::Tools::Run::StandAloneBlast
+  Array::Utils
+  Capture::Tiny
+  DBI
+  DB_File
+  File::Copy
+  File::Path
+  File::Basename
+  File::Which
+  List::Util
+  Parallel::ForkManager
+  POSIX
+  XML::SAX
+  XML::NamespaceSupport
+  XML::Parser
+  Getopt::Long
+  IO::Handle
+  IPC::Run
+  Statistics::R
+  Term::Cap
+  Time::HiRes
+  Bio::AlignIO
+  Bio::Align::ProteinStatistics
+  Bio::DB::Taxonomy
+  Bio::SearchIO
+  Bio::SearchIO::blastxml
+  Bio::Search::Hit::BlastHit
+  Bio::Seq
+  Bio::SeqIO
+  Bio::SeqUtils
+  Bio::Tree::Tree
+  Bio::Tools::Run::StandAloneBlast
 )
 
 for i in "${perlModules[@]}"; do
