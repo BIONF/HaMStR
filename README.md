@@ -12,6 +12,7 @@
 * [Usage](#usage)
 * [Output visualization using PhyloProfile](#output-visualization-using-phyloprofile)
 * [Pre-calculated data set](#pre-calculated-data-set)
+* [Bugs](#bugs)
 * [How to cite](#how-to-cite)
 * [Contributors](#contributors)
 * [Contact](#contact)
