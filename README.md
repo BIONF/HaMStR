@@ -145,24 +145,7 @@ filename3	4932	my_fungi
 
 The header line (started with #) is a Must. The values of the last 2 columns (abbr. taxon name and genome version) are, however, optional. If you want to specify a new version for a genome, you need to define also the abbr. taxon name, so that the genome version is always at the 4th column in the mapping file.
 
-Please check this [wiki page](https://github.com/BIONF/HaMStR/wiki/Add-new-taxa-to-HaMStR) for more details.
-
-# Check for valid data
-
-Normally all data come together with HaMStR-oneSeq and data resulted from `bin/addTaxonHamstr.py` or `bin/addTaxaHamstr.py` are ready to use. However, if you manually add taxa into HaMStR, you should check for their validity by running this command:
-
-```
-python3 bin/checkDataHamstr.py [-g GENOMEDIR] [-b BLASTDIR] [-w WEIGHTDIR]
-```
-`GENOMEDIR`, `BLASTDIR` and `WEIGHTDIR` are only needed if they are not placed in the same directory of HaMStR-oneSeq.
-
-This script will check for:
-* valid folder name (must not contain PIPE, space or some other special characters)
-* valid fasta file (no space/tab allowed, no special characters or numbers in the sequences, each sequence must be written in single line)
-* missing annotations (all taxa present in *genome_dir* and *blast_dir* must have annotations in *weight_dir*)
-* missing or duplicated NCBI taxonomy IDs
-
-You will have options to process the fasta files if they are not in the right format, such as delete special characters in the sequences, or replace them with "X", or convert multi-line sequences into single-line sequences.
+_**NOTE:** After adding new taxa into *HaMStR-oneSeq*, you should [check for the validity of the new data](https://github.com/BIONF/HaMStR/wiki/Check-data-validity) before running HaMStR._
 
 # Bugs
 Any bug reports or comments, suggestions are highly appreciated. Please [open an issue on GitHub](https://github.com/BIONF/HaMStR/issues/new) or be in touch via email.
