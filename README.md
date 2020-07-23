@@ -6,16 +6,12 @@
 # Table of Contents
 * [How to install](#how-to-install)
      * [0. Basic system tools requirement](#0-basic-system-tools-requirement)
-     * [1a. Install using Anaconda](#1a-install-using-anaconda)
-     * [1b. Install in Ubuntu/MacOS](#1b-install-in-ubuntumacos)
+     * [1. Dependencies](#1-dependencies)
+     * [2a. Install using Anaconda](#1a-install-using-anaconda)
+     * [2b. Install in Ubuntu/MacOS](#1b-install-in-ubuntumacos)
 * [Usage](#usage)
-* [HaMStR and the utilisation of FAS](#hamstr-and-the-utilisation-of-fas)
 * [Output visualization using PhyloProfile](#output-visualization-using-phyloprofile)
 * [Pre-calculated data set](#pre-calculated-data-set)
-* [Dependencies](#dependencies)
-  * [System tools/libraries](#system-toolslibraries)
-  * [Bioinformatics tools](#bioinformatics-tools)
-  * [Perl modules](#perl-modules)
 * [How to cite](#how-to-cite)
 * [Contributors](#contributors)
 * [Contact](#contact)
@@ -26,7 +22,35 @@
 You need to have `wget`, `grep` and `sed` (or `gsed` for **MacOS**) to install HaMStR. So please install them if they are missing. For MacOS users, we recommend using [Homebrew](https://brew.sh) to install those command line tools.
 To use [FAS tool](https://github.com/BIONF/FAS) (a dependency of HaMStR), you also need [Python 3](https://www.python.org/downloads/).
 
-### 1a. Install using Anaconda
+### 1. Dependencies
+
+*HaMStR-oneSeq* has some dependencies, that either will be automatically installed via the setup script, or must be installed by your system admin if you don't have the root privileges. In [our wiki](https://github.com/BIONF/HaMStR/wiki/Dependencies) you will find the full list of HaMStR-oneSeq's dependencies for Ubuntu system as well as the alternatives for MacOS. 
+
+In Ubuntu, you can install those system and bioinformatics tools/libraries using `apt-get` tool
+```
+sudo apt-get update -y
+sudo apt-get install tool_name -y
+```
+In MacOS, we suggest using [Homebrew](https://brew.sh) as a replacement for `apt-get`. After having Homebrew, you can install tools/libraries by using the command
+```
+brew install tool_name
+```
+In both operation systems, you can install Perl modules using `cpanm`.
+```
+# first, install cpanm
+curl -L http://cpanmin.us | perl - --sudo App::cpanminus
+# then, install perl module using cpanm
+sudo cpanm perl_module_name
+```
+
+If you do not have root privileges, ask your admin to install these dependencies using the `install_lib.sh` script.
+
+```
+cd HaMStR
+sudo ./install_lib.sh
+```
+
+### 2a. Install using Anaconda
 
 Follow [this link](https://docs.conda.io/projects/conda/en/latest/user-guide/install/index.html) to install conda (anaconda or miniconda) to your system.
 
@@ -50,7 +74,7 @@ setup_hamstr
 HaMStR will be installed under the subfolder **HaMStR** in side your current working directory.
 After the setup run successfully, you can start using HaMStR (in some cases you should restart the terminal).
 
-### 1b. Install in Ubuntu/MacOS
+### 2b. Install in Ubuntu/MacOS
 
 Get HaMStR source code from GitHub
 ```
@@ -88,9 +112,6 @@ The output consist of these text files (*note: `test` is your defined -seqName p
 3) `test.phyloprofile`: an input file for visualisation the phylogenetic profile of the query gene using [PhyloProfile tool](https://github.com/BIONF/phyloprofile)
 4) `test_forward.domains` (and optional, `test_reverse.domains`): a protein domain annotation file for all the sequences present in the orthologous group. The `_forward` or `_reverse` suffix indicates the direction of the feature architecture comparison, in which `_forward` means that the query gene is used as *seed* and it orthologs as *target* for the comparison, while `_reverse` is vice versa.
 
-## HaMStR and the utilisation of FAS
-HaMStR integrates the prediction of orthologs and the calculation of the Feature Architecture Similarty (FAS) scores. FAS scores are computed pairwise between the query gene and it's predicted orthologous genes using [FAS tool](https://github.com/BIONF/FAS), which will be automatically installed during the setup of HaMStR.
-
 ## Output visualization using PhyloProfile
 For a rich visualisation of the provided information from the HaMStR outputs, you can plug them into the [Phyloprofile tool](https://github.com/BIONF/phyloprofile).
 
@@ -105,7 +126,6 @@ python bin/visuals/mergePhyloprofileData.py /path/to/hamstr/output/directory /pa
 in which `/path/to/hamstr/output/directory` is a directory where all single `*.phyloprofile`, `*.domains`, `*.extended.fa` file can be found.
 
 The resulting file `/path/output/outName.phyloprofile`, `/path/output/outName.extended.fa`, `/path/output/outName_forward.matrix` and `/path/output/outName_backward.domains` can be then plugged into the *Phyloprofile tool* for further investigation.
-
 
 ## Pre-calculated data set
 
@@ -162,35 +182,6 @@ This script will check for:
 * missing or duplicated NCBI taxonomy IDs
 
 You will have options to process the fasta files if they are not in the right format, such as delete special characters in the sequences, or replace them with "X", or convert multi-line sequences into single-line sequences.
-
-## Dependencies
-HaMStR has some dependencies, that either will be automatically installed via the setup script, or must be installed by your system admin if you don't have the root privileges. In [our wiki](https://github.com/BIONF/HaMStR/wiki/Dependencies) you will find the full list of HaMStR's dependencies for Ubuntu system as well as the alternatives for MacOS. 
-
-In Ubuntu, you can install those system and bioinformatics tools/libraries using `apt-get` tool
-```
-sudo apt-get update -y
-sudo apt-get install tool_name -y
-```
-In MacOS, we suggest using [Homebrew](https://brew.sh) as a replacement for `apt-get`. After having Homebrew, you can install tools/libraries by using the command
-```
-brew install tool_name
-```
-In both operation systems, you can install Perl modules using `cpanm`.
-```
-# first, install cpanm
-curl -L http://cpanmin.us | perl - --sudo App::cpanminus
-# then, install perl module using cpanm
-sudo cpanm perl_module_name
-```
-
-If you do not have root privileges, ask your admin to install these dependencies using the `install_lib.sh` script.
-
-```
-cd HaMStR
-sudo ./install_lib.sh
-```
-
-_**Note: After having all these dependencies installed, you still need to run the setup script to configure HaMStR!!!**_
 
 ## How to cite
 Ebersberger, I., Strauss, S. & von Haeseler, A. HaMStR: Profile hidden markov model based search for orthologs in ESTs. BMC Evol Biol 9, 157 (2009), [doi:10.1186/1471-2148-9-157](https://doi.org/10.1186/1471-2148-9-157)
