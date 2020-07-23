@@ -111,7 +111,7 @@ The output consist of these text files (*note: `test` is your defined -seqName p
 1) `test.extended.fa`: a multiple FASTA file containing ortholog sequences and the query gene
 2) `test.extended.profile`: a tab-delimited file containing list of orthologous sequences and their correspoding similarity scores by comparing their feature architectures with the one of the query gene (for more info about this score, please read [this document](https://bionf.github.io/FAS))
 3) `test.phyloprofile`: an input file for visualisation the phylogenetic profile of the query gene using [PhyloProfile tool](https://github.com/BIONF/phyloprofile)
-4) `test_forward.domains` (and optional, `test_reverse.domains`): a protein domain annotation file for all the sequences present in the orthologous group. The `_forward` or `_reverse` suffix indicates the direction of the feature architecture comparison, in which `_forward` means that the query gene is used as *seed* and it orthologs as *target* for the comparison, while `_reverse` is vice versa.
+4) `test_forward.domains` (and optional, `test_reverse.domains`): a protein domain annotation file for all the sequences present in the orthologous group. The `_forward` or `_reverse` suffix indicates the direction of the feature architecture comparison ([FAS](https://github.com/BIONF/FAS)), in which `_forward` means that the query gene is used as *seed* and it orthologs as *target* for the comparison, while `_reverse` is vice versa.
 
 # Output visualization using PhyloProfile
 For a rich visualisation of the provided information from the HaMStR outputs, you can plug them into the [Phyloprofile tool](https://github.com/BIONF/phyloprofile).
