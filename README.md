@@ -107,26 +107,7 @@ oneSeq -h
 
 *If you get the error message that `oneSeq command not found`, you should restart the terminal, or replace `oneSeq` by `perl bin/oneSeq`*
 
-The output consist of these text files (*note: `test` is your defined -seqName parameter*)
-1) `test.extended.fa`: a multiple FASTA file containing ortholog sequences and the query gene
-2) `test.extended.profile`: a tab-delimited file containing list of orthologous sequences and their correspoding similarity scores by comparing their feature architectures with the one of the query gene (for more info about this score, please read [this document](https://bionf.github.io/FAS))
-3) `test.phyloprofile`: an input file for visualisation the phylogenetic profile of the query gene using [PhyloProfile tool](https://github.com/BIONF/phyloprofile)
-4) `test_forward.domains` (and optional, `test_reverse.domains`): a protein domain annotation file for all the sequences present in the orthologous group. The `_forward` or `_reverse` suffix indicates the direction of the feature architecture comparison ([FAS](https://github.com/BIONF/FAS)), in which `_forward` means that the query gene is used as *seed* and it orthologs as *target* for the comparison, while `_reverse` is vice versa.
-
-# Output visualization using PhyloProfile
-For a rich visualisation of the provided information from the HaMStR outputs, you can plug them into the [Phyloprofile tool](https://github.com/BIONF/phyloprofile).
-
-The main input file for *PhyloProfile* is `test.phyloprofile`, which contains list of all orthologous gene names and the taxonomy IDs of their taxa together with the FAS scores (if available). For analysing more information such as the FASTA sequences or the domain annotations, you can optionally input `test.extended.fa` and `test_forward.domains` (or `test_reverse.domains`) to *PhyloProfile*. *Note: `test` is your defined -seqName parameter*.
-
-You can combine multiple HaMStR runs into a single phylogenetic profile input for data visualisation and data exploration:
-
-```
-python bin/visuals/mergePhyloprofileData.py /path/to/hamstr/output/directory /path/output/outName
-```
-
-in which `/path/to/hamstr/output/directory` is a directory where all single `*.phyloprofile`, `*.domains`, `*.extended.fa` file can be found.
-
-The resulting file `/path/output/outName.phyloprofile`, `/path/output/outName.extended.fa`, `/path/output/outName_forward.matrix` and `/path/output/outName_backward.domains` can be then plugged into the *Phyloprofile tool* for further investigation.
+Please find the information in [our wiki](https://github.com/BIONF/HaMStR/wiki) to learn about the [input and outputs files](https://github.com/BIONF/HaMStR/wiki/Input-and-Output-Files) of *HaMStR-oneSeq*. 
 
 # Pre-calculated data set
 
