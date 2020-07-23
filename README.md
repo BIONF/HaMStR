@@ -10,7 +10,6 @@
      * [2a. Install using Anaconda](#1a-install-using-anaconda)
      * [2b. Install in Ubuntu/MacOS](#1b-install-in-ubuntumacos)
 * [Usage](#usage)
-* [Output visualization using PhyloProfile](#output-visualization-using-phyloprofile)
 * [Pre-calculated data set](#pre-calculated-data-set)
 * [Bugs](#bugs)
 * [How to cite](#how-to-cite)
@@ -107,7 +106,7 @@ oneSeq -h
 
 *If you get the error message that `oneSeq command not found`, you should restart the terminal, or replace `oneSeq` by `perl bin/oneSeq`*
 
-Please find the information in [our wiki](https://github.com/BIONF/HaMStR/wiki) to learn about the [input and outputs files](https://github.com/BIONF/HaMStR/wiki/Input-and-Output-Files) of *HaMStR-oneSeq*. 
+Please find more information in [our wiki](https://github.com/BIONF/HaMStR/wiki) to learn about the [input and outputs files](https://github.com/BIONF/HaMStR/wiki/Input-and-Output-Files) of *HaMStR-oneSeq*. 
 
 # Pre-calculated data set
 
