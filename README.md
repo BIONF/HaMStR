@@ -10,7 +10,7 @@
      * [2a. Install using Anaconda](#1a-install-using-anaconda)
      * [2b. Install in Ubuntu/MacOS](#1b-install-in-ubuntumacos)
 * [Usage](#usage)
-* [Pre-calculated data set](#pre-calculated-data-set)
+* [HaMStR data set](#hamstr-data-set)
 * [Bugs](#bugs)
 * [How to cite](#how-to-cite)
 * [Contributors](#contributors)
@@ -108,12 +108,12 @@ oneSeq -h
 
 Please find more information in [our wiki](https://github.com/BIONF/HaMStR/wiki) to learn about the [input and outputs files](https://github.com/BIONF/HaMStR/wiki/Input-and-Output-Files) of *HaMStR-oneSeq*. 
 
-# Pre-calculated data set
+# HaMStR data set
 
-Within the data package (https://fasta.bioch.virginia.edu/fasta_www2/fasta_list2.shtml) we provide a set of 78 reference taxa (gene sets in *genome_dir*, annotations in *weight_dir*, blast databases in *blast_dir*). They can be automatically downloaded during the setup. This data comes "ready to use" with the HaMStR-OneSeq framework. Species data must be present in the three directories listed below:
+Within the data package (https://fasta.bioch.virginia.edu/fasta_www2/fasta_list2.shtml) we provide a set of 78 reference taxa. They can be automatically downloaded during the setup. This data comes "ready to use" with the HaMStR-OneSeq framework. Species data must be present in the three directories listed below:
 
 * genome_dir (Contains sub-directories for proteome fasta files for each species)
-* blast_dir (Contains sub-directories for BLAST databases made with makeblastdb out of your proteomes)
+* blast_dir (Contains sub-directories for BLAST databases made with `makeblastdb` out of your proteomes)
 * weight_dir (Contains feature annotation files for each proteome)
 
 For each species/taxon there is a sub-directory named in accordance to the naming schema ([Species acronym]@[NCBI ID]@[Proteome version])
