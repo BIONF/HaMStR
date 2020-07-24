@@ -142,8 +142,9 @@ def main():
                 tmpDict[id] = 1
             else:
                 index = index + 1
-                id = str(id) + '|' + str(index)
+                id = str(id) + '_' + str(index)
                 tmpDict[id] = 1
+            id = re.sub('\|', '_', seq)
             seq = str(inSeq[id].seq)
             specialChr = 'no'
             if any(c for c in seq if not c.isalpha()):

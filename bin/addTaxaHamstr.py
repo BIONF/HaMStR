@@ -35,6 +35,7 @@ from ete3 import NCBITaxa
 import csv
 from io import StringIO
 import re
+from tqdm import tqdm
 
 def checkFileExist(file):
     if not os.path.exists(os.path.abspath(file)):
@@ -172,8 +173,9 @@ def main():
         else:
             sys.exit("Please remove them from the mapping file or use different Name/ID/Version!")
 
-    for job in jobs:
-        print('@'.join([job[1],job[2],job[5]]) + '\t' + job[0])
+    print('Parsing...')
+    for job in tqdm(jobs):
+        # print('@'.join([job[1],job[2],job[5]]) + '\t' + job[0])
         runAddTaxon(job)
 
     print('Output can be found in %s' % outPath)
