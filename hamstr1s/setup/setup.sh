@@ -4,20 +4,32 @@ sys="$(uname)" # Linux for Linux or Darwin for MacOS
 echo "Current OS system: $sys"
 
 CURRENT="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
+CURRENT="${CURRENT/\/setup/}"
 
 flag=0
 root=0
 fas=1
+installLib=0
+outDir=$CURRENT
 homedir="$(echo $HOME)"
 
-while getopts ":f" opt; do
+while getopts ":olf" opt; do
   case ${opt} in
+    o )
+    outDir=$2
+    shift
+    echo "Out Path $outDir"
+    ;;
+    l )
+    echo "INSTALL LIB"
+    installLib=1
+    ;;
     f )
     echo "NO FAS!"
     fas=0
     ;;
     \? )
-    echo "wrong option"
+    echo "Usage: setup.sh [-l] [-f]"
     exit 1
     ;;
   esac
@@ -37,13 +49,15 @@ else
 fi
 
 ### install dependencies
-if [ "$sys" == "Darwin" ]; then
-  bash $CURRENT/install_lib.sh
-else
-  if [ $root == 1 ]; then
-    echo "Enter sudo password to install required libraries..."
-    sudo bash $CURRENT/install_lib.sh
-  fi
+if [ installLib == 1 ]; then
+    if [ "$sys" == "Darwin" ]; then
+      setup1s with --lib
+    else
+      if [ $root == 1 ]; then
+        echo "Enter sudo password to install required libraries..."
+        sudo setup1s --lib
+      fi
+    fi
 fi
 
 ### check grep, sed, readlink and wget availability
@@ -71,7 +85,7 @@ fi
 if [ -z "$(which $sedprog)" ]; then
   echo -e "\e[31m$sedprog not found!\e[0m"
   if [ $root == 0 ]; then
-    echo "Please run $CURRENT/install_lib.sh first!"
+    echo "Please run setup1s with --lib first!"
     exit
   fi
 fi
@@ -79,7 +93,7 @@ fi
 if [ -z "$(which $grepprog)" ]; then
   echo -e "\e[31m$grepprog not found!\e[0m"
   if [ $root == 0 ]; then
-    echo "Please run $CURRENT/install_lib.sh first!"
+    echo "Please run setup1s with --lib first!"
     exit
   fi
 fi
@@ -87,7 +101,7 @@ fi
 if [ -z "$(which $wgetprog)" ]; then
   echo -e "\e[31m$wgetprog not found!\e[0m"
   if [ $root == 0 ]; then
-    echo "Please run $CURRENT/install_lib.sh first!"
+    echo "Please run setup1s with --lib first!"
     exit
   fi
 fi
@@ -110,13 +124,15 @@ folders=(
   core_orthologs
   genome_dir
   weight_dir
-  taxonomy
-  "bin/aligner"
 )
 
 for i in "${folders[@]}"; do
   if [ ! -d "$CURRENT/$i" ]; then mkdir "$CURRENT/$i"; fi
 done
+
+if [ ! -d "$CURRENT/taxonomy" ]; then mkdir "$CURRENT/taxonomy"; fi
+if [ ! -d "$CURRENT/bin" ]; then mkdir "$CURRENT/bin"; fi
+if [ ! -d "$CURRENT/bin/aligner" ]; then mkdir "$CURRENT/bin/aligner"; fi
 echo "done!"
 
 ### download tools
@@ -132,9 +148,9 @@ if [ -z "$(which fasta36)" ]; then
     wget "http://faculty.virginia.edu/wrpearson/fasta/fasta36/${fasta36v}.tar.gz"
     tar xf $fasta36v.tar.gz
     rm "${fasta36v}.tar.gz"
-    mv $fasta36v/* bin/aligner/
+    mv $fasta36v/* $CURRENT/bin/aligner/
     rm -rf $fasta36v
-    cd "bin/aligner/src"
+    cd "$CURRENT/bin/aligner/src"
     if [ $sys=="Linux" ]; then
       make -f ../make/Makefile.linux64_sse2 all
     elif [ $sys=="Darwin" ]; then
@@ -153,13 +169,13 @@ if [ -z "$(which fasta36)" ]; then
   fi
 fi
 
-cd "taxonomy"
+cd "$CURRENT/taxonomy"
 if ! [ -f "nodes" ]; then
   wget "ftp://ftp.ncbi.nih.gov/pub/taxonomy/taxdump.tar.gz"
   tar xf taxdump.tar.gz
   rm taxdump.tar.gz
   echo "Taxonomy database indexing. It can take a while, please wait..."
-  perl $CURRENT/bin/indexTaxonomy.pl $CURRENT/taxonomy
+  perl $CURRENT/setup/indexTaxonomy.pl $CURRENT/taxonomy
   rm citations.dmp
   rm delnodes.dmp
   rm division.dmp
@@ -224,6 +240,7 @@ fi
 ### download data
 data_HaMStR_file="data_HaMStR-2019c.tar.gz"
 checkSumData="1748371655 621731824 $data_HaMStR_file"
+cd $CURRENT
 
 if ! [ "$(ls -A $CURRENT/genome_dir)" ]; then
   echo "-------------------------------------"
@@ -276,21 +293,21 @@ fi
 
 ### add paths to bash profile file
 echo "-------------------------------------"
-echo "Adding paths to ~/$bashFile"
+echo "Adding WISECONFIGDIR to ~/$bashFile"
 
-if [ -z "$($grepprog PATH=$CURRENT/bin:\$PATH ~/$bashFile)" ]; then
-  echo "export PATH=$CURRENT/bin:\$PATH" >> ~/$bashFile
-fi
+# if [ -z "$($grepprog PATH=$CURRENT/bin:\$PATH ~/$bashFile)" ]; then
+#   echo "export PATH=$CURRENT/bin:\$PATH" >> ~/$bashFile
+# fi
 
 wisePath=$(which "genewise")
 if [ -z "$($grepprog WISECONFIGDIR=$wisePath ~/$bashFile)" ]; then
   echo "export WISECONFIGDIR=${wisePath}" >> ~/$bashFile
 fi
 
-echo "Adding paths to ~/$rprofile"
-if [ -z "$($grepprog $CURRENT/bin ~/$rprofile)" ]; then
-  echo "Sys.setenv(PATH = paste(\"$CURRENT/bin\", Sys.getenv(\"PATH\"), sep=\":\"))" >> ~/$rprofile
-fi
+# echo "Adding paths to ~/$rprofile"
+# if [ -z "$($grepprog $CURRENT/bin ~/$rprofile)" ]; then
+#   echo "Sys.setenv(PATH = paste(\"$CURRENT/bin\", Sys.getenv(\"PATH\"), sep=\":\"))" >> ~/$rprofile
+# fi
 echo "done!"
 
 ### adapt paths in hamstr scripts
@@ -402,14 +419,14 @@ if [ "$fasta36" == "no" ]; then
     flag=1
   fi
 fi
-if [ -z "$($grepprog PATH=$CURRENT/bin:\$PATH ~/$bashFile)" ]; then
-  echo -e "\t\e[31mWARNING $CURRENT/bin was not added into ~/$bashFile\e[0m"
-  flag=1
-fi
-if [ -z "$($grepprog $CURRENT/bin ~/$rprofile)" ]; then
-  echo -e "\t\e[31mWARNING $CURRENT/bin was not added into ~/$rprofile\e[0m"
-  flag=1
-fi
+# if [ -z "$($grepprog PATH=$CURRENT/bin:\$PATH ~/$bashFile)" ]; then
+#   echo -e "\t\e[31mWARNING $CURRENT/bin was not added into ~/$bashFile\e[0m"
+#   flag=1
+# fi
+# if [ -z "$($grepprog $CURRENT/bin ~/$rprofile)" ]; then
+#   echo -e "\t\e[31mWARNING $CURRENT/bin was not added into ~/$rprofile\e[0m"
+#   flag=1
+# fi
 
 if [ "$flag" == 1 ]; then
   echo "Some tools/libraries could not be found or paths were not added into ~/$bashFile or ~/$rprofile."
@@ -417,7 +434,7 @@ if [ "$flag" == 1 ]; then
   echo "Then run this setup again to try one more time!"
   exit
 else
-  echo "Generating symbolic links"
+  # echo "Generating symbolic links"
   ln -s -f $CURRENT/bin/hamstr.pl $CURRENT/bin/hamstr
   ln -s -f $CURRENT/bin/oneSeq.pl $CURRENT/bin/oneSeq
   echo "Sourcing bash profile file"
@@ -432,7 +449,7 @@ else
   else
     echo "All tests succeeded, HaMStR should be ready to run. You can test it with:"
   fi
-  echo -e "\e[96moneSeq -seqFile=infile.fa -seqName=test -refspec=HUMAN@9606@3 -minDist=genus -maxDist=kingdom -coreOrth=5 -cleanup -cpu=4\e[0m"
+  echo -e "\e[96moneSeq --seqFile infile.fa --seqName test --refspec HUMAN@9606@3\e[0m"
   echo "Output files with prefix \"test\" will be found at your current working directory!"
   echo -e "For more details, use \e[96moneSeq -h\e[0m"
   echo -e "\e[91mNote: if oneSeq not found, you should run this command first:\e[0m \e[96msource ~/$bashFile\e[0m"

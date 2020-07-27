@@ -42,10 +42,12 @@ setup(
         'ete3'
     ],
     entry_points={
-        'console_scripts': ["1s = hamstr1s.runOneseq:main",
-                            "addTaxonHamstr = hamstr1s.addTaxonHamstr:main",
-                            "addTaxaHamstr = hamstr1s.addTaxaHamstr:main",
-                            "mergeHamstrOutput = hamstr1s.mergePhyloprofileData:main"],
+        'console_scripts': ["oneSeq = hamstr1s.runOneseq:main",
+                            "setup1s = hamstr1s.setupOneseq:main",
+                            "checkData1s = hamstr1s.checkDataHamstr:main",
+                            "addTaxon1s = hamstr1s.addTaxonHamstr:main",
+                            "addTaxa1s = hamstr1s.addTaxaHamstr:main",
+                            "merge1sOutput = hamstr1s.mergePhyloprofileData:main"],
     },
     license="GPL-3.0",
     classifiers=[

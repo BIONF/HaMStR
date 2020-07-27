@@ -182,4 +182,4 @@ echo "done!"
 
 echo "-------------------------------------"
 CURRENT="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
-echo "Please run $CURRENT/setup.sh to continue installing HaMStR!"
+echo "Please run setup1s without --lib option to continue installing HaMStR!"
