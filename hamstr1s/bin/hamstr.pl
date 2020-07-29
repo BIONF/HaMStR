@@ -198,7 +198,7 @@ my $version = "HaMStR v.13.4.0";
 ######################## checking whether the configure script has been run ###
 my $configure = 0;
 if ($configure == 0){
-	die "\n\n$version\n\nPLEASE RUN Setup.sh FILE BEFORE USING HAMSTR\n\n";
+	die "\n\n$version\n\nPLEASE RUN setup1s BEFORE USING HAMSTR\n\n";
 }
 ########## EDIT THE FOLLOWING LINES TO CUSTOMIZE YOUR SCRIPT ##################
 my $prog = 'hmmsearch'; #program for the hmm search

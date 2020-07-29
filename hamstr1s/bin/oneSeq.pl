@@ -117,11 +117,11 @@ my $startTime = time;
 ## Modified 22. July 2020 v1.9.0 (Vinh)	- moved tmp blast files to output folder and delete them when finished
 
 ############ General settings
-my $version = 'oneSeq v.1.9.0';
+my $version = 'oneSeq v.2.0.0';
 ##### configure for checking if the setup.sh script already run
 my $configure = 0;
 if ($configure == 0){
-	die "\n\n$version\n\nPLEASE RUN Setup.sh FILE BEFORE USING oneSeq.pl\n\n";
+	die "\n\n$version\n\nPLEASE RUN setup1s BEFORE USING HaMStR-oneSeq\n\n";
 }
 ##### hostname
 my $hostname = `hostname`;
@@ -365,7 +365,7 @@ $genome_dir = abs_path($genome_dir)."/";
 $taxaPath = $genome_dir;
 
 ############# do initial check
-if (!defined $help && !defined $getversion) {
+if (!defined $help && !defined $getversion && !defined $showTaxa) {
 	print "Validity checking....\n";
 	initialCheck($seqFile, $seqName, $blastPath, $taxaPath, $weightPath, $fasoff);
 	print "done!\n";
@@ -392,14 +392,12 @@ if ($getversion){
 	exit;
 }
 
-#switched from online version to flatfile because it is much faster
-#taxon files can be downloaded from: ftp://ftp.ncbi.nih.gov/pub/taxonomy/
-print "Please wait while the taxonomy database is indexing...\n";
-my $db = Bio::DB::Taxonomy->new(-source    => 'flatfile',
-	-nodesfile => $idx_dir . 'nodes.dmp',
-	-namesfile => $idx_dir . 'names.dmp',
-	-directory => $idx_dir);
-print "indexing done!\n";
+############# show help
+if($help) {
+	my $helpmessage = helpMessage();
+	print $helpmessage;
+	exit;
+}
 
 ############# connect to the database
 if ($dbmode) {
@@ -414,6 +412,15 @@ if ($showTaxa) {
 	printTaxa();
 	exit;
 }
+
+#switched from online version to flatfile because it is much faster
+#taxon files can be downloaded from: ftp://ftp.ncbi.nih.gov/pub/taxonomy/
+print "Please wait while the taxonomy database is indexing...\n";
+my $db = Bio::DB::Taxonomy->new(-source    => 'flatfile',
+	-nodesfile => $idx_dir . 'nodes.dmp',
+	-namesfile => $idx_dir . 'names.dmp',
+	-directory => $idx_dir);
+print "indexing done!\n";
 
 %taxa = getTaxa();
 %refTaxa = getRefTaxa();
@@ -1019,12 +1026,6 @@ sub checkGroup {
 
 #################################
 sub checkOptions {
-	#### check for help
-	if($help) {
-		my $helpmessage = helpMessage();
-		print $helpmessage;
-		exit;
-	}
 	if($eval_relaxfac < 1){
 		# rethink
 		if($eval_relaxfac <= 0){
@@ -2358,7 +2359,12 @@ sub printOut {
 sub initialCheck {
 	my ($seed, $ogName, $blastDir, $genomeDir, $weightDir, $fasoff) = @_;
 	# check tools exist
-	my @tools = ("hmmsearch", "muscle", "mafft", "clustalw", $globalaligner, $localaligner, $glocalaligner);
+	my @tools = ("hmmsearch", "muscle", "mafft", $globalaligner, $localaligner, $glocalaligner);
+	if ($^O eq "darwin") {
+		push(@tools, "clustalw2")
+	} else {
+		push(@tools, "clustalw")
+	}
 	my $flag = 1;
 	foreach my $tool (@tools) {
 		my $check = `which $tool`;
