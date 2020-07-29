@@ -10,16 +10,10 @@ flag=0
 root=0
 fas=1
 installLib=0
-outDir=$CURRENT
 homedir="$(echo $HOME)"
 
-while getopts ":olf" opt; do
+while getopts ":lf" opt; do
   case ${opt} in
-    o )
-    outDir=$2
-    shift
-    echo "Out Path $outDir"
-    ;;
     l )
     echo "INSTALL LIB"
     installLib=1
@@ -124,13 +118,13 @@ folders=(
   core_orthologs
   genome_dir
   weight_dir
+  taxonomy
 )
 
 for i in "${folders[@]}"; do
   if [ ! -d "$CURRENT/$i" ]; then mkdir "$CURRENT/$i"; fi
 done
 
-if [ ! -d "$CURRENT/taxonomy" ]; then mkdir "$CURRENT/taxonomy"; fi
 if [ ! -d "$CURRENT/bin" ]; then mkdir "$CURRENT/bin"; fi
 if [ ! -d "$CURRENT/bin/aligner" ]; then mkdir "$CURRENT/bin/aligner"; fi
 echo "done!"
@@ -192,7 +186,7 @@ fi
 
 fasPrepare=0
 if [ $fas == 1 ]; then
-  cd "bin"
+  cd "$CURRENT/bin"
   if [ -z "$(which annoFAS)" ]; then
     echo "FAS"
     if ! [ -f "fas/setup.py" ]; then
@@ -294,10 +288,6 @@ fi
 ### add paths to bash profile file
 echo "-------------------------------------"
 echo "Adding WISECONFIGDIR to ~/$bashFile"
-
-# if [ -z "$($grepprog PATH=$CURRENT/bin:\$PATH ~/$bashFile)" ]; then
-#   echo "export PATH=$CURRENT/bin:\$PATH" >> ~/$bashFile
-# fi
 
 wisePath=$(which "genewise")
 if [ -z "$($grepprog WISECONFIGDIR=$wisePath ~/$bashFile)" ]; then
@@ -419,18 +409,10 @@ if [ "$fasta36" == "no" ]; then
     flag=1
   fi
 fi
-# if [ -z "$($grepprog PATH=$CURRENT/bin:\$PATH ~/$bashFile)" ]; then
-#   echo -e "\t\e[31mWARNING $CURRENT/bin was not added into ~/$bashFile\e[0m"
-#   flag=1
-# fi
-# if [ -z "$($grepprog $CURRENT/bin ~/$rprofile)" ]; then
-#   echo -e "\t\e[31mWARNING $CURRENT/bin was not added into ~/$rprofile\e[0m"
-#   flag=1
-# fi
 
 if [ "$flag" == 1 ]; then
-  echo "Some tools/libraries could not be found or paths were not added into ~/$bashFile or ~/$rprofile."
-  echo "Please install the missing dependencies using $CURRENT/install_lib.sh script (or ask your admin if you don't have root privileges)."
+  echo "Some tools/libraries could not be found or paths were not added into ~/$bashFile."
+  echo "Please manually install the missing dependencies using $CURRENT/setup/install_lib.sh script (ask your admin if you don't have root privileges)."
   echo "Then run this setup again to try one more time!"
   exit
 else
@@ -451,8 +433,7 @@ else
   fi
   echo -e "\e[96moneSeq --seqFile infile.fa --seqName test --refspec HUMAN@9606@3\e[0m"
   echo "Output files with prefix \"test\" will be found at your current working directory!"
-  echo -e "For more details, use \e[96moneSeq -h\e[0m"
-  echo -e "\e[91mNote: if oneSeq not found, you should run this command first:\e[0m \e[96msource ~/$bashFile\e[0m"
+  echo -e "For more details, use \e[96moneSeq -h\e[0m or visit https://github.com/BIONF/HaMStR/wiki"
   echo "Happy HaMStRing! ;-)"
 fi
 exit 1

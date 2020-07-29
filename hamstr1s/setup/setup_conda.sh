@@ -3,6 +3,9 @@
 sys="$(uname)" # Linux for Linux or Darwin for MacOS
 echo "Current OS system: $sys"
 
+CURRENT="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
+CURRENT="${CURRENT/\/setup/}"
+
 flag=0
 ### check grep, sed and wget availability
 echo "-------------------------------------"
@@ -174,7 +177,6 @@ echo "done!"
 ### prepare folders
 echo "-------------------------------------"
 echo "Preparing folders..."
-CURRENT="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
 
 # create required folders
 folders=(
@@ -188,13 +190,16 @@ folders=(
 for i in "${folders[@]}"; do
   if [ ! -d "$CURRENT/$i" ]; then mkdir "$CURRENT/$i"; fi
 done
+
+if [ ! -d "$CURRENT/bin" ]; then mkdir "$CURRENT/bin"; fi
+if [ ! -d "$CURRENT/bin/aligner" ]; then mkdir "$CURRENT/bin/aligner"; fi
 echo "done!"
 
 ### download tools
 echo "-------------------------------------"
 echo "Downloading and installing annotation tools/databases:"
 
-cd "taxonomy"
+cd "$CURRENT/taxonomy"
 if ! [ -f "nodes" ]; then
   wget "ftp://ftp.ncbi.nih.gov/pub/taxonomy/taxdump.tar.gz"
   tar xfv taxdump.tar.gz
@@ -215,7 +220,7 @@ if ! [ -f "$CURRENT/taxonomy/nodes" ]; then
   exit
 fi
 
-cd "bin"
+cd "$CURRENT/bin"
 fasPrepare=0
 if [ -z "$(which annoFAS)" ]; then
   echo "FAS"
@@ -298,21 +303,17 @@ fi
 
 ### add paths to bash profile file
 echo "-------------------------------------"
-echo "Adding paths to ~/$bashFile"
-
-if [ -z "$($grepprog PATH=$CURRENT/bin:\$PATH ~/$bashFile)" ]; then
-  echo "export PATH=$CURRENT/bin:\$PATH" >> ~/$bashFile
-fi
+echo "Adding WISECONFIGDIR to ~/$bashFile"
 
 wisePath=$(which "genewise")
 if [ -z "$($grepprog WISECONFIGDIR=$wisePath ~/$bashFile)" ]; then
   echo "export WISECONFIGDIR=${wisePath}" >> ~/$bashFile
 fi
 
-echo "Adding paths to ~/$rprofile"
-if [ -z "$($grepprog $CURRENT/bin ~/$rprofile)" ]; then
-  echo "Sys.setenv(PATH = paste(\"$CURRENT/bin\", Sys.getenv(\"PATH\"), sep=\":\"))" >> ~/$rprofile
-fi
+# echo "Adding paths to ~/$rprofile"
+# if [ -z "$($grepprog $CURRENT/bin ~/$rprofile)" ]; then
+#   echo "Sys.setenv(PATH = paste(\"$CURRENT/bin\", Sys.getenv(\"PATH\"), sep=\":\"))" >> ~/$rprofile
+# fi
 
 echo "done!"
 
@@ -391,20 +392,11 @@ for i in "${envPaths[@]}"; do
     flag=1
   fi
 done
-
-if [ -z "$($grepprog PATH=$CURRENT/bin:\$PATH ~/$bashFile)" ]; then
-  echo -e "\t\e[31m$CURRENT/bin was not added into ~/$bashFile\e[0m"
-fi
-if [ -z "$($grepprog $CURRENT/bin ~/$rprofile)" ]; then
-  echo -e "\t\e[31mWARNING $CURRENT/bin was not added into ~/$rprofile\e[0m"
-  flag=1
-fi
-
 echo "done!"
 
 if [ "$flag" == 1 ]; then
-  echo "Some tools were not installed correctly or paths were not added into ~/$bashFile or ~/$rprofile."
-  echo "Please install the missing dependencies using $CURRENT/install_lib.sh script (or ask your admin if you don't have root privileges)."
+  echo "Some tools were not installed correctly or paths were not added into ~/$bashFile."
+  echo "Please manually install the missing dependencies using $CURRENT/setup/install_lib.sh script (ask your admin if you don't have root privileges)."
   echo "Then run this setup again to try one more time!"
   exit
 else
@@ -423,11 +415,9 @@ else
   else
     echo "All tests succeeded, HaMStR should be ready to run. You can test it with:"
   fi
-  echo -e "\e[96mcd HaMStR\e[0m"
-  echo -e "\e[96moneSeq -seqFile=infile.fa -seqName=test -refspec=HUMAN@9606@3 -minDist=genus -maxDist=kingdom -coreOrth=5 -cleanup -cpu=4\e[0m"
+  echo -e "\e[96moneSeq --seqFile infile.fa --seqName test --refspec HUMAN@9606@3\e[0m"
   echo "Output files with prefix \"test\" will be found at your current working directory!"
-  echo -e "For more details, use \e[96moneSeq -h\e[0m"
-  echo -e "\e[91mNote: if oneSeq not found, you should run this command first:\e[0m \e[96msource ~/$bashFile\e[0m"
+  echo -e "For more details, use \e[96moneSeq -h\e[0m or visit https://github.com/BIONF/HaMStR/wiki"
   echo "Happy HaMStRing! ;-)"
 fi
 exit 1
