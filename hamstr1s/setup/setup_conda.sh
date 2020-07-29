@@ -237,7 +237,7 @@ else
 fi
 
 if [ -z "$(which annoFAS)" ]; then
-  echo -e "Installation of FAS failed! Please try again or install FAS by yourself using \e[91mconda install -c BIONF fas\e[0m"
+  echo -e "Installation of FAS failed! Please try again or install FAS by yourself using \e[91mconda install -c BIONF fas\e[0m or \e[91mpip install greedyFAS\e[0m"
   echo -e "For more info, please check FAS website at \e[91mhttps://github.com/BIONF/FAS\e[0m"
   exit
 else
@@ -395,7 +395,7 @@ done
 echo "done!"
 
 if [ "$flag" == 1 ]; then
-  echo "Some tools were not installed correctly or paths were not added into ~/$bashFile."
+  echo "Some tools/libraries counld not installed correctly or paths were not added into ~/$bashFile."
   echo "Please manually install the missing dependencies using $CURRENT/setup/install_lib.sh script (ask your admin if you don't have root privileges)."
   echo "Then run this setup again to try one more time!"
   exit

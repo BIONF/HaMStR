@@ -189,29 +189,41 @@ if [ $fas == 1 ]; then
   cd "$CURRENT/bin"
   if [ -z "$(which annoFAS)" ]; then
     echo "FAS"
-    if ! [ -f "fas/setup.py" ]; then
-      wget https://github.com/BIONF/FAS/archive/master.tar.gz
-      tar xf master.tar.gz
-      mv FAS-master fas
-      rm master.tar.gz
-    fi
     if [ $root == 1 ]; then
-      pip install $CURRENT/bin/fas
-      if [ -z "$(which annoFAS)" ]; then
-        echo "Installation of FAS failed! Please try again!"
-        exit
-      fi
-      fasPrepare=1
+        pip install greedyFAS
     else
-      pip install $CURRENT/bin/fas --user
-      if [ -z "$($grepprog \$HOME/.local/bin:\$PATH ~/$bashFile)" ]; then
-        echo "export PATH=\$HOME/.local/bin:\$PATH" >> ~/$bashFile
-      fi
-      if [ -z "$($grepprog $homedir/.local/bin ~/$rprofile)" ]; then
-        echo "Sys.setenv(PATH = paste(\"$homedir/.local/bin\", Sys.getenv(\"PATH\"), sep=\":\"))" >> ~/$rprofile
-      fi
-      fasPrepare=1
+        pip install --user greedyFAS
+        if [ -z "$($grepprog \$HOME/.local/bin:\$PATH ~/$bashFile)" ]; then
+          echo "export PATH=\$HOME/.local/bin:\$PATH" >> ~/$bashFile
+        fi
+        if [ -z "$($grepprog $homedir/.local/bin ~/$rprofile)" ]; then
+          echo "Sys.setenv(PATH = paste(\"$homedir/.local/bin\", Sys.getenv(\"PATH\"), sep=\":\"))" >> ~/$rprofile
+        fi
     fi
+    fasPrepare=1
+    # if ! [ -f "fas/setup.py" ]; then
+    #   wget https://github.com/BIONF/FAS/archive/master.tar.gz
+    #   tar xf master.tar.gz
+    #   mv FAS-master fas
+    #   rm master.tar.gz
+    # fi
+    # if [ $root == 1 ]; then
+    #   pip install $CURRENT/bin/fas
+    #   if [ -z "$(which annoFAS)" ]; then
+    #     echo "Installation of FAS failed! Please try again!"
+    #     exit
+    #   fi
+    #   fasPrepare=1
+    # else
+    #   pip install $CURRENT/bin/fas --user
+    #   if [ -z "$($grepprog \$HOME/.local/bin:\$PATH ~/$bashFile)" ]; then
+    #     echo "export PATH=\$HOME/.local/bin:\$PATH" >> ~/$bashFile
+    #   fi
+    #   if [ -z "$($grepprog $homedir/.local/bin ~/$rprofile)" ]; then
+    #     echo "Sys.setenv(PATH = paste(\"$homedir/.local/bin\", Sys.getenv(\"PATH\"), sep=\":\"))" >> ~/$rprofile
+    #   fi
+    #   fasPrepare=1
+    # fi
   else
     if ! [ -z "$(prepareFAS -t ./ --check 2>&1 | grep ERROR)" ]; then
       fasPrepare=1
@@ -221,7 +233,8 @@ if [ $fas == 1 ]; then
   cd $CURRENT
   source ~/$bashFile
   if [ -z "$(which annoFAS)" ]; then
-    echo -e "Installation of FAS failed! Please try again or install FAS by yourself at \e[91mhttps://github.com/BIONF/FAS\e[0m!"
+    echo -e "Installation of FAS failed! Please try again or install FAS by yourself using \e[91mpip install greedyFAS\e[0m!"
+    echo -e "For more info, please check FAS website at \e[91mhttps://github.com/BIONF/FAS\e[0m"
     exit
   else
     if ! [ -z "$(prepareFAS -t ./ --check 2>&1 | grep ERROR)" ]; then
@@ -409,14 +422,15 @@ if [ "$fasta36" == "no" ]; then
     flag=1
   fi
 fi
+echo "done!"
 
 if [ "$flag" == 1 ]; then
-  echo "Some tools/libraries could not be found or paths were not added into ~/$bashFile."
+  echo "Some tools/libraries counld not installed correctly or paths were not added into ~/$bashFile."
   echo "Please manually install the missing dependencies using $CURRENT/setup/install_lib.sh script (ask your admin if you don't have root privileges)."
   echo "Then run this setup again to try one more time!"
   exit
 else
-  # echo "Generating symbolic links"
+  echo "Generating symbolic links"
   ln -s -f $CURRENT/bin/hamstr.pl $CURRENT/bin/hamstr
   ln -s -f $CURRENT/bin/oneSeq.pl $CURRENT/bin/oneSeq
   echo "Sourcing bash profile file"

@@ -40,7 +40,8 @@ setup(
         'biopython',
         'tqdm',
         'ete3',
-        'six'
+        'six',
+        'greedyFAS'
     ],
     entry_points={
         'console_scripts': ["oneSeq = hamstr1s.runOneseq:main",
