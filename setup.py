@@ -1,16 +1,15 @@
 #!/bin/env python
 
 #######################################################################
-# Copyright (C) 2019 Julian Dosch
+#  Copyright (C) 2020 Vinh Tran
 #
-# This file is part of greedyFAS.
-#
-#  greedyFAS is free software: you can redistribute it and/or modify
+#  hamstr1s is the python package of the HaMStR-oneSeq orthology prediction
+#  tool. hamstr1s is a free software: you can redistribute it and/or modify
 #  it under the terms of the GNU General Public License as published by
 #  the Free Software Foundation, either version 3 of the License, or
 #  (at your option) any later version.
 #
-#  greedyFAS is distributed in the hope that it will be useful,
+#  hamstr1s is distributed in the hope that it will be useful,
 #  but WITHOUT ANY WARRANTY; without even the implied warranty of
 #  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 #  GNU General Public License for more details.
@@ -31,6 +30,7 @@ setup(
     python_requires='>=3.7.0',
     description="Feature-aware orthology prediction tool",
     long_description=long_description,
+    long_description_content_type="text/markdown",
     author="Vinh Tran",
     author_email="tran@bio.uni-frankfurt.de",
     url="https://github.com/BIONF/HaMStR",
@@ -39,7 +39,8 @@ setup(
     install_requires=[
         'biopython',
         'tqdm',
-        'ete3'
+        'ete3',
+        'six'
     ],
     entry_points={
         'console_scripts': ["oneSeq = hamstr1s.runOneseq:main",
