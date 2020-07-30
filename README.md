@@ -86,15 +86,15 @@ HaMStR-oneSeq is not limited to those 78 taxa. If needed the user can manually a
 ## Adding a new gene set into HaMStR-oneSeq
 For adding **one gene set**, please use the `addTaxon1s` function:
 ```
-addTaxon1s -f newTaxon.fa -i tax_id -o /output/directory [-n abbr_tax_name] [-c] [-v protein_version] [-a]
+addTaxon1s -f newTaxon.fa -i tax_id [-o /output/directory] [-n abbr_tax_name] [-c] [-v protein_version] [-a]
 ```
 
-in which, the first 3 arguments are required including `newTaxon.fa` is the gene set that need to be added, `tax_id` is its NCBI taxonomy ID, `/output/directory` is where the sub-directories can be found (*genome_dir*, *blast_dir* and *weight_dir*). Other arguments are optional, which are `-n` for specify your own taxon name (if not given, an abbriviate name will be suggested based on the NCBI taxon name of the input `tax_id`), `-c` for calculating the BLAST DB (only needed if you need to include your new taxon into the list of taxa for compilating the core set), `-v` for identifying the genome/proteome version (default will be 1), and `-a` for turning off the annotation step (*not recommended*).
+in which, the first 3 arguments are required including `newTaxon.fa` is the gene set that need to be added, `tax_id` is its NCBI taxonomy ID, `/output/directory` is where the sub-directories can be found (*genome_dir*, *blast_dir* and *weight_dir*). If not given, new taxon will be added into the same directory of pre-calculated data. Other arguments are optional, which are `-n` for specify your own taxon name (if not given, an abbriviate name will be suggested based on the NCBI taxon name of the input `tax_id`), `-c` for calculating the BLAST DB (only needed if you need to include your new taxon into the list of taxa for compilating the core set), `-v` for identifying the genome/proteome version (default will be 1), and `-a` for turning off the annotation step (*not recommended*).
 
 ## Adding a list of gene sets into HaMStR-oneSeq
 For adding **more than one gene set**, please use the `addTaxa1s` script:
 ```
-addTaxa1s -i /path/to/newtaxa/fasta -m mapping_file -o /output/directory [-c]
+addTaxa1s -i /path/to/newtaxa/fasta -m mapping_file [-o /output/directory] [-c]
 ```
 in which, `/path/to/taxa/fasta` is a folder where the FASTA files of all new taxa can be found. `mapping_file` is a tab-delimited text file, where you provide the taxonomy IDs that stick with the FASTA files:
 
