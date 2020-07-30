@@ -82,8 +82,8 @@ def runBlast(args):
 
 
 def main():
-    version = '1.0.2'
-    parser = argparse.ArgumentParser(description='You are running addTaxonHamstr version ' + str(version) + '.')
+    version = '1.1.0'
+    parser = argparse.ArgumentParser(description='You are running addTaxon1s version ' + str(version) + '.')
     required = parser.add_argument_group('required arguments')
     optional = parser.add_argument_group('optional arguments')
     required.add_argument('-f', '--fasta', help='FASTA file of input taxon', action='store', default='', required=True)
@@ -147,8 +147,8 @@ def main():
                 index = index + 1
                 id = str(id) + '_' + str(index)
                 tmpDict[id] = 1
-            id = re.sub('\|', '_', id)
             seq = str(inSeq[id].seq)
+            id = re.sub('\|', '_', id)
             specialChr = 'no'
             if any(c for c in seq if not c.isalpha()):
                 specialChr = 'yes'

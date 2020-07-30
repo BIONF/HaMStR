@@ -161,7 +161,7 @@ def runOneseq(basicArgs, ioArgs, pathArgs, coreArgs, hamstrArgs, fasArgs, otherA
         sys.exit('Problem running\n%s' % (cmd))
 
 def main():
-    version = '0.0.1'
+    version = '1.0.0'
     parser = argparse.ArgumentParser(description='You are running runOneseq version ' + str(version) + '.')
 
     required = parser.add_argument_group('Required arguments')

@@ -26,7 +26,7 @@ with open("README.md", "r") as input:
 
 setup(
     name="hamstr1s",
-    version="2.0.2",
+    version="2.0.3",
     python_requires='>=3.7.0',
     description="Feature-aware orthology prediction tool",
     long_description=long_description,
@@ -45,11 +45,12 @@ setup(
     ],
     entry_points={
         'console_scripts': ["oneSeq = hamstr1s.runOneseq:main",
-                            "setup1s = hamstr1s.setupOneseq:main",
+                            "setup1s = hamstr1s.setup1s:main",
                             "checkData1s = hamstr1s.checkData1s:main",
                             "addTaxon1s = hamstr1s.addTaxon1s:main",
                             "addTaxa1s = hamstr1s.addTaxa1s:main",
-                            "merge1sOutput = hamstr1s.merge1sOutput:main"],
+                            "merge1sOutput = hamstr1s.merge1sOutput:main",
+                            "remove1s = hamstr1s.remove1s:main"],
     },
     license="GPL-3.0",
     classifiers=[

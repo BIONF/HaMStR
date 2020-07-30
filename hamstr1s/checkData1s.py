@@ -185,7 +185,7 @@ def checkMissingNcbiID(namesDmp, taxaList):
 
 def main():
     version = '1.0.0'
-    parser = argparse.ArgumentParser(description='You are running checkDataHamstr version ' + str(version) + '.')
+    parser = argparse.ArgumentParser(description='You are running checkData1s version ' + str(version) + '.')
     parser.add_argument('-g', '--genomeDir', help='Path to search taxa directory (e.g. HaMStR/genome_dir)', action='store', default='')
     parser.add_argument('-b', '--blastDir', help='Path to blastDB directory (e.g. HaMStR/blast_dir)', action='store', default='')
     parser.add_argument('-w', '--weightDir', help='Path to feature annotation directory (e.g. HaMStR/weight_dir)', action='store', default='')

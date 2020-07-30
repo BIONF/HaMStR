@@ -3,7 +3,8 @@
 #######################################################################
 # Copyright (C) 2020 Vinh Tran
 #
-#  This script is used to run HaMStR oneSeq.
+#  This script is used to setup HaMStR oneSeq: install dependencies and
+#  download pre-computed data
 #
 #  This script is distributed in the hope that it will be useful,
 #  but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -27,8 +28,8 @@ def checkOptConflict(lib, conda):
             sys.exit('*** ERROR: --lib and --conda cannot be used at the same time!')
 
 def main():
-    version = '0.0.1'
-    parser = argparse.ArgumentParser(description='You are running runOneseq version ' + str(version) + '.')
+    version = '1.0.0'
+    parser = argparse.ArgumentParser(description='You are running setup1s version ' + str(version) + '.')
     parser.add_argument('--conda', help='Setup HaMStR-oneSeq within a conda env', action='store_true', default=False)
     parser.add_argument('--lib', help='Install HaMStR-oneSeq libraries only', action='store_true', default=False)
 
@@ -37,7 +38,7 @@ def main():
     conda = args.conda
     lib = args.lib
     checkOptConflict(lib, conda)
-    oneseqPath = os.path.realpath(__file__).replace('/setupOneseq.py','')
+    oneseqPath = os.path.realpath(__file__).replace('/setup1s.py','')
     ### run setup
     if conda:
         setupFile = oneseqPath + '/setup/setup_conda.sh'
