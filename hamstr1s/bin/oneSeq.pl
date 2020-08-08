@@ -2410,7 +2410,7 @@ sub initialCheck {
 		unless ($genomeFd =~ /^\./) {
 			my $genome = getGenomeFile("$genomeDir/$genomeFd", $genomeFd);
 			unless (-e "$genome.checked") {
-				die "ERROR: $genome.checked not found!\nPlease run checkDataHamstr.py before running HaMStR-oneSeq!\n";
+				die "ERROR: $genome.checked not found!\nPlease run checkData1s.py before running HaMStR-oneSeq!\n";
 			}
 		}
 	}
@@ -2420,7 +2420,7 @@ sub initialCheck {
 		unless ($blastFd =~ /^\./) {
 			my $genome = getGenomeFile("$blastDir/$blastFd", $blastFd);
 			unless (-e "$genome.checked") {
-				die "ERROR: $genome.checked not found!\nPlease run checkDataHamstr.py before running HaMStR-oneSeq!";
+				die "ERROR: $genome.checked not found!\nPlease run checkData1s.py before running HaMStR-oneSeq!";
 			}
 		}
 	}
