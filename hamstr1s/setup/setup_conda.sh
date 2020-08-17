@@ -205,7 +205,7 @@ if ! [ -f "nodes" ]; then
   tar xfv taxdump.tar.gz
   rm taxdump.tar.gz
   echo "Taxonomy database indexing. It can take a while, please wait..."
-  perl $CURRENT/bin/indexTaxonomy.pl $CURRENT/taxonomy
+  perl $CURRENT/setup/indexTaxonomy.pl $CURRENT/taxonomy
   rm citations.dmp
   rm delnodes.dmp
   rm division.dmp

@@ -26,7 +26,7 @@ with open("README.md", "r") as input:
 
 setup(
     name="hamstr1s",
-    version="2.0.3",
+    version="2.0.4",
     python_requires='>=3.7.0',
     description="Feature-aware orthology prediction tool",
     long_description=long_description,
