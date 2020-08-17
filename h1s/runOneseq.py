@@ -27,15 +27,6 @@ def checkFileExist(file):
 
 def checkInput(args):
     (oneseqPath, seqFile, refspec, outpath, hmmpath, blastpath, searchpath, weightpath) = args
-    # get data paths
-    if hmmpath == '':
-        hmmpath = oneseqPath + '/core_orthologs'
-    if blastpath == '':
-        blastpath = oneseqPath + '/blast_dir'
-    if searchpath == '':
-        searchpath = oneseqPath + '/genome_dir'
-    if weightpath == '':
-        weightpath = oneseqPath + '/weight_dir'
     # check path existing
     for path in [hmmpath, blastpath, searchpath, weightpath]:
         checkFileExist(path)
@@ -331,8 +322,23 @@ def main():
     oneseqHelp = args.oneseqHelp
     oneseqVersion = args.oneseqVersion
 
-    ### get oneSeq path and check input arguments
+    ### get oneSeq and data path
     oneseqPath = os.path.realpath(__file__).replace('/runOneseq.py','')
+    pathconfigFile = oneseqPath + '/bin/pathconfig.txt'
+    if not os.path.exists(pathconfigFile):
+        sys.exit('No pathconfig.txt found. Please run setup1s (https://github.com/BIONF/HaMStR/wiki/Installation#setup-hamstr-oneseq).')
+    with open(pathconfigFile) as f:
+        dataPath = f.readline().strip()
+    if hmmpath == '':
+        hmmpath = dataPath + '/core_orthologs'
+    if blastpath == '':
+        blastpath = dataPath + '/blast_dir'
+    if searchpath == '':
+        searchpath = dataPath + '/genome_dir'
+    if weightpath == '':
+        weightpath = dataPath + '/weight_dir'
+
+    ### check input arguments
     seqFile, hmmpath, blastpath, searchpath, weightpath = checkInput([oneseqPath, seqFile, refspec, outpath, hmmpath, blastpath, searchpath, weightpath])
 
     # group arguments

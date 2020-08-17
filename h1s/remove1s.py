@@ -46,19 +46,19 @@ def query_yes_no(question, default='yes'):
 
 def main():
     version = '1.0.0'
-    parser = argparse.ArgumentParser(description='You are running uninstall1s version ' + str(version) + '.')
-    parser.add_argument('--data', help='Remove HaMStR-oneSeq together with all data within hamstr1s directory', action='store_true', default=False)
+    parser = argparse.ArgumentParser(description='You are running remove1s version ' + str(version) + '.')
+    parser.add_argument('--data', help='Remove HaMStR-oneSeq together with all files/data within hamstr1s directory', action='store_true', default=False)
     args = parser.parse_args()
     data = args.data
 
-    oneseqPath = os.path.realpath(__file__).replace('/uninstall1s.py','')
+    oneseqPath = os.path.realpath(__file__).replace('/remove1s.py','')
     if data:
         print('All files and folders in %s will be removed! Enter to continue' % oneseqPath)
     else:
-        print('hamstr1s will be uninstalled. Its data still can be found in %s! Enter to continue' % oneseqPath)
+        print('hamstr1s will be uninstalled. Some files/data still can be found in %s! Enter to continue' % oneseqPath)
     if query_yes_no('Are you sure?'):
         if data:
-            folders = ['bin', 'core_orthologs', 'genome_dir', 'blast_dir', 'weight_dir', 'taxonomy', 'data']
+            folders = ['bin', 'core_orthologs', 'taxonomy', 'data']
             for f in folders:
                 dirPath = oneseqPath+'/'+f
                 if os.path.exists(os.path.abspath(dirPath)):
@@ -69,6 +69,13 @@ def main():
         if data:
             if os.path.exists(os.path.abspath(oneseqPath)):
                 shutil.rmtree(oneseqPath)
+
+    pathconfigFile = oneseqPath + '/bin/pathconfig.txt'
+    if not os.path.exists(pathconfigFile):
+        sys.exit('No pathconfig.txt found. Please run setup1s (https://github.com/BIONF/HaMStR/wiki/Installation#setup-hamstr-oneseq).')
+    with open(pathconfigFile) as f:
+        dataPath = f.readline().strip()
+        print('NOTE: HaMStR-oneSeq genome data are still available at %s.' % dataPath)
 
 if __name__ == '__main__':
     main()

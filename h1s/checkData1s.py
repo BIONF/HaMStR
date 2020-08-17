@@ -207,14 +207,18 @@ def main():
     caution = 0
 
     ### get hamstr dir and assign genomeDir, blastDir, weightDir if not given
-    whereIsHamstr = 'which oneSeq'
-    hamstrDir = subprocess.check_output([whereIsHamstr], shell=True).decode(sys.stdout.encoding).strip().replace('/bin/oneSeq','')
+    oneseqPath = os.path.realpath(__file__).replace('/checkData1s.py','')
+    pathconfigFile = oneseqPath + '/bin/pathconfig.txt'
+    if not os.path.exists(pathconfigFile):
+        sys.exit('No pathconfig.txt found. Please run setup1s (https://github.com/BIONF/HaMStR/wiki/Installation#setup-hamstr-oneseq).')
+    with open(pathconfigFile) as f:
+        dataPath = f.readline().strip()
     if not genomeDir:
-        genomeDir = hamstrDir + "/genome_dir"
+        genomeDir = dataPath + "/genome_dir"
     if not blastDir:
-        blastDir = hamstrDir + "/blast_dir"
+        blastDir = dataPath + "/blast_dir"
     if not weightDir:
-        weightDir = hamstrDir + "/weight_dir"
+        weightDir = dataPath + "/weight_dir"
 
     ### check genomeDir and blastDir
     print('=> Checking %s...' % genomeDir)
@@ -233,7 +237,7 @@ def main():
 
     ### check ncbi IDs
     print('=> Checking NCBI taxonomy IDs...')
-    namesDmp = hamstrDir + '/taxonomy/names.dmp'
+    namesDmp = oneseqPath + '/taxonomy/names.dmp'
     checkFileExist(namesDmp)
     missingTaxa, dupTaxa = checkMissingNcbiID(namesDmp, join2Lists(genomeTaxa, blastTaxa))
     if (len(missingTaxa) > 0):

@@ -119,7 +119,12 @@ def main():
     checkFileExist(mapping)
     outPath = args.outPath #str(Path(args.outPath).resolve())
     if outPath == '':
-        outPath = os.path.realpath(__file__).replace('/addTaxa1s.py','')
+        oneseqPath = os.path.realpath(__file__).replace('/addTaxa1s.py','')
+        pathconfigFile = oneseqPath + '/bin/pathconfig.txt'
+        if not os.path.exists(pathconfigFile):
+            sys.exit('No pathconfig.txt found. Please run setup1s (https://github.com/BIONF/HaMStR/wiki/Installation#setup-hamstr-oneseq).')
+        with open(pathconfigFile) as f:
+            outPath = f.readline().strip()
     noAnno = args.noAnno
     coreTaxa = args.coreTaxa
     oldFAS = args.oldFAS

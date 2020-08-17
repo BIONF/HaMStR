@@ -5,22 +5,16 @@ echo "Current OS system: $sys"
 
 CURRENT="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
 CURRENT="${CURRENT/\/setup/}"
+BIN="$CURRENT/bin"
 
 flag=0
-root=0
-fas=1
-installLib=0
-homedir="$(echo $HOME)"
+outDir=$CURRENT
 
-while getopts ":lf" opt; do
+while getopts o: opt; do
   case ${opt} in
-    l )
-    echo "INSTALL LIB"
-    installLib=1
-    ;;
-    f )
-    echo "NO FAS!"
-    fas=0
+    o )
+    echo "Data output path: $OPTARG"
+    outDir=$OPTARG
     ;;
     \? )
     echo "Usage: setup.sh [-l] [-f]"
@@ -29,32 +23,7 @@ while getopts ":lf" opt; do
   esac
 done
 
-if [ "$EUID" -eq 0 ]; then
-  echo "Please DO NOT run this script as root!"
-  # read -p "Press enter to continue, but some missing tools/libraries will not be installed!"
-  exit
-  # root=0
-else
-  read -p "Do you have sudo password? [y/n]" -n 1 -r
-  echo
-  if [[ $REPLY =~ ^[Yy]$ ]]; then
-    root=1
-  fi
-fi
-
-### install dependencies
-if [ installLib == 1 ]; then
-    if [ "$sys" == "Darwin" ]; then
-      setup1s with --lib
-    else
-      if [ $root == 1 ]; then
-        echo "Enter sudo password to install required libraries..."
-        sudo setup1s --lib
-      fi
-    fi
-fi
-
-### check grep, sed, readlink and wget availability
+### check grep, sed and wget availability
 echo "-------------------------------------"
 echo "Checking .bash_profile/.bashrc, grep, sed/gsed and wget availability..."
 grepprog='grep'
@@ -76,27 +45,35 @@ if [ "$sys" == "Darwin" ]; then
   fi
 fi
 
+# NOTE: install only available for Linux!
 if [ -z "$(which $sedprog)" ]; then
-  echo -e "\e[31m$sedprog not found!\e[0m"
-  if [ $root == 0 ]; then
-    echo "Please run setup1s with --lib first!"
-    exit
+  if [ "$sys" == "Darwin" ]; then
+    echo -e "\e[31m$sedprog not found. Please install it first (e.g. using brew)!\e[0m"
+    flag=1
   fi
+  conda install -c conda-forge sed
 fi
 
 if [ -z "$(which $grepprog)" ]; then
-  echo -e "\e[31m$grepprog not found!\e[0m"
-  if [ $root == 0 ]; then
-    echo "Please run setup1s with --lib first!"
-    exit
+  if [ "$sys" == "Darwin" ]; then
+    echo -e "\e[31m$grepprog not found. Please install it first (e.g. using brew)!\e[0m"
+    flag=1
   fi
+  conda install -c bioconda grep
 fi
 
 if [ -z "$(which $wgetprog)" ]; then
-  echo -e "\e[31m$wgetprog not found!\e[0m"
-  if [ $root == 0 ]; then
-    echo "Please run setup1s with --lib first!"
-    exit
+  if [ "$sys" == "Darwin" ]; then
+    echo -e "\e[31m$wgetprog not found. Please install it first (e.g. using brew)!\e[0m"
+    flag=1
+  fi
+  conda install -c anaconda wget
+fi
+
+if [ -z "$(which $readlinkprog)" ]; then
+  if [ "$sys" == "Darwin" ]; then
+    echo -e "\e[31m$readlinkprog not found. Please install it first (e.g. using brew)!\e[0m"
+    flag=1
   fi
 fi
 
@@ -106,262 +83,69 @@ fi
 if ! [ -f ~/$rprofile ]; then
   touch ~/$rprofile
 fi
+if [ "$flag" == 1 ]; then exit 1; fi
 echo "done!"
 
-### prepare folders
+### check dependencies
 echo "-------------------------------------"
-echo "Preparing folders..."
+echo "Installing dependencies..."
 
-# create required folders
-folders=(
-  blast_dir
-  core_orthologs
-  genome_dir
-  weight_dir
-  taxonomy
-)
-
-for i in "${folders[@]}"; do
-  if [ ! -d "$CURRENT/$i" ]; then mkdir "$CURRENT/$i"; fi
-done
-
-if [ ! -d "$CURRENT/bin" ]; then mkdir "$CURRENT/bin"; fi
-if [ ! -d "$CURRENT/bin/aligner" ]; then mkdir "$CURRENT/bin/aligner"; fi
-echo "done!"
-
-### download tools
-echo "-------------------------------------"
-echo "Downloading and installing annotation tools/databases:"
-
-fasta36="yes"
-if [ -z "$(which fasta36)" ]; then
-  fasta36="no"
-  fasta36v="fasta-36.3.8h"
-  if ! [ -f "bin/aligner/bin/fasta36" ]; then
-    echo "fasta-36"
-    wget "http://faculty.virginia.edu/wrpearson/fasta/fasta36/${fasta36v}.tar.gz"
-    tar xf $fasta36v.tar.gz
-    rm "${fasta36v}.tar.gz"
-    mv $fasta36v/* $CURRENT/bin/aligner/
-    rm -rf $fasta36v
-    cd "$CURRENT/bin/aligner/src"
-    if [ $sys=="Linux" ]; then
-      make -f ../make/Makefile.linux64_sse2 all
-    elif [ $sys=="Darwin" ]; then
-      make -f ../make/Makefile.os_x86_64 all
-    fi
-  fi
-  if [ -z "$($grepprog PATH=$CURRENT/bin/aligner/bin ~/$bashFile)" ]; then
-    echo "export PATH=$CURRENT/bin/aligner/bin:\$PATH" >> ~/$bashFile
-  fi
-fi
-cd $CURRENT
-if [ -z "$(which fasta36)" ]; then
-  if ! [ -f "$CURRENT/bin/aligner/bin/fasta36" ]; then
-    echo -e "\e[31mfasta36 tool could not be found in $CURRENT/bin/aligner/. Please check again!\e[0m"
-    exit
-  fi
+if [ -z "$(which R)" ]; then
+  echo "R"
+  conda install -y r
 fi
 
-cd "$CURRENT/taxonomy"
-if ! [ -f "nodes" ]; then
-  wget "ftp://ftp.ncbi.nih.gov/pub/taxonomy/taxdump.tar.gz"
-  tar xf taxdump.tar.gz
-  rm taxdump.tar.gz
-  echo "Taxonomy database indexing. It can take a while, please wait..."
-  perl $CURRENT/setup/indexTaxonomy.pl $CURRENT/taxonomy
-  rm citations.dmp
-  rm delnodes.dmp
-  rm division.dmp
-  rm gencode.dmp
-  rm merged.dmp
-  rm gc.prt
-  rm readme.txt
-fi
-cd $CURRENT
-if ! [ -f "$CURRENT/taxonomy/nodes" ]; then
-  echo -e "\e[31mError while indexing NCBI taxonomy database! Please check $CURRENT/taxonomy/ folder and run this setup again!\e[0m"
-  exit
+if [[ -z $(conda list | $grepprog "pkg-config ") ]]; then
+  echo "pkg-config"
+  conda install -y pkg-config
 fi
 
-fasPrepare=0
-if [ $fas == 1 ]; then
-  cd "$CURRENT/bin"
-  if [ -z "$(which annoFAS)" ]; then
-    echo "FAS"
-    if [ $root == 1 ]; then
-        pip install greedyFAS
-    else
-        pip install --user greedyFAS
-        if [ -z "$($grepprog \$HOME/.local/bin:\$PATH ~/$bashFile)" ]; then
-          echo "export PATH=\$HOME/.local/bin:\$PATH" >> ~/$bashFile
-        fi
-        if [ -z "$($grepprog $homedir/.local/bin ~/$rprofile)" ]; then
-          echo "Sys.setenv(PATH = paste(\"$homedir/.local/bin\", Sys.getenv(\"PATH\"), sep=\":\"))" >> ~/$rprofile
-        fi
-    fi
-    fasPrepare=1
-    # if ! [ -f "fas/setup.py" ]; then
-    #   wget https://github.com/BIONF/FAS/archive/master.tar.gz
-    #   tar xf master.tar.gz
-    #   mv FAS-master fas
-    #   rm master.tar.gz
-    # fi
-    # if [ $root == 1 ]; then
-    #   pip install $CURRENT/bin/fas
-    #   if [ -z "$(which annoFAS)" ]; then
-    #     echo "Installation of FAS failed! Please try again!"
-    #     exit
-    #   fi
-    #   fasPrepare=1
-    # else
-    #   pip install $CURRENT/bin/fas --user
-    #   if [ -z "$($grepprog \$HOME/.local/bin:\$PATH ~/$bashFile)" ]; then
-    #     echo "export PATH=\$HOME/.local/bin:\$PATH" >> ~/$bashFile
-    #   fi
-    #   if [ -z "$($grepprog $homedir/.local/bin ~/$rprofile)" ]; then
-    #     echo "Sys.setenv(PATH = paste(\"$homedir/.local/bin\", Sys.getenv(\"PATH\"), sep=\":\"))" >> ~/$rprofile
-    #   fi
-    #   fasPrepare=1
-    # fi
-  else
-    if ! [ -z "$(prepareFAS -t ./ --check 2>&1 | grep ERROR)" ]; then
-      fasPrepare=1
-    fi
-  fi
-
-  cd $CURRENT
-  source ~/$bashFile
-  if [ -z "$(which annoFAS)" ]; then
-    echo -e "Installation of FAS failed! Please try again or install FAS by yourself using \e[91mpip install greedyFAS\e[0m!"
-    echo -e "For more info, please check FAS website at \e[91mhttps://github.com/BIONF/FAS\e[0m"
-    exit
-  else
-    if ! [ -z "$(prepareFAS -t ./ --check 2>&1 | grep ERROR)" ]; then
-      fasPrepare=1
-    fi
-  fi
-  echo "done!"
+if [[ -z $(conda list | $grepprog "perl-bioperl ") ]]; then
+  echo "perl-bioperl"
+  conda install -y -c bioconda perl-bioperl
+  conda install -y -c bioconda perl-bioperl-core
+  conda install -y -c bioconda perl-bioperl-run
 fi
 
-### download data
-data_HaMStR_file="data_HaMStR-2019c.tar.gz"
-checkSumData="1748371655 621731824 $data_HaMStR_file"
-cd $CURRENT
-
-if ! [ "$(ls -A $CURRENT/genome_dir)" ]; then
-  echo "-------------------------------------"
-  echo "Getting pre-calculated data"
-
-  echo "Processing $CURRENT ..."
-  if [ ! -f $CURRENT/$data_HaMStR_file ]; then
-    echo "Downloading data from https://applbio.biologie.uni-frankfurt.de/download/hamstr_qfo/$data_HaMStR_file"
-    wget --no-check-certificate https://applbio.biologie.uni-frankfurt.de/download/hamstr_qfo/$data_HaMStR_file
-  else
-    CHECKSUM=$(cksum $data_HaMStR_file)
-    echo "Checksum: $CHECKSUM"
-    if ! [ "$CHECKSUM" == "$checkSumData" ]; then
-      rm $CURRENT/$data_HaMStR_file
-      echo "Downloading data from https://applbio.biologie.uni-frankfurt.de/download/hamstr_qfo/$data_HaMStR_file"
-      wget --no-check-certificate https://applbio.biologie.uni-frankfurt.de/download/hamstr_qfo/$data_HaMStR_file
-    fi
-  fi
-
-  if [ ! -f $CURRENT/$data_HaMStR_file ]; then
-    echo "File $data_HaMStR_file not found! Please try to download again from"
-    echo "https://applbio.biologie.uni-frankfurt.de/download/hamstr_qfo/data_HaMStR.tar"
-    exit
-  fi
-
-  CHECKSUM=$(cksum $data_HaMStR_file)
-  if [ "$CHECKSUM" == "$checkSumData" ]; then
-    echo "Extracting archive $data_HaMStR_file..."
-    tar xf $CURRENT/$data_HaMStR_file
-    rm $CURRENT/$data_HaMStR_file
-    for i in $(ls "$CURRENT/genome_dir"); do rm -f "$CURRENT/genome_dir/$i/$i.fa.mod"; done
-
-    if [ "$(ls -A $CURRENT/blast_dir)" ]; then
-      echo "Data should be in place to run HaMStR."
-    else
-      echo -e "\e[31mSomething went wrong with the download. Data folders are empty.\e[0m"
-      echo "Please try to download again from"
-      echo "https://applbio.biologie.uni-frankfurt.de/download/hamstr_qfo/$data_HaMStR_file"
-      echo "Or contact us if you think this is our issue!"
-      exit
-    fi
-  else
-    echo -e "\e[31mSomething went wrong with the download. Checksum does not match.\e[0m"
-    echo "Please try to download again from"
-    echo "https://applbio.biologie.uni-frankfurt.de/download/hamstr_qfo/$data_HaMStR_file"
-    echo "Please put it into $CURRENT folder and run this setup again!"
-    exit
-  fi
-fi
-
-### add paths to bash profile file
-echo "-------------------------------------"
-echo "Adding WISECONFIGDIR to ~/$bashFile"
-
-wisePath=$(which "genewise")
-if [ -z "$($grepprog WISECONFIGDIR=$wisePath ~/$bashFile)" ]; then
-  echo "export WISECONFIGDIR=${wisePath}" >> ~/$bashFile
-fi
-
-# echo "Adding paths to ~/$rprofile"
-# if [ -z "$($grepprog $CURRENT/bin ~/$rprofile)" ]; then
-#   echo "Sys.setenv(PATH = paste(\"$CURRENT/bin\", Sys.getenv(\"PATH\"), sep=\":\"))" >> ~/$rprofile
-# fi
-echo "done!"
-
-### adapt paths in hamstr scripts
-echo "-------------------------------------"
-echo "Adapting paths in hamstr scripts"
-# update the sed and grep commands
-$sedprog -i -e "s/\(my \$sedprog = '\).*/\1$sedprog';/" $CURRENT/bin/hamstr.pl
-$sedprog -i -e "s/\(my \$grepprog = '\).*/\1$grepprog';/" $CURRENT/bin/hamstr.pl
-$sedprog -i -e "s/\(my \$readlinkprog = '\).*/\1$readlinkprog';/" $CURRENT/bin/hamstr.pl
-$sedprog -i -e "s/\(my \$sedprog = '\).*/\1$sedprog';/" $CURRENT/bin/oneSeq.pl
-$sedprog -i -e "s/\(my \$grepprog = '\).*/\1$grepprog';/" $CURRENT/bin/oneSeq.pl
-$sedprog -i -e "s/\(my \$readlinkprog = '\).*/\1$readlinkprog';/" $CURRENT/bin/oneSeq.pl
-
-# localize the perl installation
-path2perl=`which perl`
-echo "path to perl: $path2perl"
-$sedprog -i -e "s|\#\!.*|\#\!$path2perl|g" $CURRENT/bin/hamstr.pl
-$sedprog -i -e "s|\#\!.*|\#\!$path2perl|g" $CURRENT/bin/translate.pl
-$sedprog -i -e "s|\#\!.*|\#\!$path2perl|g" $CURRENT/bin/oneSeq.pl
-
-echo "done!"
-
-### final check
-echo "-------------------------------------"
-echo "Final check..."
-flag=0
-
-echo "Tools"
 dependencies=(
-genewise
-hmmsearch
-hmmscan
-hmmbuild
-mafft
-muscle
-clustalw
-blastp
+  blastp # blast
+  genewise # wise2
+  hmmsearch # hmmer (for both hmmsearch and hmmbuild)
+  clustalw
+  mafft # for linsi
+  muscle
+  fasta36
 )
 
 for i in "${dependencies[@]}"; do
-  tool=$i
-  if [ $tool == "clustalw" ]; then
-    if [ "$sys" == "Darwin" ]; then
-      tool="clustalw2"
+  if [ -z "$(which $i)" ]; then
+    echo $i
+    tool=$i
+    if [ "$tool" = "blastp" ]; then
+      conda install -y -c bioconda blast
+    elif [ "$tool" = "hmmsearch" ]; then
+      conda install -y -c bioconda hmmer
+    elif [ "$tool" = "genewise" ]; then
+      conda install -y -c bioconda wise2
+      wisePath=$(which "genewise")
+      if [ -z "$($grepprog WISECONFIGDIR=$wisePath ~/$bashFile)" ]; then
+        echo "export WISECONFIGDIR=${wisePath}" >> ~/$bashFile
+      fi
+    elif [ "$tool" = "fasta36" ]; then
+      conda install -y -c bioconda fasta3
+    else
+      conda install -y -c bioconda $i
     fi
   fi
-  if [ -z "$(which $tool)" ]; then
-    echo -e "\t\e[31mWARNING $tool not found!\e[0m"
+done
+
+for i in "${dependencies[@]}"; do
+  if [ -z "$(which $i)" ]; then
+    echo -e "\e[31m$i not found. Please install it to use HaMStR!\e[0m"
     flag=1
   fi
 done
+if [ "$flag" == 1 ]; then exit 1; fi
 
 perlModules=(
   Array::Utils
@@ -397,14 +181,219 @@ perlModules=(
   Bio::Tools::Run::StandAloneBlast
 )
 
+for i in "${perlModules[@]}"; do
+  msg=$((perldoc -l $i) 2>&1)
+  if [[ "$(echo $msg)" == *"No documentation"* ]]; then
+    cpanm ${i} --quiet --force
+  fi
+done
+
+echo "done!"
+
+### prepare folders
+echo "-------------------------------------"
+echo "Preparing folders..."
+
+# create required folders
+if [ ! -d "$CURRENT/taxonomy" ]; then mkdir "$CURRENT/taxonomy"; fi
+if [ ! -d "$CURRENT/bin" ]; then mkdir "$CURRENT/bin"; fi
+if [ ! -d "$CURRENT/bin/aligner" ]; then mkdir "$CURRENT/bin/aligner"; fi
+echo "done!"
+
+### download tools
+echo "-------------------------------------"
+echo "Downloading and installing annotation tools/databases:"
+
+cd "$CURRENT/taxonomy"
+if ! [ -f "nodes" ]; then
+  wget "ftp://ftp.ncbi.nih.gov/pub/taxonomy/taxdump.tar.gz"
+  tar xfv taxdump.tar.gz
+  rm taxdump.tar.gz
+  echo "Taxonomy database indexing. It can take a while, please wait..."
+  perl $CURRENT/setup/indexTaxonomy.pl $CURRENT/taxonomy
+  rm citations.dmp
+  rm delnodes.dmp
+  rm division.dmp
+  rm gencode.dmp
+  rm merged.dmp
+  rm gc.prt
+  rm readme.txt
+fi
+cd $CURRENT
+if ! [ -f "$CURRENT/taxonomy/nodes" ]; then
+  echo -e "\e[31mError while indexing NCBI taxonomy database! Please check $CURRENT/taxonomy/ folder and run this setup again!\e[0m"
+  exit
+fi
+
+cd "$CURRENT/bin"
+fasPrepare=0
+if [ -z "$(which annoFAS)" ]; then
+  echo "FAS"
+  conda install -y -c BIONF fas
+  if [ -z "$(which annoFAS)" ]; then
+    echo -e "\e[31mInstallation of FAS failed! Please try again!\e[0m"
+    exit
+  fi
+  fasPrepare=1
+else
+  if ! [ -z "$(prepareFAS -t ./ --check 2>&1 | grep ERROR)" ]; then
+    fasPrepare=1
+  fi
+fi
+
+if [ -z "$(which annoFAS)" ]; then
+  echo -e "Installation of FAS failed! Please try again or install FAS by yourself using \e[91mconda install -c BIONF fas\e[0m or \e[91mpip install greedyFAS\e[0m"
+  echo -e "For more info, please check FAS website at \e[91mhttps://github.com/BIONF/FAS\e[0m"
+  exit
+else
+  if ! [ -z "$(prepareFAS -t ./ --check 2>&1 | grep ERROR)" ]; then
+    fasPrepare=1
+  fi
+fi
+cd $CURRENT
+echo "done!"
+
+### download data
+data_HaMStR_file="data_HaMStR-2019c.tar.gz"
+checkSumData="1748371655 621731824 $data_HaMStR_file"
+cd $outDir
+if [ ! -d "$outDir/core_orthologs" ]; then mkdir "$outDir/core_orthologs"; fi
+
+if ! [ "$(ls -A $outDir/genome_dir)" ]; then
+  echo "-------------------------------------"
+  echo "Getting pre-calculated data"
+
+  echo "Processing $outDir ..."
+  if [ ! -f $outDir/$data_HaMStR_file ]; then
+    echo "Downloading data from https://applbio.biologie.uni-frankfurt.de/download/hamstr_qfo/$data_HaMStR_file"
+    wget --no-check-certificate https://applbio.biologie.uni-frankfurt.de/download/hamstr_qfo/$data_HaMStR_file
+  else
+    CHECKSUM=$(cksum $data_HaMStR_file)
+    echo "Checksum: $CHECKSUM"
+    if ! [ "$CHECKSUM" == "$checkSumData" ]; then
+      rm $outDir/$data_HaMStR_file
+      echo "Downloading data from https://applbio.biologie.uni-frankfurt.de/download/hamstr_qfo/$data_HaMStR_file"
+      wget --no-check-certificate https://applbio.biologie.uni-frankfurt.de/download/hamstr_qfo/$data_HaMStR_file
+    fi
+  fi
+
+  if [ ! -f $outDir/$data_HaMStR_file ]; then
+    echo "File $data_HaMStR_file not found! Please try to download again from"
+    echo "https://applbio.biologie.uni-frankfurt.de/download/hamstr_qfo/data_HaMStR.tar"
+    exit
+  fi
+
+  CHECKSUM=$(cksum $data_HaMStR_file)
+  if [ "$CHECKSUM" == "$checkSumData" ]; then
+    echo "Extracting archive $data_HaMStR_file..."
+    tar xf $outDir/$data_HaMStR_file
+    rm $outDir/$data_HaMStR_file
+    for i in $(ls "$outDir/genome_dir"); do rm -f "$outDir/genome_dir/$i/$i.fa.mod"; done
+
+    if [ "$(ls -A $outDir/blast_dir)" ]; then
+      echo "Data should be in place to run HaMStR.\n"
+    else
+      echo -e "\e[31mSomething went wrong with the download. Data folders are empty.\e[0m"
+      echo "Please try to download again from"
+      echo "https://applbio.biologie.uni-frankfurt.de/download/hamstr_qfo/$data_HaMStR_file"
+      echo "Or contact us if you think this is our issue!"
+      exit
+    fi
+  else
+    echo -e "\e[31mSomething went wrong with the download. Checksum does not match.\e[0m"
+    echo "Please try to download again from"
+    echo "https://applbio.biologie.uni-frankfurt.de/download/hamstr_qfo/$data_HaMStR_file"
+    echo "Please put it into $outDir folder and run this setup again!"
+    exit
+  fi
+fi
+# write data path to pathConfig file
+if [ -f $BIN/pathconfig.txt ]; then
+  rm $BIN/pathconfig.txt
+fi
+touch $BIN/pathconfig.txt
+echo $outDir >> $BIN/pathconfig.txt
+
+### add paths to bash profile file
+echo "-------------------------------------"
+echo "Adding WISECONFIGDIR to ~/$bashFile"
+
+wisePath=$(which "genewise")
+if [ -z "$($grepprog WISECONFIGDIR=$wisePath ~/$bashFile)" ]; then
+  echo "export WISECONFIGDIR=${wisePath}" >> ~/$bashFile
+fi
+
+# echo "Adding paths to ~/$rprofile"
+# if [ -z "$($grepprog $CURRENT/bin ~/$rprofile)" ]; then
+#   echo "Sys.setenv(PATH = paste(\"$CURRENT/bin\", Sys.getenv(\"PATH\"), sep=\":\"))" >> ~/$rprofile
+# fi
+
+echo "done!"
+
+### adapt paths in hamstr scripts
+echo "-------------------------------------"
+echo "Adapting paths in hamstr scripts"
+# update the sed and grep commands
+$sedprog -i -e "s/\(my \$sedprog = '\).*/\1$sedprog';/" $CURRENT/bin/hamstr.pl
+$sedprog -i -e "s/\(my \$grepprog = '\).*/\1$grepprog';/" $CURRENT/bin/hamstr.pl
+$sedprog -i -e "s/\(my \$readlinkprog = '\).*/\1$readlinkprog';/" $CURRENT/bin/hamstr.pl
+$sedprog -i -e "s/\(my \$sedprog = '\).*/\1$sedprog';/" $CURRENT/bin/oneSeq.pl
+$sedprog -i -e "s/\(my \$grepprog = '\).*/\1$grepprog';/" $CURRENT/bin/oneSeq.pl
+$sedprog -i -e "s/\(my \$readlinkprog = '\).*/\1$readlinkprog';/" $CURRENT/bin/oneSeq.pl
+
+# localize the perl installation
+path2perl=`which perl`
+echo "path to perl: $path2perl"
+$sedprog -i -e "s|\#\!.*|\#\!$path2perl|g" $CURRENT/bin/hamstr.pl
+$sedprog -i -e "s|\#\!.*|\#\!$path2perl|g" $CURRENT/bin/translate.pl
+$sedprog -i -e "s|\#\!.*|\#\!$path2perl|g" $CURRENT/bin/oneSeq.pl
+
+### final check
+echo "-------------------------------------"
+echo "Final check..."
+flag=0
+
+echo "Conda packages"
+condaPkgs=(
+perl-bioperl
+perl-bioperl-core
+blast
+hmmer
+wise2
+clustalw
+mafft
+muscle
+fasta3
+)
+for i in "${condaPkgs[@]}"; do
+  if [[ -z $(conda list | $grepprog "$i ") ]]; then
+    progname=$i
+    if [ "$i" == "blast" ]; then
+      progname="blastp"
+    elif [ "$i" == "wise2" ]; then
+      progname="genewise"
+    elif [ "$i" == "hmmer" ]; then
+      progname="hmmsearch"
+    elif [ "$i" == "fasta3" ]; then
+      progname="fasta36"
+    fi
+    if [ -z "$(which $progname)" ]; then
+      echo -e "\t\e[31m$i could not be installed\e[0m"
+      flag=1
+    fi
+  fi
+done
+echo "done!"
+
 echo "Perl modules"
 for i in "${perlModules[@]}"; do
   msg=$((perl -e "use $i") 2>&1)
   if ! [[ -z ${msg} ]]; then
-    echo -e "\t\e[31mWARNING $i could not be installed\e[0m"
+    echo -e "\t\e[31m$i could not be installed\e[0m"
     flag=1
   fi
 done
+echo "done!"
 
 echo "Environment paths"
 envPaths=(
@@ -412,16 +401,10 @@ WISECONFIGDIR
 )
 for i in "${envPaths[@]}"; do
   if [ -z "$($grepprog $i ~/$bashFile)" ]; then
-    echo -e "\t\e[31mWARNING $i was not added into ~/$bashFile\e[0m"
+    echo -e "\t\e[31m$i was not added into ~/$bashFile\e[0m"
     flag=1
   fi
 done
-if [ "$fasta36" == "no" ]; then
-  if [ -z "$($grepprog PATH=$CURRENT/bin/aligner/bin ~/$bashFile)" ]; then
-    echo -e "\t\e[31mWARNING $CURRENT/bin/aligner/bin was not added into ~/$bashFile\e[0m"
-    flag=1
-  fi
-fi
 echo "done!"
 
 if [ "$flag" == 1 ]; then
@@ -445,7 +428,7 @@ else
   else
     echo "All tests succeeded, HaMStR should be ready to run. You can test it with:"
   fi
-  echo -e "\e[96moneSeq --seqFile infile.fa --seqName test --refspec HUMAN@9606@3\e[0m"
+  echo -e "\e[96mh1s --seqFile infile.fa --seqName test --refspec HUMAN@9606@3\e[0m"
   echo "Output files with prefix \"test\" will be found at your current working directory!"
   echo -e "For more details, use \e[96moneSeq -h\e[0m or visit https://github.com/BIONF/HaMStR/wiki"
   echo "Happy HaMStRing! ;-)"

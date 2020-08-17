@@ -30,6 +30,7 @@ def checkOptConflict(lib, conda):
 def main():
     version = '1.0.0'
     parser = argparse.ArgumentParser(description='You are running setup1s version ' + str(version) + '.')
+    parser.add_argument('-o', '--outPath', help='Output path for hamstr1s data', action='store', default='', required=True)
     parser.add_argument('--conda', help='Setup HaMStR-oneSeq within a conda env', action='store_true', default=False)
     parser.add_argument('--lib', help='Install HaMStR-oneSeq libraries only', action='store_true', default=False)
 
@@ -38,16 +39,18 @@ def main():
     conda = args.conda
     lib = args.lib
     checkOptConflict(lib, conda)
+    outPath = args.outPath
+    Path(outPath).mkdir(parents = True, exist_ok = True)
     oneseqPath = os.path.realpath(__file__).replace('/setup1s.py','')
     ### run setup
     if conda:
-        setupFile = oneseqPath + '/setup/setup_conda.sh'
+        setupFile = '%s/setup/setup_conda.sh -o %s' % (oneseqPath, outPath)
         subprocess.call([setupFile], shell = True)
     else:
         if lib:
             setupFile = '%s/setup/setup.sh -l' % (oneseqPath)
         else:
-            setupFile = '%s/setup/setup.sh' % (oneseqPath)
+            setupFile = '%s/setup/setup.sh -o %s' % (oneseqPath, outPath)
         subprocess.call([setupFile], shell = True)
 
 if __name__ == '__main__':

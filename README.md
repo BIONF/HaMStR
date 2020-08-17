@@ -1,12 +1,12 @@
 # HaMStR-OneSeq
-[![PyPI version](https://badge.fury.io/py/hamstr1s.svg)](https://badge.fury.io/py/hamstr1s)
-[![conda-install](https://anaconda.org/bionf/hamstr/badges/installer/conda.svg)](https://anaconda.org/bionf/hamstr)
-[![conda-version](https://anaconda.org/bionf/hamstr/badges/version.svg)](https://anaconda.org/bionf/hamstr)
-[![GPLv3-license](https://anaconda.org/bionf/hamstr/badges/license.svg)](https://www.gnu.org/licenses/gpl-3.0.de.html)
+[![PyPI version](https://badge.fury.io/py/h1s.svg)](https://badge.fury.io/py/h1s)
+[![conda-install](https://anaconda.org/bionf/h1s/badges/installer/conda.svg)](https://anaconda.org/bionf/h1s)
+[![conda-version](https://anaconda.org/bionf/h1s/badges/version.svg)](https://anaconda.org/bionf/h1s)
+[![GPLv3-license](https://anaconda.org/bionf/h1s/badges/license.svg)](https://www.gnu.org/licenses/gpl-3.0.de.html)
 
 # Table of Contents
 * [How to install](#how-to-install)
-     * [Install the hamstr1s package](#install-the-hamstr1s-package)
+     * [Install the h1s package](#install-the-h1s-package)
      * [Setup HaMStR-oneSeq](#setup-hamstr-oneseq)
 * [Usage](#usage)
 * [HaMStR-oneSeq data set](#hamstr-oneseq-data-set)
@@ -19,17 +19,17 @@
 
 # How to install
 
-*HaMStR-oneSeq* is distributed as a python package called *hamstr1s*. It is compatible with [Python ≥ v3.7](https://www.python.org/downloads/).
+*HaMStR-oneSeq* is distributed as a python package called *h1s*. It is compatible with [Python ≥ v3.7](https://www.python.org/downloads/).
 
-## Install the hamstr1s package
-You can install *hamstr1s* using `pip`:
+## Install the h1s package
+You can install *h1s* using `pip`:
 ```
-python3 -m pip install hamstr1s
+python3 -m pip install h1s
 ```
 
 or, in case you do not have admin rights, and don't use package systems like Anaconda to manage environments you need to use the `--user` option:
 ```
-python3 -m pip install --user hamstr1s
+python3 -m pip install --user h1s
 ```
 
 and then add the following line to the end of your **~/.bashrc** or **~/.bash_profile** file, restart the current terminal to apply the change (or type `source ~/.bashrc`):
@@ -40,20 +40,20 @@ export PATH=$HOME/.local/bin:$PATH
 
 ## Setup HaMStR-oneSeq
 
-After installing *hamstr1s*, you need to setup *HaMStR-oneSeq* to get its dependencies and pre-calculated data.
+After installing *h1s*, you need to setup *HaMStR-oneSeq* to get its dependencies and pre-calculated data.
 
 You can do it by just running this command
 ```
-setup1s
+setup1s -o /output/path/for/oneSeq/data
 ```
 or, in case you are using Anaconda
 ```
-setup1s --conda
+setup1s -o /output/path/for/oneSeq/data --conda
 ```
 
 *You should have the sudo password ready, otherwise some missing dependencies cannot be installed. See [dependency list](#dependencies) for more info. If you do not have root privileges, ask your admin to install those dependencies using `setup1s --lib` command.*
 
-After the setup run successfully, you can start using HaMStR.
+[Pre-calculated data set](https://github.com/BIONF/HaMStR/wiki/Input-and-Output-Files#data-structure) of HaMStR-oneSeq will be saved in `/output/path/for/oneSeq/data`. After the setup run successfully, you can start using HaMStR.
 
 *For debugging the setup, please create a log file by running the setup as e.g. `setup1s | tee log.txt` for Linux/MacOS or `setup1s --conda | tee log.txt` for Anaconda and send us that log file, so that we can trouble shoot the issues. Most of the problems can be solved by just re-running the setup.*
 

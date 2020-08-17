@@ -108,7 +108,12 @@ def main():
     # outPath = str(Path(args.outPath).resolve())
     outPath = args.outPath #str(Path(args.outPath).resolve())
     if outPath == '':
-        outPath = os.path.realpath(__file__).replace('/addTaxon1s.py','')
+        oneseqPath = os.path.realpath(__file__).replace('/addTaxon1s.py','')
+        pathconfigFile = oneseqPath + '/bin/pathconfig.txt'
+        if not os.path.exists(pathconfigFile):
+            sys.exit('No pathconfig.txt found. Please run setup1s (https://github.com/BIONF/HaMStR/wiki/Installation#setup-hamstr-oneseq).')
+        with open(pathconfigFile) as f:
+            outPath = f.readline().strip()
     noAnno = args.noAnno
     coreTaxa = args.coreTaxa
     ver = str(args.verProt)
@@ -139,16 +144,26 @@ def main():
     if (not os.path.exists(os.path.abspath(specFile))) or (os.stat(specFile).st_size == 0) or force:
         f = open(specFile, 'w')
         index = 0
+        modIdIndex = 0
+        longId = 'no'
         tmpDict = {}
         for id in inSeq:
+            seq = str(inSeq[id].seq)
+            # check ID
+            id = re.sub('\|', '_', id)
+            if len(id) > 80:
+                # modIdIndex = modIdIndex + 1
+                # id = specName + "_" + str(modIdIndex)
+                longId = 'yes'
             if not id in tmpDict:
                 tmpDict[id] = 1
             else:
                 index = index + 1
                 id = str(id) + '_' + str(index)
                 tmpDict[id] = 1
-            seq = str(inSeq[id].seq)
-            id = re.sub('\|', '_', id)
+            # check seq
+            if seq[-1] == '*':
+                seq = seq[:-1]
             specialChr = 'no'
             if any(c for c in seq if not c.isalpha()):
                 specialChr = 'yes'
@@ -166,6 +181,8 @@ def main():
         cf = open(specFile+'.checked', 'w')
         cf.write(str(datetime.now()))
         cf.close()
+        # warning about long header
+        print('\033[91mWARNING: Headers are longer than 80 characters. It could cause some troubles!\033[0m')
     else:
         print(genomePath + '/' + specName + '.fa already exists!')
 
@@ -195,7 +212,7 @@ def main():
         except:
             print('\033[91mProblem with running annoFAS. You can check it with this command:\n%s\033[0m' % annoCmd)
 
-    print('Output can be found in %s within genome_dir [and blast_dir, weight_dir] folder[s]' % outPath)
+    print('Output for %s can be found in %s within genome_dir [and blast_dir, weight_dir] folder[s]' % (specName, outPath))
 
 if __name__ == '__main__':
     main()
