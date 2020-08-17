@@ -22,6 +22,7 @@ while getopts o: opt; do
     ;;
   esac
 done
+if [ ! -d "$outDir" ]; then mkdir "$outDir"; fi
 
 ### check grep, sed and wget availability
 echo "-------------------------------------"
@@ -409,7 +410,7 @@ echo "done!"
 
 if [ "$flag" == 1 ]; then
   echo "Some tools/libraries counld not installed correctly or paths were not added into ~/$bashFile."
-  echo "Please manually install the missing dependencies using $CURRENT/setup/install_lib.sh script (ask your admin if you don't have root privileges)."
+  echo "Please manually install the missing dependencies using using setup1s with --lib option (ask your admin if you don't have root privileges)."
   echo "Then run this setup again to try one more time!"
   exit
 else

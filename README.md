@@ -1,8 +1,6 @@
 # HaMStR-OneSeq
 [![PyPI version](https://badge.fury.io/py/h1s.svg)](https://badge.fury.io/py/h1s)
-[![conda-install](https://anaconda.org/bionf/h1s/badges/installer/conda.svg)](https://anaconda.org/bionf/h1s)
-[![conda-version](https://anaconda.org/bionf/h1s/badges/version.svg)](https://anaconda.org/bionf/h1s)
-[![GPLv3-license](https://anaconda.org/bionf/h1s/badges/license.svg)](https://www.gnu.org/licenses/gpl-3.0.de.html)
+[![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](https://www.gnu.org/licenses/gpl-3.0)
 
 # Table of Contents
 * [How to install](#how-to-install)

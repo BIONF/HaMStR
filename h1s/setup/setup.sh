@@ -8,7 +8,6 @@ CURRENT="${CURRENT/\/setup/}"
 BIN="$CURRENT/bin"
 
 flag=0
-root=0
 fas=1
 installLib=0
 homedir="$(echo $HOME)"
@@ -35,29 +34,15 @@ while getopts lfo: opt; do
   esac
 done
 
-if [ "$EUID" -eq 0 ]; then
-  echo "Please DO NOT run this script as root!"
-  # read -p "Press enter to continue, but some missing tools/libraries will not be installed!"
-  exit
-  # root=0
-else
-  read -p "Do you have sudo password? [y/n]" -n 1 -r
-  echo
-  if [[ $REPLY =~ ^[Yy]$ ]]; then
-    root=1
-  fi
-fi
-
 ### install dependencies
-if [ installLib == 1 ]; then
+if [ $installLib == 1 ]; then
     if [ "$sys" == "Darwin" ]; then
-      setup1s with --lib
+      $CURRENT/setup/install_lib.sh
     else
-      if [ $root == 1 ]; then
-        echo "Enter sudo password to install required libraries..."
-        sudo setup1s --lib
-      fi
+      echo "Enter sudo password to install required libraries..."
+      sudo $CURRENT/setup/install_lib.sh
     fi
+    exit
 fi
 
 ### check grep, sed, readlink and wget availability
@@ -84,26 +69,20 @@ fi
 
 if [ -z "$(which $sedprog)" ]; then
   echo -e "\e[31m$sedprog not found!\e[0m"
-  if [ $root == 0 ]; then
-    echo "Please run setup1s with --lib first!"
-    exit
-  fi
+  echo "Please run setup1s with --lib first!"
+  exit
 fi
 
 if [ -z "$(which $grepprog)" ]; then
   echo -e "\e[31m$grepprog not found!\e[0m"
-  if [ $root == 0 ]; then
-    echo "Please run setup1s with --lib first!"
-    exit
-  fi
+  echo "Please run setup1s with --lib first!"
+  exit
 fi
 
 if [ -z "$(which $wgetprog)" ]; then
   echo -e "\e[31m$wgetprog not found!\e[0m"
-  if [ $root == 0 ]; then
-    echo "Please run setup1s with --lib first!"
-    exit
-  fi
+  echo "Please run setup1s with --lib first!"
+  exit
 fi
 
 if ! [ -f ~/$bashFile ]; then
@@ -182,16 +161,12 @@ if [ $fas == 1 ]; then
   cd "$CURRENT/bin"
   if [ -z "$(which annoFAS)" ]; then
     echo "FAS"
-    if [ $root == 1 ]; then
-        pip install greedyFAS
-    else
-        pip install --user greedyFAS
-        if [ -z "$($grepprog \$HOME/.local/bin:\$PATH ~/$bashFile)" ]; then
-          echo "export PATH=\$HOME/.local/bin:\$PATH" >> ~/$bashFile
-        fi
-        if [ -z "$($grepprog $homedir/.local/bin ~/$rprofile)" ]; then
-          echo "Sys.setenv(PATH = paste(\"$homedir/.local/bin\", Sys.getenv(\"PATH\"), sep=\":\"))" >> ~/$rprofile
-        fi
+    pip install --user greedyFAS
+    if [ -z "$($grepprog \$HOME/.local/bin:\$PATH ~/$bashFile)" ]; then
+      echo "export PATH=\$HOME/.local/bin:\$PATH" >> ~/$bashFile
+    fi
+    if [ -z "$($grepprog $homedir/.local/bin ~/$rprofile)" ]; then
+      echo "Sys.setenv(PATH = paste(\"$homedir/.local/bin\", Sys.getenv(\"PATH\"), sep=\":\"))" >> ~/$rprofile
     fi
     fasPrepare=1
   else
@@ -403,7 +378,7 @@ echo "done!"
 
 if [ "$flag" == 1 ]; then
   echo "Some tools/libraries counld not installed correctly or paths were not added into ~/$bashFile."
-  echo "Please manually install the missing dependencies using $CURRENT/setup/install_lib.sh script (ask your admin if you don't have root privileges)."
+  echo "Please manually install the missing dependencies using setup1s with --lib option (ask your admin if you don't have root privileges)."
   echo "Then run this setup again to try one more time!"
   exit
 else
