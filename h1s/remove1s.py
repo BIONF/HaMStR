@@ -52,10 +52,16 @@ def main():
     data = args.data
 
     oneseqPath = os.path.realpath(__file__).replace('/remove1s.py','')
+    pathconfigFile = oneseqPath + '/bin/pathconfig.txt'
+    if not os.path.exists(pathconfigFile):
+        sys.exit('No pathconfig.txt found. Please run setup1s (https://github.com/BIONF/HaMStR/wiki/Installation#setup-hamstr-oneseq).')
+    with open(pathconfigFile) as f:
+        dataPath = f.readline().strip()
+
     if data:
         print('All files and folders in %s will be removed! Enter to continue' % oneseqPath)
     else:
-        print('hamstr1s will be uninstalled. Some files/data still can be found in %s! Enter to continue' % oneseqPath)
+        print('h1s will be uninstalled. Some files/data still can be found in %s! Enter to continue' % oneseqPath)
     if query_yes_no('Are you sure?'):
         if data:
             folders = ['bin', 'core_orthologs', 'taxonomy', 'data']
@@ -64,18 +70,16 @@ def main():
                 if os.path.exists(os.path.abspath(dirPath)):
                     print('removing %s...' % f)
                     shutil.rmtree(dirPath)
-        uninstallCmd = 'pip uninstall hamstr1s'
-        subprocess.call([uninstallCmd], shell = True)
+        uninstallCmd = 'pip uninstall h1s'
+        try:
+            subprocess.call([uninstallCmd], shell = True)
+        except:
+            print('Error by uninstalling h1s. Please manually uninstall it using pip uninstall h1s')
         if data:
             if os.path.exists(os.path.abspath(oneseqPath)):
                 shutil.rmtree(oneseqPath)
 
-    pathconfigFile = oneseqPath + '/bin/pathconfig.txt'
-    if not os.path.exists(pathconfigFile):
-        sys.exit('No pathconfig.txt found. Please run setup1s (https://github.com/BIONF/HaMStR/wiki/Installation#setup-hamstr-oneseq).')
-    with open(pathconfigFile) as f:
-        dataPath = f.readline().strip()
-        print('NOTE: HaMStR-oneSeq genome data are still available at %s.' % dataPath)
+    print('NOTE: HaMStR-oneSeq genome data are still available at %s.' % dataPath)
 
 if __name__ == '__main__':
     main()

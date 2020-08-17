@@ -51,7 +51,7 @@ setup1s -o /output/path/for/oneSeq/data --conda
 
 *You should have the sudo password ready, otherwise some missing dependencies cannot be installed. See [dependency list](#dependencies) for more info. If you do not have root privileges, ask your admin to install those dependencies using `setup1s --lib` command.*
 
-[Pre-calculated data set](https://github.com/BIONF/HaMStR/wiki/Input-and-Output-Files#data-structure) of HaMStR-oneSeq will be saved in `/output/path/for/oneSeq/data`. After the setup run successfully, you can start using HaMStR.
+[Pre-calculated data set](https://github.com/BIONF/HaMStR/wiki/Input-and-Output-Files#data-structure) of HaMStR-oneSeq will be saved in `/output/path/for/oneSeq/data`. After the setup run successfully, you can start using *HaMStR-oneSeq*.
 
 *For debugging the setup, please create a log file by running the setup as e.g. `setup1s | tee log.txt` for Linux/MacOS or `setup1s --conda | tee log.txt` for Anaconda and send us that log file, so that we can trouble shoot the issues. Most of the problems can be solved by just re-running the setup.*
 
