@@ -1,6 +1,7 @@
 # HaMStR-OneSeq
 [![PyPI version](https://badge.fury.io/py/h1s.svg)](https://badge.fury.io/py/h1s)
 [![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](https://www.gnu.org/licenses/gpl-3.0)
+[![Build Status](https://travis-ci.com/BIONF/HaMStR.svg?branch=master)](https://travis-ci.com/BIONF/HaMStR)
 
 # Table of Contents
 * [How to install](#how-to-install)
