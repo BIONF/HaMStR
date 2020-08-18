@@ -72,7 +72,7 @@ Please find more information in [our wiki](https://github.com/BIONF/HaMStR/wiki)
 
 # HaMStR-oneSeq data set
 
-Within the data package (https://fasta.bioch.virginia.edu/fasta_www2/fasta_list2.shtml) we provide a set of 78 reference taxa. They can be automatically downloaded during the setup. This data comes "ready to use" with the *HaMStR-OneSeq* framework. Species data must be present in the three directories listed below:
+Within the data package we provide a set of 78 reference taxa. They can be automatically downloaded during the setup. This data comes "ready to use" with the *HaMStR-OneSeq* framework. Species data must be present in the three directories listed below:
 
 * genome_dir (Contains sub-directories for proteome fasta files for each species)
 * blast_dir (Contains sub-directories for BLAST databases made with `makeblastdb` out of your proteomes)
