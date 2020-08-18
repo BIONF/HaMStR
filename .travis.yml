@@ -4,9 +4,6 @@ python:
 install:
   - pip install .
 script: python3 h1s/runOneseq.py -h
-branches:
-  only:
-  - develop
 deploy:
   provider: pypi
   username: "__token__"
