@@ -60,12 +60,12 @@ setup1s -o /output/path/for/oneSeq/data --conda
 *HaMStR-oneSeq* will run smoothly with the provided sample input file in 'infile.fa' if everything is set correctly.
 
 ```
-oneSeq --seqFile infile.fa --seqName test --refspec HUMAN@9606@3
+h1s --seqFile infile.fa --seqName test --refspec HUMAN@9606@3
 ```
 The output files with the prefix `test` will be saved at your current working directory.
 You can have an overview about all available options with the command
 ```
-oneSeq -h
+h1s -h
 ```
 
 Please find more information in [our wiki](https://github.com/BIONF/HaMStR/wiki) to learn about the [input and outputs files](https://github.com/BIONF/HaMStR/wiki/Input-and-Output-Files) of *HaMStR-oneSeq*.
