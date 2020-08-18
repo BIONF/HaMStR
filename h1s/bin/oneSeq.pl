@@ -1,9 +1,13 @@
 #!/usr/bin/perl
 use strict;
 use warnings;
+use File::Copy;
 use File::Copy qw(move);
 use File::Basename;
+use File::Path;
+use File::Path qw/make_path/;
 use File::Path 'rmtree';
+use File::Which;
 use lib dirname(__FILE__);
 use Parallel::ForkManager;
 use IO::Handle;
@@ -16,17 +20,15 @@ use Bio::SeqIO;
 use Bio::SearchIO;
 use Term::Cap;
 use POSIX;
-use File::Path;
 
 use Capture::Tiny qw/capture/;
 use IPC::Run qw( run timeout );
 use Time::HiRes;
-use File::Path;
-use File::Basename;
-use File::Which;
 use List::Util qw(shuffle);
-use File::Copy;
+use Cwd;
 use Cwd 'abs_path';
+use Array::Utils qw(:all);
+use Try::Tiny;
 
 my $startTime = time;
 
@@ -101,15 +103,25 @@ my $startTime = time;
 
 ## Bug fix 14. April 2020 (Ingo):	- fixed bug that inactivated the -append option
 
-## Modified 14. Aprilf 2002 (Vinh): - added option for using user-defined blast_dir, genome_dir and weight_dir
+## Modified 14. April 2020 (Vinh): - added option for using user-defined blast_dir, genome_dir and weight_dir
 ##									- reference species (and taxa for core-set compilation) specified from blast_dir
 
+## Modified 16. Juni 2020 (Vinh): major change in FAS score calculation (v1.7.0)
+##									- no need for profile_prog, architecture_prog and visualsPath
+##									- final FAS score calculation is done using hamstrFAS
+
+## Modified 16. Juni 2020 v1.7.1 (Vinh)	- replace greedyFAS by calcFAS
+## Modified 07. July 2020 v1.7.2 (Vinh)	- check if FAS executable
+## Modified 10. July 2020 v1.7.3 (Vinh)	- solved problem when gene ID contains PIPE
+## Modified 13. July 2020 v1.8.0 (Vinh)	- added initial check, no longer use .mod files
+## Modified 22. July 2020 v1.9.0 (Vinh)	- moved tmp blast files to output folder and delete them when finished
+
 ############ General settings
-my $version = 'oneSeq v.1.6.0';
+my $version = 'oneSeq v.2.0.0';
 ##### configure for checking if the setup.sh script already run
 my $configure = 0;
 if ($configure == 0){
-	die "\n\n$version\n\nPLEASE RUN Setup.sh FILE BEFORE USING oneSeq.pl\n\n";
+	die "\n\n$version\n\nPLEASE RUN setup1s BEFORE USING HaMStR-oneSeq\n\n";
 }
 ##### hostname
 my $hostname = `hostname`;
@@ -126,33 +138,32 @@ $path =~ s/\/$//;
 printDebug("Path is $path");
 
 #### Programs and output
-my $sedprog = 'gsed';
-my $grepprog = 'ggrep';
+my $sedprog = 'sed';
+my $grepprog = 'grep';
+my $readlinkprog = 'readlink';
 
 my $globalaligner = 'ggsearch36';
 my $glocalaligner = 'glsearch36';
 my $localaligner = 'ssearch36';
-
 my $fasta36Path = which('fasta36');
 if ( !(defined $fasta36Path) || $fasta36Path eq "") {
 	$globalaligner = $path.'/bin/aligner/bin/'.'ggsearch36';
 	$glocalaligner = $path.'/bin/aligner/bin/'.'glsearch36';
 	$localaligner = $path.'/bin/aligner/bin/'.'ssearch36';
 	unless (-e $globalaligner) {
-		exit("fasta36 not found! Please install it before using HaMStR!");
+		print "fasta36 not found! Please install it before using HaMStR!\n";
+		exit();
 	}
 }
 
-# my $blast_prog = 'blastall';
 my $algorithm = "blastp";
 my $blast_prog = 'blastp';
 my $outputfmt = 'blastxml';
 my $eval_blast_query = 0.0001;
 my $filter = 'T';
 my $annotation_prog = "annoFAS";
-my $fas_prog = "greedyFAS";
-my $profile_prog = 'parseOneSeq_single.pl';
-my $architecture_prog = 'parseArchitecture.pl';
+my $fas_prog = "calcFAS";
+my $hamstrFAS_prog = "hamstrFAS";
 
 ##### ublast Baustelle: not implemented yet
 my $runublast = 0;
@@ -178,27 +189,20 @@ my $genome_dir = "$path/genome_dir";
 my $taxaPath = "$genome_dir/";
 my $blastPath = "$path/blast_dir/";
 my $idx_dir = "$path/taxonomy/";
-my $tmpdir = "$path/tmp";
 my $dataDir = $path . '/data';
 my $weightPath = "$path/weight_dir/";
-my $visualsPath = "$path/bin/visuals/";
 
-my @defaultRanks = ('superkingdom', 'kingdom',
-					'superphylum', 'phylum', 'subphylum',
-					'superclass', 'class', 'subclass', 'infraclass',
-					'superorder', 'order', 'suborder', 'parvorder', 'infraorder',
-					'superfamily', 'family', 'subfamily',
-					'tribe', 'subtribe',
-					'genus', 'subgenus',
-					'species group', 'species subgroup', 'species');
-#switched from online version to flatfile because it is much faster
-#taxon files can be downloaded from: ftp://ftp.ncbi.nih.gov/pub/taxonomy/
-print "Please wait while the taxonomy database is indexing...\n";
-my $db = Bio::DB::Taxonomy->new(-source    => 'flatfile',
-								-nodesfile => $idx_dir . 'nodes.dmp',
-								-namesfile => $idx_dir . 'names.dmp',
-								-directory => $idx_dir);
-print "indexing done!\n";
+my @defaultRanks = (
+	'superkingdom', 'kingdom',
+	'superphylum', 'phylum', 'subphylum',
+	'superclass', 'class', 'subclass', 'infraclass',
+	'superorder', 'order', 'suborder', 'parvorder', 'infraorder',
+	'superfamily', 'family', 'subfamily',
+	'tribe', 'subtribe',
+	'genus', 'subgenus',
+	'species group', 'species subgroup', 'species'
+);
+
 ################## some variables
 my $finalOutput;
 my $dbHandle;
@@ -222,8 +226,6 @@ my %profile     = ();
 my %fas_score_keeper = ();
 my $eval_filter = 0.001;
 my $inst_eval_filter = 0.01;
-my $weight_seed = 0;
-my $annoCores = 2;
 
 my $help;
 my @profile = qw();
@@ -291,81 +293,117 @@ my $breakAfter = 5; 		## Number of Significantly bad candidates after which the 
 my %hashTree;
 my $aln = 'muscle';
 ################# Command line options
-GetOptions ("h"                 => \$help,
-			"append"	=> \$append,
-			"showTaxa"          => \$showTaxa,
-			"refSpec=s"         => \$refSpec,
-			"db"                => \$dbmode,
-			"filter=s"          => \$filter,
-			"seqFile=s"   => \$seqFile,
-			"seqId=s"           => \$seqId,
-			"seqName=s"         => \$seqName,
-			"silent"            => \$silent,
-			"minDist=s"         => \$minDist,
-			"maxDist=s"         => \$maxDist,
-			"coreOrth=i"        => \$minCoreOrthologs,
-			"coreTaxa=s"        => \$coreTaxa,
-			"strict"            => \$strict,
-			"rbh"               => \$rbh,
-			"evalBlast=s"      => \$eval_blast,
-			"evalHmmer=s"      => \$eval_hmmer,
-			"evalRelaxfac=s"       => \$eval_relaxfac,
-			"checkCoorthologsRef"       => \$checkcoorthologsref,
-			"coreCheckCoorthologsRef"   => \$cccr,
-			"hitlimitHamstr=s"          => \$hitlimit,
-			"coreHitlimitHamstr=s"      => \$core_hitlimit,
-			"autoLimitHamstr"	=> \$autoLimit,
-			"scoreCutoff=s" => \$scoreCutoff,
-			"scoreThreshold" => \$scoreThreshold,
-			"coreRep"           => \$core_rep,
-			"coreStrict"        => \$corestrict,
-			"coreOnly"          => \$coreOnly,
-			"group=s"           => \$group,
-			"blast"             => \$blast,
-			"batch=s"           => \$batch,
-			"fas"               => \$fas_support,
-			"countercheck"      => \$countercheck,
-			"fasoff"            => \$fasoff,
-			"coreFilter=s"     => \$core_filter_mode,
-			"minScore=s"        => \$fas_T,
-			"local"             => \$local,
-			"global"            => \$global,
-			"glocal"            => \$glocal,
-			"rep"               => \$representative,
-			"cpu=s"             => \$cpu,
-			"outpath=s"         => \$outputPath,
-			"hmmpath=s"         => \$coreOrthologsPath,
-			"blastpath=s"         => \$blastPath,
-			"searchpath=s"         => \$genome_dir,
-			"weightpath=s"         => \$weightPath,
-			"debug"             => \$debug,
-			"coreHitlimit=s"   => \$core_hitlimit,
-			"hitlimit=s"        => \$hitlimit,
-			"force"             => \$force,
-			"cleanup"           => \$autoclean,
-			"addenv=s"          => \$addenv,
-			"weightSeed"       => \$weight_seed,
-			"version"           => \$getversion,
-			"reuseCore"        => \$coreex,
-			"ignoreDistance"	=> \$ignoreDistance,
-			"distDeviation=s"	=> \$distDeviation,
-			"annoCores=s" => \$annoCores,
-			"aligner=s"	=> \$aln);
+GetOptions (
+	"h"                 => \$help,
+	"append"	=> \$append,
+	"showTaxa"          => \$showTaxa,
+	"refSpec=s"         => \$refSpec,
+	"db"                => \$dbmode,
+	"filter=s"          => \$filter,
+	"seqFile=s"   => \$seqFile,
+	"seqId=s"           => \$seqId,
+	"seqName=s"         => \$seqName,
+	"silent"            => \$silent,
+	"minDist=s"         => \$minDist,
+	"maxDist=s"         => \$maxDist,
+	"coreOrth=i"        => \$minCoreOrthologs,
+	"coreTaxa=s"        => \$coreTaxa,
+	"strict"            => \$strict,
+	"rbh"               => \$rbh,
+	"evalBlast=s"      => \$eval_blast,
+	"evalHmmer=s"      => \$eval_hmmer,
+	"evalRelaxfac=s"       => \$eval_relaxfac,
+	"checkCoorthologsRef"       => \$checkcoorthologsref,
+	"coreCheckCoorthologsRef"   => \$cccr,
+	"hitlimitHamstr=s"          => \$hitlimit,
+	"coreHitlimitHamstr=s"      => \$core_hitlimit,
+	"autoLimitHamstr"	=> \$autoLimit,
+	"scoreCutoff=s" => \$scoreCutoff,
+	"scoreThreshold" => \$scoreThreshold,
+	"coreRep"           => \$core_rep,
+	"coreStrict"        => \$corestrict,
+	"coreOnly"          => \$coreOnly,
+	"group=s"           => \$group,
+	"blast"             => \$blast,
+	"batch=s"           => \$batch,
+	"fas"               => \$fas_support,
+	"countercheck"      => \$countercheck,
+	"fasoff"            => \$fasoff,
+	"coreFilter=s"     => \$core_filter_mode,
+	"minScore=s"        => \$fas_T,
+	"local"             => \$local,
+	"global"            => \$global,
+	"glocal"            => \$glocal,
+	"rep"               => \$representative,
+	"cpu=s"             => \$cpu,
+	"outpath=s"         => \$outputPath,
+	"hmmpath=s"         => \$coreOrthologsPath,
+	"blastpath=s"         => \$blastPath,
+	"searchpath=s"         => \$genome_dir,
+	"weightpath=s"         => \$weightPath,
+	"debug"             => \$debug,
+	"coreHitlimit=s"   => \$core_hitlimit,
+	"hitlimit=s"        => \$hitlimit,
+	"force"             => \$force,
+	"cleanup"           => \$autoclean,
+	"addenv=s"          => \$addenv,
+	"version"           => \$getversion,
+	"reuseCore"        => \$coreex,
+	"ignoreDistance"	=> \$ignoreDistance,
+	"distDeviation=s"	=> \$distDeviation,
+	"aligner=s"	=> \$aln
+);
 
 $outputPath = abs_path($outputPath);
+unless (-d $coreOrthologsPath) {
+	make_path($coreOrthologsPath);
+}
 $coreOrthologsPath = abs_path($coreOrthologsPath)."/";
 $blastPath = abs_path($blastPath)."/";
 $weightPath = abs_path($weightPath)."/";
 $genome_dir = abs_path($genome_dir)."/";
 $taxaPath = $genome_dir;
 
+############# do initial check
+if (!defined $help && !defined $getversion && !defined $showTaxa) {
+	print "Validity checking....\n";
+	initialCheck($seqFile, $seqName, $blastPath, $taxaPath, $weightPath, $fasoff);
+	print "done!\n";
+
+	if (!defined $coreex) {
+		if (!grep(/$minDist/, @defaultRanks)) {
+			die "ERROR: minDist $minDist invalid!\n";
+		}
+
+		if (!grep(/$maxDist/, @defaultRanks)) {
+			die "ERROR: maxDist $maxDist invalid!\n";
+		}
+
+		if (!defined $minCoreOrthologs) {
+			die "ERROR: coreOrth not defined (must be integer)!";
+		}
+	}
+}
+
+############# show version
+if ($getversion){
+	print "You are running $version\n";
+	print "This version supports FAS comparison.\n";
+	exit;
+}
+
+############# show help
+if($help) {
+	my $helpmessage = helpMessage();
+	print $helpmessage;
+	exit;
+}
+
 ############# connect to the database
 if ($dbmode) {
 	$dbHandle = DBI->connect($database, $username, $pw)
 	or die "Can not open the database!";
 }
-# check additional environment
-# checkEnv(); # turn off by Vinh
 
 ############# show all taxa
 if ($showTaxa) {
@@ -374,6 +412,15 @@ if ($showTaxa) {
 	printTaxa();
 	exit;
 }
+
+#switched from online version to flatfile because it is much faster
+#taxon files can be downloaded from: ftp://ftp.ncbi.nih.gov/pub/taxonomy/
+print "Please wait while the taxonomy database is indexing...\n";
+my $db = Bio::DB::Taxonomy->new(-source    => 'flatfile',
+	-nodesfile => $idx_dir . 'nodes.dmp',
+	-namesfile => $idx_dir . 'names.dmp',
+	-directory => $idx_dir);
+print "indexing done!\n";
 
 %taxa = getTaxa();
 %refTaxa = getRefTaxa();
@@ -384,12 +431,13 @@ printDebug("receiving hash of taxa with $taxcount elements from sub getTaxa");
 for (keys %taxa){
 	printDebug("value of $_ is $taxa{$_}");
 }
-checkOptions();
 
 my $outputFa =  $coreOrthologsPath . $seqName . "/" . $seqName . ".fa";
 my $outputAln = $coreOrthologsPath . $seqName . "/" . $seqName . ".aln";
-$tmpdir = $tmpdir . '/' . $seqName . '/tmp';
-createFoldersAndFiles($outputFa, $seqName, $inputSeq, $refSpec, $tmpdir);
+my $tmpdir = $outputPath . '/' . $seqName . '/tmp';
+make_path($tmpdir);
+checkOptions();
+createFoldersAndFiles($outputFa, $seqName, $inputSeq, $refSpec);
 
 my $curCoreOrthologs = 0;
 my $hamstrSpecies = $refSpec;
@@ -416,7 +464,7 @@ if (!$coreex) {
 	#### moved from above
 	my $starttime = time;
 	print "Building up the taxonomy tree. Start $starttime\n";
-    push @logOUT, "Building up the taxonomy tree. Start $starttime\n";
+	push @logOUT, "Building up the taxonomy tree. Start $starttime\n";
 	$tree = getRefTree();
 	$treeDelFlag = 0;
 	if($group) {
@@ -429,7 +477,7 @@ if (!$coreex) {
 	}
 	my $endtime = time;
 	print "Finished building the taxonomy tree: $endtime\n";
-    push @logOUT, "Finished building the taxonomy tree: $endtime\n";
+	push @logOUT, "Finished building the taxonomy tree: $endtime\n";
 	## Tree without deletions
 	$wholeTree = getRefTree();
 	if($group) {
@@ -528,8 +576,8 @@ if (!$coreex) {
 if (!$coreOnly) {
 	$coremode = 0;
 	my $CoreEndTime = time - $startTime;
-        push @logOUT, "Core set compilation finished after $CoreEndTime sec! Performing the final HaMStR search on all taxa";
-        print "Core set compilation finished after $CoreEndTime! Performing the final HaMStR search on all taxa\n";
+	push @logOUT, "Core set compilation finished after $CoreEndTime sec! Performing the final HaMStR search on all taxa";
+	print "Core set compilation finished after $CoreEndTime! Performing the final HaMStR search on all taxa\n";
 	%taxa = getTaxa();
 	my $tree = getTree();
 	#using $eval_relaxfac to relax the evalues for final hamstr
@@ -555,255 +603,56 @@ if (!$coreOnly) {
 my $HamstrTime = time;
 my $time2add = $HamstrTime - $startTime;
 push @logOUT, "Ortholog search completed after $time2add sec!";
+
 ## Evaluation of all orthologs that are predicted by the final hamstr run
 if(!$coreOnly){ #} and $fas_support){
-        my $FASTime = time;
+	my $FASTime = time;
 	$time2add = $FASTime - $startTime;
-        push @logOUT, "Starting FAS evaluation after $time2add sec!";
-        print "Ortholog search completed after $HamstrTime sec! Starting the feature architecture similarity score computation.\n";
+	push @logOUT, "Starting FAS evaluation after $time2add sec!";
+	print "Ortholog search completed after $HamstrTime sec! Starting the feature architecture similarity score computation.\n";
 	my $processID = $$;
 
-	## finalOutput to hash
-	open (FINORTH, "<".$finalOutput) or die "Error: Could not find $finalOutput\n";
+	unless (-e $finalOutput) {
+		die "ERROR: Could not find $finalOutput\n";
+	}
+
 	if ($fas_support) {
-		my $head;
-
-		while(<FINORTH>){
-			my $line = $_;
-			chomp($line);
-			if ($line =~ m/^>/){
-				$line =~ s/>//; # clip '>' character
-				$head = $line;
-			}else{
-				$finalcontent{$head} = $line;
-			}
+		my $hamstrFAScmd = "$hamstrFAS_prog -i $finalOutput -n $seqName -w $weightPath -t $tmpdir -o $outputPath -s $seqId -a $refSpec --cores $cpu";
+		if ($countercheck) {
+			$hamstrFAScmd .= " --bidirectional"
 		}
-		close (FINORTH);
-
-		## create array of keys
-		my @k_ary;
-		foreach my $k (sort keys(%finalcontent)){
-			push(@k_ary, $k);
-		}
-
-		## define chunk size for forking (Parallel::ForkManager)
-		my $size = ceil(scalar(@k_ary) / $cpu); # floor(scalar(@k_ary) / $cpu);
-
-		## create tmp folder
-		## modfied by Ingo 2019-11-19
-		my $evaluationDir = $outputPath."/fas_dir/fasscore_dir/";
-		mkpath($evaluationDir);
-
-		## handle finalcontent (final hamstr orthologs)
-		## evaluate final hamstr orthologs with FAS score
-		## $size: declares the chunk size
-		## $evaluationDir: FAS output
-		## @k_ary: contains all identifier (header, keys) from finalcontent (used to distribute workload to cpus)
-		nFAS_score_final($size, $evaluationDir, @k_ary);
-		if($autoclean){
-			runAutoCleanUp($processID);
-		}
-		removeMetaOrthologFiles($processID, $evaluationDir);
-
-		printDebug("Output files and directories:\nName: ".$seqName."\nFAS-Scores: ".$evaluationDir."scores_1/0_fas.collection\nFinal Orthologs: ".$finalOutput."\n");
-		parseProfile($finalOutput, $seqName);
-		parseArchitecture($evaluationDir."scores_1_fas.collection",$finalOutput, $seqName, $outputPath."/".$seqName);
-		if ($countercheck){
-			parseArchitecture($evaluationDir."scores_0_fas.collection",$finalOutput, $seqName, $outputPath."/".$seqName);
-		}
+		system($hamstrFAScmd)
+		# print $hamstrFAScmd,"\n";
 	} else {
-		if($autoclean){
-			runAutoCleanUp($processID);
-		}
 		fasta2profile($finalOutput, $seqName)
 	}
-my $FASEndTime = time - $startTime;
-push @logOUT, "FAS evaluation completed after $FASEndTime sec! Cleaning up...";
+	my $FASEndTime = time - $startTime;
+	push @logOUT, "FAS evaluation completed after $FASEndTime sec! Cleaning up...";
+	if($autoclean){
+		runAutoCleanUp($processID);
+	}
 }
 
-## clean up the mess...
-## checking for autocleanup option
-if (($outputPath ne './') and !$autoclean) {
-	print "\noneSeq.pl finished. Cleaning up...\n\n";
-	my $answer = '';
-	my $breaker = 0;
-	my $del_check = 0;
-	while (($answer !~ /[yn]/i) and ($breaker < 4)) {
-		$breaker++;
-		$answer = getInput("Do you want to remove the modified input files *.mod? [Y|N]");
-		if (($breaker > 3) and ($answer !~ /[yn]/i)){
-			print "No proper answer is given: Removing modified input files *.mod\n";
-			$del_check = 1;
-		}
-	}
-	if (($answer =~ /y/i) or ($del_check == 1)) {
-		my $delcommandMod = "rm -f $outputPath/*.mod";
-		system ($delcommandMod) == 0 or die "Error deleting result files\n";
-	}
-	$answer = '';
-	$breaker = 0;
-	$del_check = 0;
-	while (($answer !~ /[yn]/i) and ($breaker < 4)) {
-		$breaker++;
-		$answer = getInput("Do you want to remove the tmp dir? [Y|N]");
-		if (($breaker > 3) and ($answer !~ /[yn]/i)){
-			print "No proper answer is given: Removing the tmp dir\n";
-			$del_check = 1;
-		}
-	}
-	if (($answer =~ /y/i) or ($del_check == 1)) {
-		my $delcommandTmp = "rm -rf $outputPath/tmp";
-		system ($delcommandTmp) == 0 or die "Error deleting result files\n";
-	}
+## Delete tmp folder
+unless ($debug) {
+	my $delTmp = "rm -rf $tmpdir";
+	system ($delTmp) == 0 or die "Error deleting tmp files in $tmpdir\n";
+	my $delcommandTmp = "rm -rf $outputPath/tmp";
+	system ($delcommandTmp) == 0 or die "Error deleting tmp files in $outputPath/tmp\n";
 }
 
 my $endTime = time - $startTime;
 print "OneSeq finished after $endTime seconds\n";
-        push @logOUT, "OneSeq finished after $endTime seconds\n";
+push @logOUT, "OneSeq finished after $endTime seconds\n";
 
-        #### writing the log
-        open (LOGOUT, ">$outputPath/oneSeq.log") or warn "Failed to open oneSeq.log for writing";
-        print LOGOUT join "\n", @logOUT;
-        close LOGOUT;
-        exit;
+#### writing the log
+open (LOGOUT, ">$outputPath/oneSeq.log") or warn "Failed to open oneSeq.log for writing";
+print LOGOUT join "\n", @logOUT;
+close LOGOUT;
+exit;
+
+
 ######################## SUBROUTINES ########################
-## handle forked score calculations(sliced key array (k_ary))
-## for CORE candidates
-# $n: defines the size of "slices" (array with all ids is sliced into chunks)
-# $e_dir: dir for FAS output file (xml)
-# $c_dir: dir for candidate sequences and tmp. coreProFile
-sub nFAS_score_core{
-
-	my %candicontent = getCandicontent();
-	my $n = shift;
-	my $e_dir = shift;
-	my $c_dir = $coreOrthologsPath . $seqName . "/fas_dir/";
-	my $py = new Parallel::ForkManager($corecpu);
-
-	while (my @next_n = splice @_, 0, $n) {
-
-		my $pid = $py->start and next;
-
-		my %core_fas_0_box;
-
-		my $ii = 0;
-		while ($ii<scalar(@next_n)){
-			#header: $next_n[$ii]
-			#sequence: $finalcontent{$next_n[$ii]}
-
-			my ($name,$gene_set,$gene_id,$rep_id) = split (/\|/,$next_n[$ii]);
-			my $candseqFile = $coreOrthologsPath . $seqName . "/fas_dir/" . $gene_set . "_" . $gene_id . ".candidate";
-			## added 2019-11-19 Ingo
-			open(CANDI_SEQ, ">".$candseqFile) or die "Error: Could not create $candseqFile\n";
-			print CANDI_SEQ ">" . $next_n[$ii] . "\n" . $candicontent{$next_n[$ii]};
-			close CANDI_SEQ;
-			getAnnotation_Set($gene_set);
-
-			my $headerkey = $next_n[$ii];
-			# look up of annotations from the core_orthologs dir
-			# running FAS with iterative Model2 (core, -o 0, seed <--vs-- hit protein)
-			my $cand_annot   = getAnnotation_Candidate($gene_set,$gene_id,$candseqFile);
-			my $seed_annot  = $coreOrthologsPath.$seqName."/fas_dir/annotation_dir/";
-			my $mode        = 0; #FAS scoring Model2 (core)
-			my $score_0;
-			unless($weight_seed){
-				#weight will be determined on the basis of orthologs origin (taxon where the orthologs is dereived from)
-				$score_0 = runFAS($cand_annot, $seed_annot.$seqName."_seed", $gene_set."_".$gene_id, $seqName, $e_dir, $weightPath."/".$gene_set,$mode, $priThreshold);
-			}else{
-				#weight will be determined on the basis of seed species (taxon where the seed is dereived from)
-				$score_0 = runFAS($cand_annot, $seed_annot.$seqName."_seed", $gene_set."_".$gene_id, $seqName, $e_dir, $weightPath."/".$refSpec,$mode, $priThreshold);
-			}
-
-			$core_fas_0_box{$headerkey} = $score_0;
-			$ii++;
-		}
-
-		## keep child results for later
-
-		keepCandidateFAS(\%core_fas_0_box, $c_dir);
-
-		$py->finish;
-
-	}
-	$py->wait_all_children;
-
-}
-## handle forked score calculations(sliced key array (k_ary))
-## for FINAL orthologs
-# $n: defines the size of "slices" (array with all ids is sliced into chunks)
-# $e_dir: dir for FAS output file (xml)
-sub nFAS_score_final{
-	my $n = shift;
-	my $e_dir = shift;
-	printDebug("Sub nFas_score_final: e_dir is $e_dir\n", 1);
-	my $ps = new Parallel::ForkManager($cpu);
-
-	while (my @next_n = splice @_, 0, $n) {
-
-		my $pid = $ps->start and next;
-
-		my %final_fas_1_box;
-		my %final_fas_0_box;
-
-		my $ii = 0;
-		while ($ii<scalar(@next_n)){
-			#header: $next_n[$ii]
-			#sequence: $finalcontent{$next_n[$ii]}
-
-			my ($name,$gene_set,$gene_id,$rep_id) = split (/\|/,$next_n[$ii]);
-			my $finOrth_seqFile = $e_dir . $gene_set . "_" . $gene_id . ".ortholog";
-			## added 2019-11-19 Ingo
-			printDebug("finOrth_seqfile is $finOrth_seqFile");
-			if (defined $profile{$gene_set}  && $append) {
-				printDebug("FAS Score has already been computed and option -append has been selected. Skipping...");
-				$ii++;
-				next;
-			}
-			### end added
-			open(ORTH_SEQ, ">".$finOrth_seqFile) or die "Error: Could not create $finOrth_seqFile\n";
-			print ORTH_SEQ ">" . $next_n[$ii] . "\n" . $finalcontent{$next_n[$ii]};
-			close ORTH_SEQ;
-			getAnnotation_Set($gene_set);
-			my $headerkey = $next_n[$ii];
-			# look up of annotations from the core_orthologs dir
-			# seed --vs--> hit protein
-			my $cand_annot  = getAnnotation_Candidate($gene_set,$gene_id,$finOrth_seqFile);
-			my $seed_annot  = $coreOrthologsPath.$seqName."/fas_dir/annotation_dir/";
-			my $mode        = 1; #FAS scoring Model1 (final)
-			my $score_1;
-			unless($weight_seed){
-				#weight will be determined on the basis of orthologs origin (taxon where the orthologs is dereived from)
-				$score_1 = runFAS($seed_annot.$seqName."_seed", $cand_annot, $gene_set."_".$gene_id, $seqName, $e_dir, $weightPath."/".$gene_set,$mode, $priThreshold);
-			}else{
-				#weight will be determined on the basis of seed species (taxon where the seed is dereived from)
-				$score_1 = runFAS($seed_annot.$seqName."_seed", $cand_annot, $gene_set."_".$gene_id, $seqName, $e_dir, $weightPath."/".$refSpec,$mode, $priThreshold);
-			}
-			$final_fas_1_box{$headerkey} = $score_1;
-			# double check the FAS results (extra calculation needed, change of direction)
-			# seed <--vs-- hit protein
-			if ($countercheck){
-				$mode = 0;
-				my $score_0;
-				unless($weight_seed){
-					#weight will be determined on the basis of orthologs origin (taxon where the orthologs is dereived from)
-					$score_0 = runFAS($cand_annot, $seed_annot.$seqName."_seed", $gene_set."_".$gene_id, $seqName, $e_dir, $weightPath."/".$gene_set,$mode, $priThreshold);
-				}else{
-					#weight will be determined on the basis of seed species (taxon where the seed is dereived from)
-					$score_0 = runFAS($cand_annot, $seed_annot.$seqName."_seed", $gene_set."_".$gene_id, $seqName, $e_dir, $weightPath."/".$refSpec,$mode, $priThreshold);
-				}
-				$final_fas_0_box{$headerkey} = $score_0;
-			}
-			$ii++;
-		}
-
-		## print results into profile
-		printEvaluationTab(\%final_fas_1_box, \%final_fas_0_box);
-
-		$ps->finish;
-
-	}
-	$ps->wait_all_children;
-}
 
 #################################
 ## Clears Temporary files
@@ -856,7 +705,6 @@ sub getCumulativeAlnScores{
 	my $candidatesFile = $outputFa . ".extended";
 	my $scorefile = $$ . ".scorefile";
 	my %scores;
-
 	########################
 	## step: 1
 	## setup
@@ -864,10 +712,9 @@ sub getCumulativeAlnScores{
 	#local      local:local    ssearch36   Smith-Waterman
 	#glocal     global:local   glsearch36  Needleman-Wunsch
 	#global     global:global  ggsearch36  Needleman-Wunsch
-	my $loclocCommand = "$localaligner " . $outputFa . " " . $candidatesFile . " -s " . $alignmentscoreMatrix . " -m 9 -d 0 -z -1 -E 100" . " > " . $scorefile;
-	my $globlocCommand = "$glocalaligner " . $outputFa . " " . $candidatesFile . " -s " . $alignmentscoreMatrix . " -m 9 -d 0 -z -1 -E 100" . " > " . $scorefile;
-	my $globglobCommand = "$globalaligner " . $outputFa . " " . $candidatesFile . " -s " . $alignmentscoreMatrix . " -m 9 -d 0 -z -1 -E 100" . " > " . $scorefile;
-
+	my $loclocCommand = "$localaligner \"" . $outputFa . "\" \"" . $candidatesFile . "\" -s " . $alignmentscoreMatrix . " -m 9 -d 0 -z -1 -E 100" . " > " . $scorefile;
+	my $globlocCommand = "$glocalaligner \"" . $outputFa . "\" \"" . $candidatesFile . "\" -s " . $alignmentscoreMatrix . " -m 9 -d 0 -z -1 -E 100" . " > " . $scorefile;
+	my $globglobCommand = "$globalaligner \"" . $outputFa . "\" \"" . $candidatesFile . "\" -s " . $alignmentscoreMatrix . " -m 9 -d 0 -z -1 -E 100" . " > " . $scorefile;
 	########################
 	## step: 2
 	## setup
@@ -886,7 +733,6 @@ sub getCumulativeAlnScores{
 	}elsif ($local){
 		system($loclocCommand);
 	}
-
 	########################
 	## step: 4
 	## collect alignment score
@@ -895,7 +741,7 @@ sub getCumulativeAlnScores{
 	my $min = 10000000;
 
 	%scores = cumulativeAlnScore($scorefile, \%candicontent);
-return %scores;
+	return %scores;
 }
 
 #################################
@@ -945,16 +791,16 @@ sub getAlnScores{
 
 	%scores = cumulativeAlnScore($scorefile, \%candicontent);
 
-## Normalize Alignment scores (unity-based)
-printDebug("Normalize alignment scores:\n");
-foreach my $key (keys %scores){
-	my $score = $scores{$key};
-	print "Cumulative alignmentscore is: $score\n";
-	$scores{$key} = $scores{$key} / $maxAlnScore;
-	$score = $scores{$key};
-	print "Normalised alignmentscore is: $score\n";
-}
-return %scores;
+	## Normalize Alignment scores (unity-based)
+	printDebug("Normalize alignment scores:\n");
+	foreach my $key (keys %scores){
+		my $score = $scores{$key};
+		print "Cumulative alignmentscore is: $score\n";
+		$scores{$key} = $scores{$key} / $maxAlnScore;
+		$score = $scores{$key};
+		print "Normalised alignmentscore is: $score\n";
+	}
+	return %scores;
 }
 
 #################################
@@ -978,38 +824,18 @@ sub getFasScore{
 	## get FAS score
 	## fas support: on/off
 	if ($fas_support){
-		## create array of keys
-		my @k_ary;
-		foreach my $k (sort keys(%candicontent)){
-			push(@k_ary, $k);
+		my @candidateIds = keys(%candicontent);
+		my ($name,$gene_set,$gene_id,$rep_id) = split(/\|/, $candidateIds[0]);
+		unless (-e "$weightPath/$gene_set.json") {
+			print "ERROR: $weightPath/$gene_set.json not found! FAS Score will be set as zero.\n";
+			$fas_box{$candidateIds[0]} = 0.0;
+		} else {
+			my $lnCmd = "ln -fs $weightPath/$gene_set.json \"$coreOrthologsPath$seqName/fas_dir/annotation_dir/\"";
+			system($lnCmd);
+			my $fasOutTmp = `$fas_prog -s \"$coreOrthologsPath$seqName/$seqName.fa\" -q $blastPath/$gene_set/$gene_set.fa --query_id \"$gene_id\" -a \"$coreOrthologsPath$seqName/fas_dir/annotation_dir/\" -o \"$coreOrthologsPath$seqName/fas_dir/annotation_dir/\" --raw --tsv --domain | grep "#" | cut -f 3,4`;
+			my @fasOutTmp = split(/\t/,$fasOutTmp);
+			$fas_box{$candidateIds[0]} = $fasOutTmp[1];
 		}
-
-		## define chunk size for forking (Parallel::ForkManager)
-		my $size = ceil(scalar(@k_ary) / $cpu); # floor(scalar(@k_ary) / $corecpu);
-
-		## create tmp folder
-		my $evaluationDir = $coreOrthologsPath.$seqName."/fas_dir/fasscore_dir/";
-		mkpath($evaluationDir);
-
-		## handle candicontent (hamstr core orthologs)
-		## evaluate hamstr core orthologs with FAS score
-		## $size: declares the chunk size
-		## $evaluationDir: FAS output for core orthologs
-		## @k_ary: contains all identifier (header, keys) from finalcontet (used to distribute workload to cpus)
-		nFAS_score_core($size, $evaluationDir, @k_ary);
-
-		# read core profile
-		# to be cleared after usage
-		my $coreProFile = $coreOrthologsPath.$seqName."/fas_dir/candidates.profile";
-		open (CANDI, "<".$coreProFile) or die "Error: Could not find $coreProFile\n";
-		while(<CANDI>){
-			my $line = $_;
-			chomp($line);
-			my @pair = split(/\t/,$line);
-			$fas_box{$pair[0]}=$pair[1];
-		}
-		close CANDI;
-		unlink($coreProFile);
 	}
 	return %fas_box;
 }
@@ -1120,84 +946,13 @@ sub fasta2profile{
 	close(PPOUT);
 }
 
-## parse profile
-sub parseProfile{
-	my ($file, $out) = ($_[0], $_[1]);
-	my ($fO_base, $fO_path, $fO_suffix) = fileparse( $file, qr/\.[^.]*/ );
-	my $pro_File = $fO_path.$fO_base.".profile";
-	my $outfile = $fO_path.$out.".phyloprofile";
-	my @cmd;
-	my $pl 	= "perl";
-	my $viz	= "$visualsPath$profile_prog";
-	my $i	= "-i$pro_File";
-	my $o	= "-o$outfile";
-	my ($in, $stdout, $err);
-	eval {
-		@cmd = ($pl,$viz,$i,$o);
-		if ($debug){printVariableDebug(@cmd);}
-		print "\n##############################\n";
-		print "Writing of Visualisation file for profile.\n";
-
-		run \@cmd, \$in, \$stdout, \$err, timeout( 600 ) or die "$profile_prog killed.\n";
-
-		print "stdout is $stdout\n";
-	};
-	#could become debug output:
-	if($err){
-		print "\nERROR in sub parseProfile:\n" . $err ."\n";
-	}
-}
-
-## parse architecture from scores.collection
-sub parseArchitecture{
-
-	my ($infile, $file, $groupID, $outfile) = ($_[0], $_[1], $_[2], $_[3]);
-	my ($fO_base, $fO_path, $fO_suffix) = fileparse( $file, qr/\.[^.]*/ );
-	my $proFile = $fO_path."/".$fO_base.".profile";
-	my @cmd;
-	my $pl 	= "perl";
-	my $viz	= "$visualsPath/$architecture_prog";
-	my $i	= "-i=$infile";
-	my $p       = "-p=$proFile";
-	my $g       = "-g=$groupID";
-	my $o	= "-o=$outfile";
-	my $ap	= '';
-	if (defined $append) {
-		$ap = "-append";
-	}
-
-	my ($in, $stdout, $err);
-	eval {
-		@cmd = ($pl,$viz,$i,$p,$g,$o,$ap);
-		if ($debug){ printVariableDebug(@cmd);}
-		print "\n##############################\n";
-		print "Writing of Visualisation file for feature architecture.\n";
-
-		run \@cmd, \$in, \$stdout, \$err, timeout( 600 ) or die "$architecture_prog killed.\n";
-
-		print "$stdout\n";
-	};
-	#could become debug output:
-	if($err){
-		print "\nERROR in sub parseArchitecture:\n" . $err ."\n";
-	}
-}
 ## auto clean up can be invoked via the "-cleanup" option
 # $processID: given process ID
 sub runAutoCleanUp {
 	my $processID = $_[0];
 	print "\noneSeq.pl finished. Starting Auto Clean-up...\n\n";
 
-	my $delCommandMod = "rm -f $outputPath/*.mod";
-	system ($delCommandMod) == 0 or die "Error deleting result files\n";
-	print "--> $outputPath/*.mod deleted.\n";
-	foreach my $tax (keys %taxa) {
-		$delCommandMod = "rm -f $genome_dir/$tax/*.mod";
-		system ($delCommandMod) == 0 or die "Error deleting result files\n";
-	}
-	print "--> $genome_dir/*.mod deleted.\n";
-
-	my $delCommandTmp = "rm -rf $outputPath/tmp";
+	my $delCommandTmp = "rm -rf \"$outputPath/tmp\"";
 	system ($delCommandTmp) == 0 or die "Error deleting result files\n";
 	print "--> $outputPath/tmp deleted.\n";
 	my $seedName = $seqName . '_seed';
@@ -1207,7 +962,7 @@ sub runAutoCleanUp {
 		my @annodirs = grep (!/$seedName/, readdir(ANNODIR));
 		print scalar(@annodirs) . " content of $annopath\n";
 		for (my $anno = 0; $anno < @annodirs; $anno++){
-			if ($annodirs[$anno] ne '..' and $annodirs[$anno] ne '.') {
+			if ($annodirs[$anno] ne '..' and $annodirs[$anno] ne '.' and $annodirs[$anno] ne $seqName.".json") {
 				print "Deleting $annopath/$annodirs[$anno]\n";
 				rmtree ($annopath."/".$annodirs[$anno]);
 			}
@@ -1217,231 +972,16 @@ sub runAutoCleanUp {
 	}
 }
 
-## removing single fasta files of predicted orthologs - meta files that are pooled in multifastas as results
-# $processID: given process ID
-sub removeMetaOrthologFiles{
-	my ($processID, $evaluationDir) = @_; #$_[0];
-	print "\nCompressing meta files...\n\n";
-
-	my $delCommandCandi = "rm -f ".$coreOrthologsPath.$seqName."/fas_dir/*.candidate";
-	system ($delCommandCandi) == 0 or die "Error deleting candidate files\n";
-	print "--> ".$coreOrthologsPath.$seqName."/fas_dir/*.candidate\n";
-
-	## modfified by Ingo 2019-11-19
-	my $delCommandOrth = "rm -f ".$evaluationDir."*.ortholog";
-	system ($delCommandOrth) == 0 or die "Error deleting single sequence files of orthologs\n";
-	print "--> ".$evaluationDir."*.ortholog\n";
-
-	## compress *_fas.xml files in coreOrthologs
-	opendir(COREFAS,$coreOrthologsPath.$seqName . "/fas_dir/fasscore_dir");
-	my @fasscores = grep(/_fas\.xml/, sort { $a cmp $b } readdir(COREFAS));
-	closedir(COREFAS);
-	compressScoreCollections($coreOrthologsPath.$seqName."/fas_dir/fasscore_dir/", \@fasscores, "core");
-	print "--> ".$coreOrthologsPath.$seqName."/fas_dir/fasscore_dir/*_fas.xml\n";
-
-	## compress *_1_fas.xml files in results
-	opendir(COREFAS, $evaluationDir);
-	@fasscores = grep(/_1_fas\.xml/,sort { $a cmp $b } readdir(COREFAS));
-	closedir(COREFAS);
-	compressScoreCollections($evaluationDir, \@fasscores, "1");
-
-	if ($countercheck){
-		# compress *_0_fas.xml files: M.countercheck (cc) FAS out
-		opendir(COREFAS, $evaluationDir);
-		my @fasscores_cc = grep(/_0_fas\.xml/,sort { $a cmp $b } readdir(COREFAS));
-		closedir(COREFAS);
-		compressScoreCollections($evaluationDir, \@fasscores_cc, "0");
-	}
-
-	print "--> ".$evaluationDir. "*_fas.xml\n";
-}
-## keep FAS score results (including feature information) as *scores.collection files
-## param: $cur_path - path to fas score files
-## param: @fileset - collected files
-sub compressScoreCollections{
-	my $cur_path = $_[0];
-	my @fileset = @{$_[1]};
-	my $scoremode = $_[2];
-
-	my @cur_content = qw();
-	my $file;
-	foreach(@fileset){
-		my $catCommand = "cat ".$cur_path.$_;
-		push (@cur_content, $_);
-		$file = `$catCommand`;
-		push (@cur_content, $file);
-		my $delCommandXML = "rm -f ".$cur_path.$_;
-		system($delCommandXML) == 0 or die "Error deleting single fas score files\n";
-	}
-	open(FASCOL,">".$cur_path."scores_".$scoremode."_fas.collection") or die "Error: Could not create ".$cur_path."scores_".$scoremode."_fas.collection\n";
-	for (my $ii = 0; $ii < scalar(@cur_content); $ii++){
-		print FASCOL $cur_content[$ii];
-		print FASCOL "\n";
-	}
-	close(FASCOL);
-}
-## keep FAS scores for core candidates
-# %subprofile: profile (hash) of gene ids (key) and FAS scores (value) created in forked process
-# $c_dir: dir (fas_dir) for core candidates and candidates.profile (tmp file)
-sub keepCandidateFAS{
-	my %subprofile = %{$_[0]};
-	my $c_dir = $_[1];
-
-	my $corePro_File = $c_dir. "candidates.profile";
-	# open to append
-	open(PROFILE, ">>".$corePro_File) or die "Error: Could not create $corePro_File\n";
-	foreach my $key (sort keys %subprofile){
-		print PROFILE $key . "\t" . $subprofile{$key}. "\n";
-	}
-	close PROFILE;
-}
-
-## print tab separated table of orthologs and their fas score
-## writes *extended.profile in data dir
-# %profile: profile (hash) of gene ids (key) and FAS scores (value, score Model 1) created in forked process
-# %counterprofile: profile (hash) of gene ids (key) and FAS scores (value, score Model 2) created in forked process
-sub printEvaluationTab{
-	my %profile = %{$_[0]};
-	my %counterprofile = %{$_[1]};
-	my ($fO_base, $fO_path, $fO_suffix) = fileparse( $finalOutput, qr/\.[^.]*/ );
-
-	my $pro_File = $fO_path."/".$fO_base.".profile";
-	# open to append
-	open(PROFILE, ">>".$pro_File) or die "Error: Could not create $pro_File\n";
-	foreach my $key (sort keys %profile){
-		print PROFILE $key . "\t" . $profile{$key};
-		if ($countercheck){
-			print PROFILE "\t" . $counterprofile{$key} . "\n";
-		}else{
-			print PROFILE "\n";
-		}
-	}
-	close PROFILE or die "Error during closing the filehandle PROFILE";
-}
 ## starting annotation_prog for given seed sequence file
 # $seedseqFile: fasta file with seed sequence
 sub getAnnotation {
 	my ($seedseqFile) = ($_[0]);
-	my $annotationCommand = "$annotation_prog --fasta=" . $seedseqFile . " --path=" . $coreOrthologsPath . $seqName . "/fas_dir" . "/annotation_dir" . " --name=" . $seqName . "_seed" . " --cores=". $annoCores;
+	my $inputAnno = $seedseqFile;
+	$inputAnno =~ s/\|/\\\|/g;
+	my $outputAnno = $coreOrthologsPath . $seqName . "/fas_dir/annotation_dir";
+	$outputAnno =~ s/\|/\\\|/g;
+	my $annotationCommand = "$annotation_prog" . " -i $inputAnno" . " -o $outputAnno --cpus 1" . " --name \"$seqName\""; #" --name " . $seqName . "_seed" . " --cpus 1";
 	system($annotationCommand);
-}
-## starting annotation_prog for candidate ortholog
-## annotations are saved for reuse in fas_dir/annotation_dir
-## requested annotations will be extracted on demand from weight_dir/$geneset
-## returns location of annotations
-# $cand_geneset: gene set for taxon (candidate ortholog)
-# $gene_id: gene id of candidate ortholog ($cand_geneset)
-sub getAnnotation_Candidate {
-	my ($cand_geneset,$gene_id,$candseqFile) = ($_[0],$_[1],$_[2]);
-	my $location = '';
-
-	# check for existing annotations
-	# gene annotations:
-	if (-d $coreOrthologsPath . $seqName . "/fas_dir" . "/annotation_dir/" . $cand_geneset . "_" . $gene_id){
-		# annotations already exist for candidate gene
-		$location = $coreOrthologsPath . $seqName . "/fas_dir" . "/annotation_dir/" . $cand_geneset . "_" . $gene_id;
-
-		return $location;
-	}elsif(-d "$weightPath/$cand_geneset"){
-		# annotations for $cand_geneset already exist
-		# Extracting annotations from xml files in $weightPath/$cand_geneset
-		unless (-d $coreOrthologsPath . $seqName . "/fas_dir" . "/annotation_dir/" . $cand_geneset . "_" . $gene_id) {
-			mkdir($coreOrthologsPath . $seqName . "/fas_dir" . "/annotation_dir/" . $cand_geneset . "_" . $gene_id);
-		}
-		my $annotationCommand = "$annotation_prog --fasta=" . $candseqFile . " --path=" . $weightPath . $cand_geneset . " --name=" . $gene_id . " --extract=" . $coreOrthologsPath . $seqName . "/fas_dir" . "/annotation_dir/" . $cand_geneset . "_" . $gene_id;
-		system($annotationCommand);
-
-		$location = $coreOrthologsPath . $seqName . "/fas_dir" . "/annotation_dir/" . $cand_geneset . "_" . $gene_id;
-		return $location;
-	}else{
-		# no annotations exist
-		print "No annotations found.\n";
-		print "--> Starting to annotate gene $gene_id from species $cand_geneset.\n";
-		my $annotationCommand = "$annotation_prog --fasta=" . $candseqFile . " --path=" . $coreOrthologsPath . $seqName . "/fas_dir" . "/annotation_dir/" . " --name=" . $cand_geneset . "_" . $gene_id  . " --cores=". $annoCores;
-		system($annotationCommand);
-
-		$location = $coreOrthologsPath . $seqName . "/fas_dir" . "/annotation_dir/" . $cand_geneset . "_" . $gene_id;
-		return $location;
-	}
-
-	return $location
-}
-
-## starting annotation_prog for whole gene set (weighting)
-## sub getAnnotation_Set will be called if a candidate ortholog is identified
-sub getAnnotation_Set{
-	my ($geneset) = ($_[0]);
-	# chdir($fasPath);
-
-	# check for existing annotations in weights_dir
-	# if annotations already exist the script will skip them/no requery
-	# print "Annotations for ".$geneset." will be made. This may take a while ...\n";
-	my $annotationCommand = "$annotation_prog --fasta=" . $taxaPath . $geneset ."/". $geneset . ".fa --path=" . $weightPath . " --name=" . $geneset . " --cores=". $annoCores;
-	system($annotationCommand);
-}
-
-## running actual FAS calculations via IPC
-# $single: annotaions (*xml) for single protein/seed
-# $ortholog: annotations (*xml) for set (ortholog) protein/query
-# $name: jobname for FAS
-# $group: sequence name given for oneseq
-# $outdir: dir for output files
-# $weight: gene set of ortholog, used for weighting
-# $mode: invocation mode (single --vs--> set or set --vs--> single)
-sub runFAS{
-	my ($single, $ortholog, $name, $group, $outdir, $weight, $mode, $priThreshold) = ($_[0], $_[1], $_[2], $_[3], $_[4], $_[5], $_[6], $_[7]);
-	# chdir($fasPath);
-
-	my @cmd;
-	# my $py 	= "python";
-	my $fas	= "$fas_prog"; #"$fasPath/$fas_prog";
-	my $s	= "--seed=$single/";
-	my $p	= "--query=$ortholog/";
-	my $r	= "--ref_proteome=" . $weight;
-	my $j	= "--jobname=$outdir/" . $name . "_". $mode ."_fas.xml";
-	my $f   = "--efilter=".$eval_filter;       #dest="efilter", default="0.001", help="E-value filter for hmm based search methods (feature based/complete sequence).")
-	my $i   = "--inst_efilter=".$inst_eval_filter;  #dest="inst_efilter", default="0.01", help="E-value filter for hmm bas
-	my $a	= "--raw_output=2";
-	my $h	= "--help";
-	my $m   = "--classicMS";
-
-	## adding the option to extract a particular sequence from the annotation directory
-	## becomes relevant when using the pre-computed core sets, where feature annotation for
-	## all sequences is available in the core set
-	my $si = '';
-	if ($mode == 1){
-		## this is the standard search, features of the seed protein, which are absent in the
-		## ortholog will be penalized
-		$si = "--seed_id=\"$seqName|$refSpec|$seqId\"";
-	}
-	else {
-		## This is the reverse scoring, features of the ortholog, which are absent in the seed
-		## will be penalized
-		$si = "--query_id=\"$seqName|$refSpec|$seqId\"";
-	}
-	my ($in, $score, $err);
-	$score = "NAN";
-	eval {
-		@cmd = ($fas,$s,$p,$r,$j,$a,$f,$i,$si,$m,$priThreshold); #($py,$fas,$s,$p,$r,$j,$a,$f,$i,$si,$m,$priThreshold);
-		if ($debug){printVariableDebug(@cmd);}
-		print "\n##############################\n";
-		print "Begin of FAS score calculation.\n";
-		print "--> Running ". $fas_prog ."\n";
-		# run \@cmd, \$in, \$score, \$err, timeout( 10000 ) or die "$fas_prog killed.\n";
-		my $cmd = join(" ", @cmd);
-		($score, $err) = capture {
-			system ($cmd);
-		};
-		chomp($score);
-	};
-	#could become debug output:
-	if($err){
-		print "\nERROR:\n" . $err ."\n";
-	}
-	if(!$score){
-		$score = 0;
-	}
-	return $score;
 }
 
 ## determines the reference species and/or the sequence id of the input sequence.
@@ -1483,39 +1023,9 @@ sub checkGroup {
 		exit;
 	}
 }
-#################################
-## check in oneSeq environment for presence of required directories
-## blast_dir, genome_dir, weight_dir
-## changing global variables !
-sub checkEnv {
-	if ($addenv){
-		print "Checking additional environment ".$addenv."\nPlease note that this option is in developmental status.\n";
-		if ((-d "$path/weight_dir_".$addenv) and (-d "$path/genome_dir_".$addenv) and (-d "$path/blast_dir_".$addenv)){
-			print "\nThe given additional environment ".$addenv." exists.\n";
-		}else{
-			print "\nThe given additional environment ". $addenv . " was not found...exiting.\n";
-			exit;
-		}
-		$genome_dir = "$path/genome_dir"."_".$addenv;
-		$taxaPath = $genome_dir; #"$path/$genome_dir/";
-		$blastPath = "$path/blast_dir"."_".$addenv."/";
-		$weightPath = "$path/weight_dir"."_".$addenv."/";
-		print "Environment set to ".$addenv."\nUsing taxa in \n\t$taxaPath\n\t$blastPath\n\t$weightPath\n\n";
-	}
-}
+
 #################################
 sub checkOptions {
-	#### check for help
-	if($help) {
-		my $helpmessage = helpMessage();
-		print $helpmessage;
-		exit;
-	}
-	if ($getversion){
-		print "You are running $version\n";
-		print "This version supports FAS comparison.\n";
-		exit;
-	}
 	if($eval_relaxfac < 1){
 		# rethink
 		if($eval_relaxfac <= 0){
@@ -1595,40 +1105,12 @@ sub checkOptions {
 		if (length $seqFile > 0){
 			if (-e $seqFile) {
 				my @seqFileTMP = split(/\//, $seqFile);
-				system("ln -fs $seqFile $currDir/$seqFileTMP[@seqFileTMP-1]");
+				system("ln -fs \"$seqFile\" \"$currDir/$seqFileTMP[@seqFileTMP-1]\"");
 				$seqFile = $seqFileTMP[@seqFileTMP-1];
 			} else {
 				printOut("\nThe specified file $seqFile does not exist!\n",1);
 			}
 		}
-		# $seqFile = getInput("Please specify a valid file name for the seed sequence", 1);
-		# $optbreaker ++;
-		# if ($seqFile =~ /\//){
-		# 	## user has provided a path
-		# 	$seqFile =~ /(.*)\/(.+)/;
-		# 	if ($1) {
-		# 		## the user has provided a relativ path
-		# 		my $relpath = $1;
-		# 		if ($relpath =~ /^\//){
-		# 			#user has provided an absolute path
-		# 			$dataDir = $relpath;
-		# 		}
-		# 		elsif($relpath =~ /^\.\//){
-		# 			$dataDir = $currDir;
-		# 		}
-		# 		elsif($relpath =~ /^\.\.\//){
-		# 			my $dataDirTmp = $currDir;
-		# 			while ($relpath =~ /^\.\./){
-		# 				$relpath =~ s/^\.\.\///;
-		# 				$dataDirTmp =~ s/(.*)\/.+$/$1/;
-		# 			}
-		# 			$dataDir = $dataDirTmp . '/' . $relpath;
-		# 		}
-		# 		printDebug("setting dataDir to $dataDir");
-		# 	}
-		# 	$seqFile = $2;
-		# 	printDebug("Setting infile to $seqFile in sub checkOptions");
-		# }
 	}
 	if (-e "$currDir/$seqFile"){
 		$dataDir = $currDir;
@@ -1711,67 +1193,67 @@ sub checkOptions {
 	}
 	## check whether a result file already exists:
 	$finalOutput = $outputPath . '/' . $seqName . '.extended.fa';
-        if ($outputPath && -e "$finalOutput"){
-                ## an ouput file is already existing
-                if (!$force && !$append){
-                ## The user was not aware of an existing output file. Let's ask him
-                        my $input = '';
-                        my $breaker = 0;
+	if ($outputPath && -e "$finalOutput"){
+		## an ouput file is already existing
+		if (!$force && !$append){
+			## The user was not aware of an existing output file. Let's ask him
+			my $input = '';
+			my $breaker = 0;
 
-                        while (($input !~ /^[aor]/i) and ($breaker < 4)) {
-                                $breaker++;
-                                $input = getInput("\nAn outputfile $finalOutput already exists. Shall I overwrite it [o], or rename it [r], or [a] append to it?", 1);
-                                if (($breaker > 3) and ($input !~ /[aor]/i)){
-                                        print "Please consider option -force or option -append.\n";
-                                        die "No proper answer is given: Quitting\n";
-                                }
-                        }
-                        if ($input =~ /[aA]/) {
-                                $append = 1;
-                                $force = 0;
-                        }
-                        elsif ($input =~ /[oO]/){
-                                $append = 0;
-                                $force = 1;
-                        }
-                        else {
-                                $append = 0;
-                                $force = 0;
-                        }
-                }
-                if ($force){
-                        ## the user wants to overwrite
-                        printOut("Removing existing output directory $outputPath", 1);
-                        rmtree ([ "$outputPath" ]) or die "could not remove existing output directory $outputPath\n";
-                        mkdir $outputPath or die "could not re-create the output directory $outputPath\n";
-                }
-                elsif ($append) {
-                        printOut("Appending output to $finalOutput\n", 1);
-                        if (-e "$outputPath/$seqName.extended.profile") {
-                                ## read in the content for latter appending
-                                printOut("Appending output to $outputPath/$seqName.extended.profile", 1);
-                                open (IN, "<$outputPath/$seqName.extended.profile") or die "failed to open $outputPath/$seqName.extended.profile after selection of option -append\n";
-                                while (<IN>) {
-                                        chomp $_;
-                                        my @keys = split '\|', $_;
-                                        $profile{$keys[1]} = 1;
-                                }
-                        }
+			while (($input !~ /^[aor]/i) and ($breaker < 4)) {
+				$breaker++;
+				$input = getInput("\nAn outputfile $finalOutput already exists. Shall I overwrite it [o], or rename it [r], or [a] append to it?", 1);
+				if (($breaker > 3) and ($input !~ /[aor]/i)){
+					print "Please consider option -force or option -append.\n";
+					die "No proper answer is given: Quitting\n";
+				}
+			}
+			if ($input =~ /[aA]/) {
+				$append = 1;
+				$force = 0;
+			}
+			elsif ($input =~ /[oO]/){
+				$append = 0;
+				$force = 1;
+			}
+			else {
+				$append = 0;
+				$force = 0;
+			}
+		}
+		if ($force){
+			## the user wants to overwrite
+			printOut("Removing existing output directory $outputPath", 1);
+			rmtree ([ "$outputPath" ]) or die "could not remove existing output directory $outputPath\n";
+			mkdir $outputPath or die "could not re-create the output directory $outputPath\n";
+		}
+		elsif ($append) {
+			printOut("Appending output to $finalOutput\n", 1);
+			if (-e "$outputPath/$seqName.extended.profile") {
+				## read in the content for latter appending
+				printOut("Appending output to $outputPath/$seqName.extended.profile", 1);
+				open (IN, "<$outputPath/$seqName.extended.profile") or die "failed to open $outputPath/$seqName.extended.profile after selection of option -append\n";
+				while (<IN>) {
+					chomp $_;
+					my @keys = split '\|', $_;
+					$profile{$keys[1]} = 1;
+				}
+			}
 			elsif ($fasoff) {
 				## no extended.profile file exists but not necessary, because user switched off FAS support -> do nothing
 			}
-                        else {
-                                printOut("Option -append was selected, but the existing output was incomplete. Please restart with the -force option to overwrite the output");
-                                exit;
-                        }
-                }
-                else {
-                        printOut("Renaming existing output file to $finalOutput.old", 2);
-                        my $bu_dir = $outputPath.'_bkp';
-                        !`mv $outputPath $bu_dir` or die "Could not rename existing output file $outputPath to $bu_dir\n";
+			else {
+				printOut("Option -append was selected, but the existing output was incomplete. Please restart with the -force option to overwrite the output");
+				exit;
+			}
+		}
+		else {
+			printOut("Renaming existing output file to $finalOutput.old", 2);
+			my $bu_dir = $outputPath.'_bkp';
+			!`mv $outputPath $bu_dir` or die "Could not rename existing output file $outputPath to $bu_dir\n";
 			mkdir $outputPath or die "could not recreate $outputPath after renaming the old output\n"
-                }
-        }
+		}
+	}
 
 	my $node;
 	$node = $db->get_taxon(-taxonid => $refTaxa{$refSpec});
@@ -1884,15 +1366,15 @@ sub checkRank {
 sub createAlnMsf {
 	my $linsiCommand = '';
 	if (!defined $aln or $aln eq 'mafft-linsi') {
-		my $linsiCommand = "mafft-linsi --anysymbol " . $outputFa . " > " . $outputAln;
+		my $linsiCommand = "mafft --maxiterate 1000 --localpair --anysymbol --quiet \"" . $outputFa . "\" > \"" . $outputAln . "\"";
 	}
 	elsif ($aln eq 'muscle') {
-		$linsiCommand = "muscle -quiet -in " . $outputFa . " -out " .$outputAln;
+		$linsiCommand = "muscle -quiet -in \"" . $outputFa . "\" -out \"" .$outputAln. "\"";
 	}
 	else {
 		die "issues with the msa. You need to select either mafft or muscle\n";
 	}
-	system($linsiCommand) == 0 or die "Could not run mafft-linsi\n";
+	system($linsiCommand) == 0 or die "Could not run alignment\n$linsiCommand\n";
 }
 
 ################ creating folders for fas support usage
@@ -1904,7 +1386,7 @@ sub createWeightFolder{
 
 ################
 sub createFoldersAndFiles {
-	my ($outputFa, $seqName, $inputSeq, $refSpec, $tmpdir) = (@_);
+	my ($outputFa, $seqName, $inputSeq, $refSpec) = (@_);
 	#create core orthologs directory
 	my $dir = $coreOrthologsPath . $seqName;
 	if (!$coreex){
@@ -1934,11 +1416,7 @@ sub createFoldersAndFiles {
 
 		my $annodir = $fasdir."/annotation_dir";
 		mkdir "$annodir", 0777 unless -d "$annodir";
-
-		my $scoredir = $fasdir."/fasscore_dir";
-		mkdir "$scoredir", 0777 unless -d "$scoredir";
 	}
-	mkdir "$tmpdir", 0755 unless -d "$tmpdir";
 }
 #################
 sub fetchSequence {
@@ -2028,73 +1506,73 @@ sub getBestOrtholog {
 						my $newRankScore = getFilteredRankScore($alnScores{$candiKey}, $fas_box{$candiKey});
 						## candidate is significantly better, than the last one
 						if ($newRankScore > $rankScore * (1 + $distDeviation)){ #uninit
-							$bestTaxon = ">" . $candiKey;
-							$rankScore = $newRankScore;
-							($header, $seq) = getHeaderSeq($bestTaxon);
-							$newNoRankDistNode = $currentNoRankDistNode;
-							$newChildsToIgnoreNode = $currentChildsToIgnoreNode;
-							my $newNodeId = $key->id;
-							## set new distance nodes, which will replace the old ones given, that this candidate will remain the best
-							while (!defined $hashTree{$newNoRankDistNode}{$newNodeId}){
-								$newNoRankDistNode = $newNoRankDistNode->ancestor;
-								$newChildsToIgnoreNode = $newChildsToIgnoreNode->ancestor;
-							}
-							print "New Best Taxon: $bestTaxon\n";
+						$bestTaxon = ">" . $candiKey;
+						$rankScore = $newRankScore;
+						($header, $seq) = getHeaderSeq($bestTaxon);
+						$newNoRankDistNode = $currentNoRankDistNode;
+						$newChildsToIgnoreNode = $currentChildsToIgnoreNode;
+						my $newNodeId = $key->id;
+						## set new distance nodes, which will replace the old ones given, that this candidate will remain the best
+						while (!defined $hashTree{$newNoRankDistNode}{$newNodeId}){
+							$newNoRankDistNode = $newNoRankDistNode->ancestor;
+							$newChildsToIgnoreNode = $newChildsToIgnoreNode->ancestor;
 						}
-					}
-					## candidate has the same distance, as the last one and could be better, with a fasScore of one
-					elsif (defined $hashTree{$newNoRankDistNode}{$key->id} and $alnScores{$candiKey} > $rankScore - 1){
-						if (!$gotFasScore and $fas_support){
-							%fas_box = getFasScore();
-							$gotFasScore = 1;
-						}
-						## get rankscore
-						my $newRankScore = getFilteredRankScore($alnScores{$candiKey}, $fas_box{$candiKey});
-						## candidate is better, than the last one
-						if ($newRankScore > $rankScore){
-							$bestTaxon = ">" . $candiKey;
-							$rankScore = $newRankScore;
-							($header, $seq) = getHeaderSeq($bestTaxon);
-							printDebug("New Taxon has the same distance, choosing the one with higher score");
-							print "New Best Taxon: $bestTaxon\n";
-						}
+						print "New Best Taxon: $bestTaxon\n";
 					}
 				}
-				## candidate reached the maximum score, no need to evaluate further
-				if ($rankScore >= $maxScore){
-					$sufficientlyClose = 1;
-					printDebug("Rankscore is at maximum. Breaking loop...");
-					last;
+				## candidate has the same distance, as the last one and could be better, with a fasScore of one
+				elsif (defined $hashTree{$newNoRankDistNode}{$key->id} and $alnScores{$candiKey} > $rankScore - 1){
+					if (!$gotFasScore and $fas_support){
+						%fas_box = getFasScore();
+						$gotFasScore = 1;
+					}
+					## get rankscore
+					my $newRankScore = getFilteredRankScore($alnScores{$candiKey}, $fas_box{$candiKey});
+					## candidate is better, than the last one
+					if ($newRankScore > $rankScore){
+						$bestTaxon = ">" . $candiKey;
+						$rankScore = $newRankScore;
+						($header, $seq) = getHeaderSeq($bestTaxon);
+						printDebug("New Taxon has the same distance, choosing the one with higher score");
+						print "New Best Taxon: $bestTaxon\n";
+					}
 				}
-				## rankscore got sufficiently close to the maximum, only evaluate candidates with the same distance now
-				elsif ($rankScore >= $maxScore * (1 - $distDeviation) and !$ignoreDistance){
-					printDebug("Sufficiently close to max score. Only evaluating leafs with same distance now.");
-					print "MaxScore: $maxScore\n";
-					print "RankScore: $rankScore\n";
-					$sufficientlyClose = 1;
-				}
-				clearTmpFiles();
 			}
-			## no candidate file was created -> so no candidate was found
-			else{
-				print "No Candidate was found for $keyName\n";
+			## candidate reached the maximum score, no need to evaluate further
+			if ($rankScore >= $maxScore){
+				$sufficientlyClose = 1;
+				printDebug("Rankscore is at maximum. Breaking loop...");
+				last;
 			}
+			## rankscore got sufficiently close to the maximum, only evaluate candidates with the same distance now
+			elsif ($rankScore >= $maxScore * (1 - $distDeviation) and !$ignoreDistance){
+				printDebug("Sufficiently close to max score. Only evaluating leafs with same distance now.");
+				print "MaxScore: $maxScore\n";
+				print "RankScore: $rankScore\n";
+				$sufficientlyClose = 1;
+			}
+			clearTmpFiles();
+		}
+		## no candidate file was created -> so no candidate was found
+		else{
+			print "No Candidate was found for $keyName\n";
 		}
 	}
+}
 
-	my @best = (split '\|', $bestTaxon);
-	$currentNoRankDistNode = $newNoRankDistNode;
-	$currentChildsToIgnoreNode = $newChildsToIgnoreNode;
-	clearTmpFiles();
+my @best = (split '\|', $bestTaxon);
+$currentNoRankDistNode = $newNoRankDistNode;
+$currentChildsToIgnoreNode = $newChildsToIgnoreNode;
+clearTmpFiles();
 
-	if ($bestTaxon ne ''){
-		open (COREORTHOLOGS, ">>$outputFa") or die "Error: Could not open file: " . $outputFa . "\n";
-		print COREORTHOLOGS "\n" . $header . "\n" . $seq;
-		close COREORTHOLOGS;
-		return $best[1];
-	}else{
-		return '';
-	}
+if ($bestTaxon ne ''){
+	open (COREORTHOLOGS, ">>$outputFa") or die "Error: Could not open file: " . $outputFa . "\n";
+	print COREORTHOLOGS "\n" . $header . "\n" . $seq;
+	close COREORTHOLOGS;
+	return $best[1];
+}else{
+	return '';
+}
 }
 
 ######################
@@ -2213,13 +1691,13 @@ sub getTaxa {
 	}
 	else {
 		## removal of misplaced files in genome_dir
-		if (-e "$genome_dir/query.sql"){ # "$path/$genome_dir/query.sql"){
-			unlink("$genome_dir/query.sql"); #unlink("$path/$genome_dir/query.sql");
+		if (-e "$genome_dir/query.sql"){
+			unlink("$genome_dir/query.sql");
 		}
-		if (-e "$genome_dir/@@.fa"){ # if (-e "$path/$genome_dir/@@.fa"){
-			unlink("$genome_dir/@@.fa"); # unlink("$path/$genome_dir/@@.fa");
+		if (-e "$genome_dir/@@.fa"){
+			unlink("$genome_dir/@@.fa");
 		}
-		@taxonlist = `ls $genome_dir`; # `ls $path/$genome_dir`;
+		@taxonlist = `ls $genome_dir`;
 		chomp @taxonlist;
 		for (my $i = 0; $i < @taxonlist; $i++) {
 			my ($taxon_name, $ncbi_id, $src_id) = split /@/, $taxonlist[$i];
@@ -2292,11 +1770,11 @@ sub getTree {
 sub getRefTree {
 	# the full lineages of the species are merged into a single tree
 	my $tree;
-	foreach my $key (sort {lc $a cmp lc $b} keys %refTaxa) { #%taxa) {
-		my $node = $db->get_taxon(-taxonid => $refTaxa{$key}); #$taxa{$key});
-		printDebug("\$key in sub getRefTree is $key and taxid is $refTaxa{$key}\n"); # $taxa{$key}\n");
+	foreach my $key (sort {lc $a cmp lc $b} keys %refTaxa) {
+		my $node = $db->get_taxon(-taxonid => $refTaxa{$key});
+		printDebug("\$key in sub getRefTree is $key and taxid is $refTaxa{$key}\n");
 		if (!defined $node){
-			print "ISSUE in sub getRefTree. No correspodence found in taxonomy file for $key and taxid $refTaxa{$key}. Skipping...\n"; # $taxa{$key}. Skipping...\n";
+			print "ISSUE in sub getRefTree. No correspodence found in taxonomy file for $key and taxid $refTaxa{$key}. Skipping...\n";
 			next;
 		}
 		else {
@@ -2348,8 +1826,8 @@ sub runHamstr {
 		if($seqFile ne "") {
 			my $taxon_id = substr($taxon, 6, length($taxon));
 			my @hamstr = ($hamstrPath, "-sequence_file=".$seqfile, "-fasta_file=".$outputFa, "-hmmpath=".$coreOrthologsPath , "-outpath=".$outputPath,
-						  "-blastpath=".$blastPath , "-protein", "-hmmset=".$seqName, "-taxon=".$taxon, "-force",
-						  "-eval_blast=".$ev_blst, "-eval_hmmer=".$ev_hmm, "-central", "-aligner=".$aln);
+			"-blastpath=".$blastPath , "-protein", "-hmmset=".$seqName, "-taxon=".$taxon, "-force",
+			"-eval_blast=".$ev_blst, "-eval_hmmer=".$ev_hmm, "-central", "-aligner=".$aln);
 
 			my $resultFile;
 			if (defined $autoLimit) {
@@ -2401,7 +1879,7 @@ sub runHamstr {
 					$outputFa .= '.extended';
 				}
 				## Baustelle: check that this also works with the original hamstrcore module as here a tail command was used.
-				my $tailCommand = "$grepprog -A 1 '$taxon.*|[01]\$' " . $resultFile . "|sed -e 's/\\([^|]\\{1,\\}\\)|[^|]*|\\([^|]\\{1,\\}\\)|\\([^|]\\{1,\\}\\)|\\([01]\\)\$/\\1|\\2|\\3|\\4/' >>" . $outputFa;
+				my $tailCommand = "$grepprog -A 1 '$taxon.*|[01]\$' \"" . $resultFile . "\" |sed -e 's/\\([^|]\\{1,\\}\\)|[^|]*|\\([^|]\\{1,\\}\\)|\\([^|]\\{1,\\}\\)|\\([01]\\)\$/\\1|\\2|\\3|\\4/' >> \"" . $outputFa. "\"";
 				printDebug("Post-processing of HaMStR\n$tailCommand\n");
 				system($tailCommand);
 			}
@@ -2414,16 +1892,18 @@ sub runHamstr {
 		my $delCommandFa;
 		my $delCommandHmm;
 		my $delCommandHam;
-
+		# my $outputPathTmp = $outputPath; $outputPathTmp =~ s/\|/\\\|/g;
+		# my $taxonTmp = $taxon; $taxonTmp =~ s/\|/\\\|/g;
+		# my $seqNameTmp = $seqName; $seqNameTmp =~ s/\|/\\\|/g;
 		if (!$strict) {
-			$delCommandFa = "rm -rf " . $outputPath . "/fa_dir_" . $taxon . "_" . $seqName . "_" . $refSpec;
-			$delCommandHmm = "rm -rf " .  $outputPath . "/hmm_search_" . $taxon . "_" . $seqName;
-			$delCommandHam = "rm -f " . $outputPath . "/hamstrsearch_" . $taxon . "_" . $seqName . ".out";
+			$delCommandFa = "rm -rf  \"" . $outputPath . "/fa_dir_" . $taxon . "_" . $seqName . "_" . $refSpec . "\"";
+			$delCommandHmm = "rm -rf \"" .  $outputPath . "/hmm_search_" . $taxon . "_" . $seqName . "\"";
+			$delCommandHam = "rm -f \"" . $outputPath . "/hamstrsearch_" . $taxon . "_" . $seqName . ".out" . "\"";
 		}
 		else {
-			$delCommandFa = "rm -rf " . $outputPath . "/fa_dir_" . $taxon . "_" . $seqName . "_strict";
-			$delCommandHmm = "rm -rf " .  $outputPath . "/hmm_search_" . $taxon . "_" . $seqName;
-			$delCommandHam = "rm -f " . $outputPath . "/hamstrsearch_" . $taxon . "_" . $seqName . ".strict.out";
+			$delCommandFa = "rm -rf \"" . $outputPath . "/fa_dir_" . $taxon . "_" . $seqName . "_strict" . "\"";
+			$delCommandHmm = "rm -rf \"" .  $outputPath . "/hmm_search_" . $taxon . "_" . $seqName . "\"";
+			$delCommandHam = "rm -f \"" . $outputPath . "/hamstrsearch_" . $taxon . "_" . $seqName . ".strict.out" . "\"";
 		}
 		printDebug("executing $delCommandFa", "executing $delCommandHmm", "executing $delCommandHam");
 		if (!$debug) {
@@ -2492,7 +1972,7 @@ sub printTaxa {
 	else {
 		print "Taxon_Name\tNCBI_ID\n";
 		print "-------------\t------------\n";
-		my $taxacall= "ls $genome_dir |$sedprog -e 's/@/\t/'"; # $path/$genome_dir |$sedprog -e 's/@/\t/'";
+		my $taxacall= "ls $genome_dir |$sedprog -e 's/@/\t/'";
 		@result = `$taxacall`;
 		chomp @result;
 		print join "\n", @result;
@@ -2577,14 +2057,14 @@ sub removeMinDist {
 		}
 		$node = $tree->find_node(-ncbi_taxid => $ncbiId);
 		my $lastToCompare = $toCompare[$#toCompare];
-									   	foreach(@toCompare) {
-									   		while($node->rank eq "no rank") {
-									   			$node = $node->ancestor;
-									   		}
-									   		if($node->rank ne $lastToCompare && $node->rank eq $_) {
-									   			$node = $node->ancestor;
-									   		}
-									   	}
+		foreach(@toCompare) {
+			while($node->rank eq "no rank") {
+				$node = $node->ancestor;
+			}
+			if($node->rank ne $lastToCompare && $node->rank eq $_) {
+				$node = $node->ancestor;
+			}
+		}
 	}
 	$delFlag = remove_branch($node);
 	return $delFlag;
@@ -2707,7 +2187,7 @@ sub getProteome {
 			print "create directory failed\n";
 		}
 	}
-	#
+
 	### This is the sql statement required for fetching the sequence information from the database
 	## Using Here Documents #######
 	my $sql = <<"________END_OF_STATEMENT";
@@ -2821,8 +2301,8 @@ sub getBestBlasthit {
 	my ($inpath, $resultfile) = @_;
 	printDebug("Sub getBestBlasthit running on $inpath/$resultfile");
 	my $searchio = Bio::SearchIO->new(
-		-file        => "$inpath/$resultfile",
-		-format      => $outputfmt)
+	-file        => "$inpath/$resultfile",
+	-format      => $outputfmt)
 	or die "parse failed";
 	while(my $result = $searchio->next_result){
 		my $sig;
@@ -2874,6 +2354,120 @@ sub printOut {
 		}
 	}
 }
+
+###########################
+sub initialCheck {
+	my ($seed, $ogName, $blastDir, $genomeDir, $weightDir, $fasoff) = @_;
+	# check tools exist
+	my @tools = ("hmmsearch", "muscle", "mafft", $globalaligner, $localaligner, $glocalaligner);
+	if ($^O eq "darwin") {
+		push(@tools, "clustalw2")
+	} else {
+		push(@tools, "clustalw")
+	}
+	my $flag = 1;
+	foreach my $tool (@tools) {
+		my $check = `which $tool`;
+		if (length($check) < 1) {
+			print "$tool not found\n";
+			$flag = 0;
+		}
+	}
+	if ($flag < 1) {
+		die "ERROR: Some required tools not found! Please install HaMStR-oneSeq again!\n";
+	}
+
+	# check executable FAS
+	my $fasCheckMsg = `prepareFAS -t ./ -c 2>&1`;
+	if ($fasoff != 1 && $fasCheckMsg =~ /ERROR/) {
+		die "ERROR: greedyFAS not ready to use! Please check https://github.com/BIONF/FAS/wiki/prepareFAS\n";
+	}
+
+	# check seed fasta file
+	unless (-e $seed) {
+		$seed = "$dataDir/$seed";
+	}
+	my $seqio = Bio::SeqIO->new(-file => $seed, '-format' => 'Fasta');
+	while(my $seq = $seqio->next_seq) {
+		my $string = $seq->seq;
+		if ($string =~ /[^a-zA-Z]/) {
+			die "ERROR: $seed contains special characters!\n";
+		}
+	}
+
+	# check ortholog group name
+	if (!defined $ogName) {
+		die "ERROR: Ortholog group name (-seqName) invalid!\n";
+	} else {
+		if ($ogName =~ /[\|\s+\"\'\`\´\!\^]/) {
+			die "ERROR: Ortholog group name (-seqName) cannot contain PIPE|space or \" \' \` \´ \! \^\n";
+		}
+	}
+
+	# check genome_dir
+	my @genomeDir = checkValidFolderName($genomeDir);
+	foreach my $genomeFd (@genomeDir) {
+		unless ($genomeFd =~ /^\./) {
+			my $genome = getGenomeFile("$genomeDir/$genomeFd", $genomeFd);
+			unless (-e "$genome.checked") {
+				die "ERROR: $genome.checked not found!\nPlease run checkData1s.py before running HaMStR-oneSeq!\n";
+			}
+		}
+	}
+	# check blast_dir
+	my @blastDir = checkValidFolderName($blastDir);
+	foreach my $blastFd (@blastDir) {
+		unless ($blastFd =~ /^\./) {
+			my $genome = getGenomeFile("$blastDir/$blastFd", $blastFd);
+			unless (-e "$genome.checked") {
+				die "ERROR: $genome.checked not found!\nPlease run checkData1s.py before running HaMStR-oneSeq!";
+			}
+		}
+	}
+	# check weight_dir
+	if ($fasoff != 1) {
+		my %seen;
+		my @allTaxa = grep( !$seen{$_}++, @genomeDir, @blastDir);
+		chomp(my $allAnno = `ls $weightDir | $sedprog \'s/\\.json//\'`);
+		my @allAnno = split(/\n/, $allAnno);
+		my @missingAnno = array_minus(@allTaxa, @allAnno);
+		if (scalar @missingAnno > 0) {
+			my $missingAnno = join("\n", @missingAnno);
+			die "ERROR: Some taxa do not have annotation! Please turn off FAS calculation (with -fasoff), or annotate their genomes before continue.\n$missingAnno\n";
+		}
+	}
+}
+
+sub getGenomeFile {
+	my ($folder, $filename) = @_;
+	chomp(my $faFile = `ls $folder/$filename.fa* | $grepprog -v \"checked\\|mod\\|tmp\"`);
+	my $out = $faFile;
+	chomp(my $link = `$readlinkprog -f $faFile`);
+	if ($link ne "") {
+		$out = $link;
+	}
+	return($out);
+}
+
+sub checkValidFolderName {
+	my $folder = $_[0];
+	# check if folder and its subfolders contain illegal character (e.g. pipe)
+	opendir(my $dh, $folder) || die "Can't open $folder: $!";
+	if ($folder =~ /[\|\s+]/) {
+		die "ERROR: $folder contains illegal character (e.g. PIPE or space)!\n";
+	}
+	my @folders = readdir($dh);
+	foreach my $fd (@folders) {
+		next if ($fd eq "." or $fd eq "..");
+		if ($fd =~ /[\|\s+]/) {
+			die "ERROR: $folder/$fd contains illegal character (e.g. PIPE or space)!\n";
+		}
+	}
+	closedir $dh;
+	my @notFd = (".", "..");
+	return(array_minus(@folders, @notFd));
+}
+
 ###########################
 sub helpMessage {
 	my $helpmessage = "
@@ -3022,12 +2616,8 @@ ${bold}SPECIFYING FAS SUPPORT OPTIONS$norm
 	The option '-minScore=<>' specifies the cut-off of the FAS score.
 -minScore=<>
 	Specify the threshold for coreFilter. Default is 0.75.
--weight_seed
-	Specify the gene set (either seed species or orthologs origin) which is used to determine the weight of a feature. If this flag is set the weights will be determined on the basis of the seed species. Default is the origin of the respective ortholog.
 -countercheck
 	Set this flag to counter-check your final profile. The FAS score will be computed in two ways (seed vs. hit and hit vs. seed).
--annoCores
-	Set number of CPUs used for annotating proteins. By default 2 CPUs will be used.
 
 ${bold}SPECIFYING EXTENT OF OUTPUT TO SCREEN$norm
 
