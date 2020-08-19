@@ -99,9 +99,9 @@ in which, `/path/to/taxa/fasta` is a folder where the FASTA files of all new tax
 
 ```
 #filename	tax_id	abbr_tax_name	version
-filename1	12345678
-filename2	9606
-filename3	4932	my_fungi
+filename1.fa	12345678
+filename2.faa	9606
+filename3.fasta	4932	my_fungi
 ...
 ```
 
