@@ -47,7 +47,7 @@ def query_yes_no(question, default='yes'):
 def main():
     version = '1.0.0'
     parser = argparse.ArgumentParser(description='You are running remove1s version ' + str(version) + '.')
-    parser.add_argument('--data', help='Remove HaMStR-oneSeq together with all files/data within hamstr1s directory', action='store_true', default=False)
+    parser.add_argument('--data', help='Remove HaMStR-oneSeq together with all files/data within the isntalled h1s directory', action='store_true', default=False)
     args = parser.parse_args()
     data = args.data
 

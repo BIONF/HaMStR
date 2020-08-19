@@ -152,9 +152,9 @@ def runOneseq(basicArgs, ioArgs, pathArgs, coreArgs, hamstrArgs, fasArgs, otherA
         sys.exit('Problem running\n%s' % (cmd))
 
 def main():
-    version = '1.0.0'
-    parser = argparse.ArgumentParser(description='You are running runOneseq version ' + str(version) + '.')
-
+    version = '2.1.5'
+    parser = argparse.ArgumentParser(description='You are running h1s version ' + str(version) + '.')
+    parser.add_argument('--version', action='version', version=str(version))
     required = parser.add_argument_group('Required arguments')
     required.add_argument('--seqFile', help='Input file containing the seed sequence (protein only) in fasta format',
                             action='store', default='', required=True)
