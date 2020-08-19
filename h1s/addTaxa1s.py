@@ -149,10 +149,10 @@ def main():
     dupList = {}
     faFiles = [f for f in listdir(folIn) if isfile(join(folIn, f))]
     for f in faFiles:
-        tmp = f.split('.')
-        if tmp[0] in nameDict:
+        # tmp = f.split('.')
+        if f in nameDict:
             # check duplicated taxon name in existing data
-            taxName = '@'.join(nameDict[tmp[0]])
+            taxName = '@'.join(nameDict[f])
             flag = 1
             if taxName in genomeFiles:
                 if force:
@@ -167,12 +167,12 @@ def main():
 
             if flag == 1:
                 fasta = folIn + '/' + f
-                name = nameDict[tmp[0]][0]
-                taxid = nameDict[tmp[0]][1]
-                verProt = nameDict[tmp[0]][2]
+                name = nameDict[f][0]
+                taxid = nameDict[f][1]
+                verProt = nameDict[f][2]
                 jobs.append([
-                    folIn + '/' + f, nameDict[tmp[0]][0], nameDict[tmp[0]][1],
-                    outPath, coreTaxa, nameDict[tmp[0]][2], noAnno, cpus, replace, delete, oldFAS
+                    folIn + '/' + f, nameDict[f][0], nameDict[f][1],
+                    outPath, coreTaxa, nameDict[f][2], noAnno, cpus, replace, delete, oldFAS
                 ])
 
     if len(dupList) > 0:
