@@ -755,7 +755,8 @@ my $hmmsearch_dir_tmp = $hmmsearch_dir; $hmmsearch_dir_tmp =~ s/\|/\\\|/g;
 my $hmmsearched = `ls $hmmsearch_dir_tmp |wc -l`;
 chomp ($ortholog_groups, $hmmsearched, $orthologs);
 
-print "\n\n
+if (!defined $silent) {
+	print "\n\n
 ####HaMStR completed!#########
 Results of HaMStR search in $taxon_global
 Number of core_orthologs searched: $hmmcount
@@ -763,7 +764,9 @@ Number of core_orthologs with hmmsearch output: $hmmsearched
 Number of ortholog_groups extended: $ortholog_groups
 Number of orthologous sequences: $orthologs
 ##############################\n\n";
-
+} else {
+	print "$taxon_global done\n";
+}
 exit;
 
 
@@ -872,7 +875,7 @@ sub checkInput {
 	$dbfile_short =~ s/\..*//;
 	if ($central) {
 		$dboutpath = $dbpath;
-		print "setting dboutpath to $dboutpath";
+		# print "setting dboutpath to $dboutpath";
 	}
 	##
 	## 0) Check for presence of the file with the sequences that should be hamstered
@@ -966,7 +969,9 @@ sub checkInput {
 	}
 	else {
 		push @log, "\tcheck for $blast_prog succeeded";
-		print "succeeded\n";
+		unless ($silent) {
+			print "succeeded\n";
+		}
 	}
 	## 3) Check for presence of hmmsearch
 	printOUT("checking for hmmsearch:\t");

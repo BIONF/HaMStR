@@ -457,13 +457,17 @@ if ($fas_support){
 	getAnnotation($outputFa);
 }
 
+my $coreStTime = time;
 #core-ortholog search
 if (!$coreex) {
+	print "Core compilating...\n";
 	$coremode = 1;
 	$taxaPath = $blastPath;
 	#### moved from above
 	my $starttime = time;
-	print "Building up the taxonomy tree. Start $starttime\n";
+	unless ($silent) {
+		print "Building up the taxonomy tree. Start $starttime\n";
+	}
 	push @logOUT, "Building up the taxonomy tree. Start $starttime\n";
 	$tree = getRefTree();
 	$treeDelFlag = 0;
@@ -476,7 +480,9 @@ if (!$coreex) {
 		$tree->set_root_node($groupNode);
 	}
 	my $endtime = time;
-	print "Finished building the taxonomy tree: $endtime\n";
+	unless ($silent) {
+		print "Finished building the taxonomy tree: $endtime\n";
+	}
 	push @logOUT, "Finished building the taxonomy tree: $endtime\n";
 	## Tree without deletions
 	$wholeTree = getRefTree();
@@ -523,7 +529,9 @@ if (!$coreex) {
 			createAlnMsf();
 		}
 
-		print "In round $curCoreOrthologs running hmmbuild on $outputAln\n";
+		unless ($silent) {
+			print "In round $curCoreOrthologs running hmmbuild on $outputAln\n";
+		}
 		hmmbuild($coreOrthologsPath.$seqName."/hmm_dir/".$seqName.".hmm", $outputAln);
 
 		## get the max alignment score per ortholog
@@ -544,7 +552,7 @@ if (!$coreex) {
 		clearTmpFiles();
 
 		my $addedTaxon = getBestOrtholog();
-		print "\n\nAdded TAXON: " . $addedTaxon . "\n\n\n\n";
+		print "Added TAXON: " . $addedTaxon . "\n";
 		#if a new core ortholog was found
 		if($addedTaxon ne "") {
 			$hamstrSpecies = $hamstrSpecies . "," . $addedTaxon;
@@ -570,14 +578,19 @@ if (!$coreex) {
 	createAlnMsf();
 	hmmbuild($coreOrthologsPath.$seqName."/hmm_dir/".$seqName.".hmm", $outputAln);
 }
+my $coreEndTime = time;
+my $coreCalcTime = $coreEndTime - $coreStTime;
+print "==> Core set compilation finished in $coreCalcTime sec!\n";
+push @logOUT, "Core set compilation finished in $coreCalcTime sec!";
+
 #after having calculated the core orthologous set,
 #start hamstr to find all orthologs
 # my $finalOutput = $outputPath . '/' . $seqName . '.extended.fa';
+my $hamstrStTime = time;
 if (!$coreOnly) {
 	$coremode = 0;
-	my $CoreEndTime = time - $startTime;
-	push @logOUT, "Core set compilation finished after $CoreEndTime sec! Performing the final HaMStR search on all taxa";
-	print "Core set compilation finished after $CoreEndTime! Performing the final HaMStR search on all taxa\n";
+	push @logOUT, "Performing the final ortholog search on all taxa";
+	print "Performing the final ortholog search on all taxa\n";
 	%taxa = getTaxa();
 	my $tree = getTree();
 	#using $eval_relaxfac to relax the evalues for final hamstr
@@ -600,16 +613,15 @@ if (!$coreOnly) {
 	}
 	$pm->wait_all_children;
 }
-my $HamstrTime = time;
-my $time2add = $HamstrTime - $startTime;
-push @logOUT, "Ortholog search completed after $time2add sec!";
+my $hamstrEndTime = time;
+my $hamstrCalcTime = $hamstrEndTime - $hamstrStTime;
+push @logOUT, "Ortholog search completed in $hamstrCalcTime sec!";
+print "==> Ortholog search completed in $hamstrCalcTime sec!\n";
 
 ## Evaluation of all orthologs that are predicted by the final hamstr run
-if(!$coreOnly){ #} and $fas_support){
-	my $FASTime = time;
-	$time2add = $FASTime - $startTime;
-	push @logOUT, "Starting FAS evaluation after $time2add sec!";
-	print "Ortholog search completed after $HamstrTime sec! Starting the feature architecture similarity score computation.\n";
+if(!$coreOnly){
+	my $fasStTime = time;
+	print "Starting the feature architecture similarity score computation.\n";
 	my $processID = $$;
 
 	unless (-e $finalOutput) {
@@ -626,8 +638,10 @@ if(!$coreOnly){ #} and $fas_support){
 	} else {
 		fasta2profile($finalOutput, $seqName)
 	}
-	my $FASEndTime = time - $startTime;
-	push @logOUT, "FAS evaluation completed after $FASEndTime sec! Cleaning up...";
+	my $fasEndTime = time;
+	my $fasCalcTime = $fasEndTime - $fasStTime;
+	push @logOUT, "FAS calculation completed in $fasCalcTime sec!\nCleaning up...";
+	print "==> FAS calculation completed in $fasCalcTime sec!\nCleaning up...\n";
 	if($autoclean){
 		runAutoCleanUp($processID);
 	}
@@ -642,8 +656,8 @@ unless ($debug) {
 }
 
 my $endTime = time - $startTime;
-print "OneSeq finished after $endTime seconds\n";
-push @logOUT, "OneSeq finished after $endTime seconds\n";
+print "==> h1s finished after $endTime sec!\n";
+push @logOUT, "h1s finished after $endTime sec!\n";
 
 #### writing the log
 open (LOGOUT, ">$outputPath/oneSeq.log") or warn "Failed to open oneSeq.log for writing";
@@ -795,10 +809,14 @@ sub getAlnScores{
 	printDebug("Normalize alignment scores:\n");
 	foreach my $key (keys %scores){
 		my $score = $scores{$key};
-		print "Cumulative alignmentscore is: $score\n";
+		unless ($silent) {
+			print "Cumulative alignmentscore is: $score\n";
+		}
 		$scores{$key} = $scores{$key} / $maxAlnScore;
 		$score = $scores{$key};
-		print "Normalised alignmentscore is: $score\n";
+		unless ($silent) {
+			print "Normalised alignmentscore is: $score\n";
+		}
 	}
 	return %scores;
 }
@@ -950,25 +968,29 @@ sub fasta2profile{
 # $processID: given process ID
 sub runAutoCleanUp {
 	my $processID = $_[0];
-	print "\noneSeq.pl finished. Starting Auto Clean-up...\n\n";
-
+	unless ($silent) {
+		print "Deleting $outputPath/tmp\n";
+	}
 	my $delCommandTmp = "rm -rf \"$outputPath/tmp\"";
 	system ($delCommandTmp) == 0 or die "Error deleting result files\n";
-	print "--> $outputPath/tmp deleted.\n";
 	my $seedName = $seqName . '_seed';
 	my $annopath = $coreOrthologsPath.$seqName."/fas_dir/annotation_dir";
+	unless ($silent) {
+		print "Deleting $annopath\n";
+	}
 	if (!$fasoff) {
 		opendir(ANNODIR, $annopath) or warn "Could not open $annopath in sub runAutoCleanup\n";
 		my @annodirs = grep (!/$seedName/, readdir(ANNODIR));
 		print scalar(@annodirs) . " content of $annopath\n";
 		for (my $anno = 0; $anno < @annodirs; $anno++){
 			if ($annodirs[$anno] ne '..' and $annodirs[$anno] ne '.' and $annodirs[$anno] ne $seqName.".json") {
-				print "Deleting $annopath/$annodirs[$anno]\n";
+				unless ($silent) {
+					print "Deleting $annopath/$annodirs[$anno]\n";
+				}
 				rmtree ($annopath."/".$annodirs[$anno]);
 			}
 		}
 		closedir (ANNODIR);
-		print "--> Feature annotation files in $annopath deleted.\n";
 	}
 }
 
@@ -988,7 +1010,7 @@ sub getAnnotation {
 sub determineRef {
 	my ($infile, @refspec) = @_;
 	#run blast for all available proteomes if the given sequence is not in the database
-	print "One moment please!\nLooking for the most similar sequence to your input sequence.\n\n";
+	print "One moment please!\nLooking for the most similar sequence to your input sequence.\n";
 	my $bestHit->{score} = 1;
 	$bestHit->{evalue} = 10;
 	my $outname = $$;
@@ -1320,7 +1342,9 @@ sub checkOptions {
 	}
 	### rather strict fas filter for core orthologs: OFF
 	if(!$core_filter_mode){
-		print "No FAS filter for core-orthologs set.\n";
+		unless ($silent) {
+			print "No FAS filter for core-orthologs set.\n";
+		}
 	}elsif($core_filter_mode eq "relaxed"){
 		#core ortholog candidates with a FAS score below the threshold will be disadvantaged
 	}elsif($core_filter_mode eq "strict"){
@@ -1337,7 +1361,9 @@ sub checkOptions {
 		print "... exiting.\n";
 		exit;
 	}elsif(!$local && !$global && !$glocal){
-		print "No specific alignment strategy set. Continuing with local alignments (Smith-Waterman-Algorithm).\n";
+		unless ($silent) {
+			print "No specific alignment strategy set. Continuing with local alignments (Smith-Waterman-Algorithm).\n";
+		}
 		$local = 1;
 	}
 }
@@ -1474,14 +1500,18 @@ sub getBestOrtholog {
 	foreach my $array (@leaves) {
 		## break loop if a candidate was close to the max score and no more candidates remain with the same distance
 		if ($sufficientlyClose){
-			print "Best Taxon is sufficiently close to max score and no more candidates with same distance remain.\nStopping evaluation.\n";
+			unless ($silent) {
+				print "Best Taxon is sufficiently close to max score and no more candidates with same distance remain.\nStopping evaluation.\n";
+			}
 			last;
 		}
 		## iterate over each leaf with the same distance
 		foreach my $key (@$array){
 			my $keyName = @{$key->name('supplied')}[0];
 			my $nodeId = $wholeTree->find_node(-ncbi_taxid => $refTaxa{$keyName})->id;
-			print "Hamstr species: " . $key->scientific_name . " - " . @{$key->name('supplied')}[0] . "\n";
+			unless ($silent) {
+				print "Hamstr species: " . $key->scientific_name . " - " . @{$key->name('supplied')}[0] . "\n";
+			}
 			runHamstr(@{$key->name('supplied')}[0], $seqName, $outputFa, $refSpec, $core_hitlimit, $core_rep, $corestrict, $coremode, $eval_blast, $eval_hmmer, $aln);
 			## check weather a candidate was found in the searched taxon
 			if(-e $candidatesFile) {
@@ -1517,7 +1547,9 @@ sub getBestOrtholog {
 							$newNoRankDistNode = $newNoRankDistNode->ancestor;
 							$newChildsToIgnoreNode = $newChildsToIgnoreNode->ancestor;
 						}
-						print "New Best Taxon: $bestTaxon\n";
+						unless ($silent) {
+							print "New Best Taxon: $bestTaxon\n";
+						}
 					}
 				}
 				## candidate has the same distance, as the last one and could be better, with a fasScore of one
@@ -1534,7 +1566,9 @@ sub getBestOrtholog {
 						$rankScore = $newRankScore;
 						($header, $seq) = getHeaderSeq($bestTaxon);
 						printDebug("New Taxon has the same distance, choosing the one with higher score");
-						print "New Best Taxon: $bestTaxon\n";
+						unless ($silent) {
+							print "New Best Taxon: $bestTaxon\n";
+						}
 					}
 				}
 			}
@@ -1547,15 +1581,19 @@ sub getBestOrtholog {
 			## rankscore got sufficiently close to the maximum, only evaluate candidates with the same distance now
 			elsif ($rankScore >= $maxScore * (1 - $distDeviation) and !$ignoreDistance){
 				printDebug("Sufficiently close to max score. Only evaluating leafs with same distance now.");
-				print "MaxScore: $maxScore\n";
-				print "RankScore: $rankScore\n";
+				unless ($silent) {
+					print "MaxScore: $maxScore\n";
+					print "RankScore: $rankScore\n";
+				}
 				$sufficientlyClose = 1;
 			}
 			clearTmpFiles();
 		}
 		## no candidate file was created -> so no candidate was found
 		else{
-			print "No Candidate was found for $keyName\n";
+			unless ($silent) {
+				print "No Candidate was found for $keyName\n";
+			}
 		}
 	}
 }
@@ -1814,7 +1852,9 @@ sub runHamstr {
 		getProteome($taxon);
 	}
 	if (-e $taxaDir) {
-		print "hamstr for taxon: " . $taxon . "\n";
+		unless ($silent) {
+			print "hamstr for taxon: " . $taxon . "\n";
+		}
 		chdir($taxaDir) or die "Error: Directory for " . $taxon  . " does not exist!\n";
 		my $seqfile = $taxon . ".fa";
 
@@ -1919,8 +1959,9 @@ sub runHamstr {
 
 ##########################
 sub hmmbuild {
-	my @hmmbuild = ("hmmbuild", $_[0], $_[1]);
-	system(@hmmbuild) == 0 or die "hmmbuild failed";
+	# my @hmmbuild = ("hmmbuild", $_[0], $_[1]);
+	# system(@hmmbuild) == 0 or die "hmmbuild failed";
+	my $hmmbuild = `hmmbuild $_[0] $_[1] > /dev/null 2>&1`;
 }
 
 sub parseInput {
@@ -2074,7 +2115,9 @@ sub removeMinDist {
 ## builds a 2 dimensional hash in which you can check for a node,
 ## wheather there is a path down the tree to a given species
 sub buildHashTree {
-	print "Building hash tree\n";
+	unless ($silent) {
+		print "Building hash tree\n";
+	}
 
 	printDebug("Creating variables...");
 	my %hashTree;
@@ -2083,7 +2126,9 @@ sub buildHashTree {
 	my @ancestors;
 	my $rootNode = $wholeTree->get_root_node();
 
-	print "Processing leafs...\n";
+	unless ($silent ){
+		print "Processing leafs...\n";
+	}
 	## create entry for leafes
 	foreach my $leaf (get_leaves($wholeTree)){
 		my $key = $leaf->id;
@@ -2103,10 +2148,14 @@ sub buildHashTree {
 		}
 		$processed{$leaf} = 1;
 	}
-	print "Finished leafs\n";
+	unless ($silent) {
+		print "Finished leafs\n";
+	}
 
 	## create entries for all other nodes
-	print "Processing ancestor nodes\n";
+	unless ($silent) {
+		print "Processing ancestor nodes\n";
+	}
 	foreach my $node (@ancestors){
 		my $test = $node->id;
 		printDebug("Processing node: $test\n");
@@ -2160,9 +2209,11 @@ sub buildHashTree {
 			printDebug("Queuing $test again...\n\n");
 		}
 	}
-	print "Finished processing ancestor nodes\n";
-	print "Finished building hash tree\n";
-	print "Returning hash tree...\n";
+	unless ($silent) {
+		print "Finished processing ancestor nodes\n";
+		print "Finished building hash tree\n";
+		print "Returning hash tree...\n";
+	}
 	return %hashTree;
 }
 
@@ -2341,7 +2392,7 @@ sub getBestBlasthit {
 sub printOut {
 	my ($message, $mlevel) = @_;
 	if ($mlevel <= $vlevel){
-		print "\n$message\n";
+		print "$message\n";
 	}
 	######################
 	sub checkInt {
