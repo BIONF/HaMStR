@@ -3,7 +3,7 @@ python:
   - '3.8'
 install:
   - pip install .
-script: python3 h1s/runOneseq.py -h
+script: python3 h1s/h1s.py -h
 deploy:
   provider: pypi
   username: "__token__"
