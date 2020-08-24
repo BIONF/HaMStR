@@ -1919,9 +1919,20 @@ sub runHamstr {
 					$outputFa .= '.extended';
 				}
 				## Baustelle: check that this also works with the original hamstrcore module as here a tail command was used.
-				my $tailCommand = "$grepprog -A 1 '$taxon.*|[01]\$' \"" . $resultFile . "\" |sed -e 's/\\([^|]\\{1,\\}\\)|[^|]*|\\([^|]\\{1,\\}\\)|\\([^|]\\{1,\\}\\)|\\([01]\\)\$/\\1|\\2|\\3|\\4/' >> \"" . $outputFa. "\"";
-				printDebug("Post-processing of HaMStR\n$tailCommand\n");
-				system($tailCommand);
+				printDebug("Post-processing of HaMStR\n");
+				my $tailCommand = "";
+				if ($taxon eq $refSpec) {
+					$tailCommand = "$grepprog -A 1 '$taxon.*|1\$' \"" . $resultFile . "\" |sed -e 's/\\([^|]\\{1,\\}\\)|[^|]*|\\([^|]\\{1,\\}\\)|\\([^|]\\{1,\\}\\)|\\([01]\\)\$/\\1|\\2|\\3|\\4/'". " | cat - ". $outputFa . " > temp && mv temp " . $outputFa;
+					printDebug("$tailCommand\n");
+					system($tailCommand);
+					$tailCommand = "$grepprog -A 1 '$taxon.*|0\$' \"" . $resultFile . "\" |sed -e 's/\\([^|]\\{1,\\}\\)|[^|]*|\\([^|]\\{1,\\}\\)|\\([^|]\\{1,\\}\\)|\\([01]\\)\$/\\1|\\2|\\3|\\4/' >> \"" . $outputFa. "\"";
+					printDebug("$tailCommand\n");
+					system($tailCommand);
+				} else {
+					$tailCommand = "$grepprog -A 1 '$taxon.*|[01]\$' \"" . $resultFile . "\" |sed -e 's/\\([^|]\\{1,\\}\\)|[^|]*|\\([^|]\\{1,\\}\\)|\\([^|]\\{1,\\}\\)|\\([01]\\)\$/\\1|\\2|\\3|\\4/' >> \"" . $outputFa. "\"";
+					printDebug("$tailCommand\n");
+					system($tailCommand);
+				}
 			}
 			else {
 				printDebug("$resultFile not found");

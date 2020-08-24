@@ -55,7 +55,7 @@ def getOneseqInfo(oneseqPath, infoType):
     else:
         exit('%s not found' % (oneseqPath + '/bin/oneSeq.pl'))
 
-def runOneseq(basicArgs, ioArgs, pathArgs, coreArgs, hamstrArgs, fasArgs, otherArgs):
+def h1s(basicArgs, ioArgs, pathArgs, coreArgs, hamstrArgs, fasArgs, otherArgs):
     # basic command
     (oneseqPath, seqFile, seqName, refspec, minDist, maxDist, coreOrth) = basicArgs
     cmd = 'perl %s/bin/oneSeq.pl -seqFile=%s -seqName=%s -refspec=%s' % (oneseqPath, seqFile, seqName, refspec)
@@ -323,7 +323,7 @@ def main():
     oneseqVersion = args.oneseqVersion
 
     ### get oneSeq and data path
-    oneseqPath = os.path.realpath(__file__).replace('/runOneseq.py','')
+    oneseqPath = os.path.realpath(__file__).replace('/h1s.py','')
     pathconfigFile = oneseqPath + '/bin/pathconfig.txt'
     if not os.path.exists(pathconfigFile):
         sys.exit('No pathconfig.txt found. Please run setup1s (https://github.com/BIONF/HaMStR/wiki/Installation#setup-hamstr-oneseq).')
@@ -360,7 +360,7 @@ def main():
     if showTaxa:
         getOneseqInfo(oneseqPath, '-showTaxa')
     ### run oneSeq
-    runOneseq(basicArgs, ioArgs, pathArgs, coreArgs, hamstrArgs, fasArgs, otherArgs)
+    h1s(basicArgs, ioArgs, pathArgs, coreArgs, hamstrArgs, fasArgs, otherArgs)
 
 if __name__ == '__main__':
     main()

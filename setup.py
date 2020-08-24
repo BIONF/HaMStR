@@ -44,7 +44,7 @@ setup(
         'greedyFAS'
     ],
     entry_points={
-        'console_scripts': ["h1s = h1s.runOneseq:main",
+        'console_scripts': ["h1s = h1s.h1s:main",
                             "setup1s = h1s.setup1s:main",
                             "checkData1s = h1s.checkData1s:main",
                             "addTaxon1s = h1s.addTaxon1s:main",
