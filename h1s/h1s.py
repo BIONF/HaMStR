@@ -152,7 +152,7 @@ def h1s(basicArgs, ioArgs, pathArgs, coreArgs, hamstrArgs, fasArgs, otherArgs):
         sys.exit('Problem running\n%s' % (cmd))
 
 def main():
-    version = '2.1.7'
+    version = '2.1.8'
     parser = argparse.ArgumentParser(description='You are running h1s version ' + str(version) + '.')
     parser.add_argument('--version', action='version', version=str(version))
     required = parser.add_argument_group('Required arguments')
