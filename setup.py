@@ -26,7 +26,7 @@ with open("README.md", "r") as input:
 
 setup(
     name="h1s",
-    version="2.1.9",
+    version="2.2.0",
     python_requires='>=3.7.0',
     description="Feature-aware orthology prediction tool",
     long_description=long_description,
@@ -45,6 +45,7 @@ setup(
     ],
     entry_points={
         'console_scripts': ["h1s = h1s.h1s:main",
+                            "hms = h1s.hms:main",
                             "setup1s = h1s.setup1s:main",
                             "checkData1s = h1s.checkData1s:main",
                             "addTaxon1s = h1s.addTaxon1s:main",

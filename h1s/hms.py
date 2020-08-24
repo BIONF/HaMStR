@@ -17,152 +17,26 @@
 
 import sys
 import os
+from os import listdir
+from os.path import isfile, join
+import time
 import argparse
 import subprocess
 from pathlib import Path
-
-def checkFileExist(file):
-    if not os.path.exists(os.path.abspath(file)):
-        sys.exit('%s not found' % file)
-
-def checkInput(args):
-    (oneseqPath, seqFile, refspec, outpath, hmmpath, blastpath, searchpath, weightpath) = args
-    # check path existing
-    for path in [hmmpath, blastpath, searchpath, weightpath]:
-        checkFileExist(path)
-    # check for seqFile
-    if not os.path.exists(os.path.abspath(seqFile)):
-        if not os.path.exists(oneseqPath + '/data/' + seqFile):
-            sys.exit('%s not found in %s or %s' % (seqFile, os.getcwd(), oneseqPath + '/data/'))
-        else:
-            seqFile = oneseqPath + '/data/' + seqFile
-    else:
-        seqFile = os.path.abspath(seqFile)
-    # create output directory
-    Path(outpath).mkdir(parents=True, exist_ok=True)
-    # check refspec
-    if not os.path.exists(os.path.abspath(blastpath+'/'+refspec)):
-        exit('Reference taxon %s not found in %s' % (refspec, blastpath))
-    return (seqFile, hmmpath, blastpath, searchpath, weightpath)
-
-def getOneseqInfo(oneseqPath, infoType):
-    if os.path.exists(oneseqPath + '/bin/oneSeq.pl'):
-        cmd = subprocess.Popen([oneseqPath + '/bin/oneSeq.pl', infoType], stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-        msg, err = cmd.communicate()
-        print(msg.decode('UTF-8').strip())
-        print(err.decode('UTF-8').strip())
-        exit()
-    else:
-        exit('%s not found' % (oneseqPath + '/bin/oneSeq.pl'))
-
-def h1s(args):
-    (basicArgs, ioArgs, pathArgs, coreArgs, hamstrArgs, fasArgs, otherArgs, mute) = args
-    # basic command
-    (oneseqPath, seqFile, seqName, refspec, minDist, maxDist, coreOrth) = basicArgs
-    cmd = 'perl %s/bin/oneSeq.pl -seqFile=%s -seqName=%s -refspec=%s' % (oneseqPath, seqFile, seqName, refspec)
-    # add paths
-    (outpath, hmmpath, blastpath, searchpath, weightpath) = pathArgs
-    cmd = cmd + ' -outpath=%s -hmmpath=%s -blastpath=%s -searchpath=%s -weightpath=%s' % (outpath, hmmpath, blastpath, searchpath, weightpath)
-    # add other I/O options
-    (append, force, cleanup, group, blast, db) = ioArgs
-    if append == True:
-        cmd = cmd + ' -append'
-    if force == True:
-        cmd = cmd + ' -force'
-    if cleanup == True:
-        cmd = cmd + ' -cleanup'
-    if blast == True:
-        cmd = cmd + ' -blast'
-    if db == True:
-        cmd = cmd + ' -db'
-    if not group == '':
-        cmd = cmd + ' -group=%s' % group
-    # add core compilation options
-    (coreOnly, reuseCore, coreTaxa, coreStrict, CorecheckCoorthologsRef, coreRep, coreHitLimit, distDeviation) = coreArgs
-    if coreOnly == True:
-        cmd = cmd + ' -coreOnly'
-    if reuseCore == True:
-        cmd = cmd + ' -reuseCore'
-    else:
-        cmd = cmd + ' -minDist=%s -maxDist=%s -coreOrth=%s' % (minDist, maxDist, coreOrth)
-    if not coreTaxa == '':
-        cmd = cmd + ' -coreTaxa=%s' % coreTaxa
-    if coreStrict == True:
-        cmd = cmd + ' -coreStrict'
-    if CorecheckCoorthologsRef == True:
-        cmd = cmd + ' -CorecheckCoorthologsRef'
-    if coreRep == True:
-        cmd = cmd + ' -coreRep'
-    if not coreHitLimit == 3:
-        cmd = cmd + ' -coreHitLimit=%s' % coreHitLimit
-    if not distDeviation == 0.05:
-        cmd = cmd + ' -distDeviation=%s' % distDeviation
-    # add hamstr options
-    (strict, checkCoorthologsRef, rbh, rep, ignoreDistance, lowComplexityFilterOff, evalBlast, evalHmmer, evalRelaxfac, hitLimit, autoLimit, scoreThreshold, scoreCutoff, aligner, local, glocal) = hamstrArgs
-    if strict == True:
-        cmd = cmd + ' -strict'
-    if checkCoorthologsRef == True:
-        cmd = cmd + ' -checkCoorthologsRef'
-    if rbh == True:
-        cmd = cmd + ' -rbh'
-    if rep == True:
-        cmd = cmd + ' -rep'
-    if ignoreDistance == True:
-        cmd = cmd + ' -ignoreDistance'
-    if lowComplexityFilterOff == True:
-        cmd = cmd + ' -filter=F'
-    if not evalBlast == 0.00005:
-        cmd = cmd + ' -evalBlast=%s' % evalBlast
-    if not evalHmmer == 0.00005:
-        cmd = cmd + ' -evalHmmer=%s' % evalHmmer
-    if not evalRelaxfac == 10:
-        cmd = cmd + ' -evalRelaxfac=%s' % evalRelaxfac
-    if not hitLimit == 10:
-        cmd = cmd + ' -hitLimit=%s' % hitLimit
-    if autoLimit == True:
-        cmd = cmd + ' -autoLimit'
-    if not scoreThreshold == 10:
-        cmd = cmd + ' -scoreThreshold=%s' % scoreThreshold
-    if not scoreCutoff == 10:
-        cmd = cmd + ' -scoreCutoff=%s' % scoreCutoff
-    if not aligner == 'muscle':
-        cmd = cmd + ' -aligner=%s' % aligner
-    if glocal == True:
-        cmd = cmd + ' -glocal'
-    # add fas options
-    (fasoff, countercheck, coreFilter, minScore) = fasArgs
-    if fasoff == True:
-        cmd = cmd + ' -fasoff'
-    else:
-        if countercheck == True:
-            cmd = cmd + ' -countercheck'
-        if not coreFilter == '':
-            if minScore > 0:
-                cmd = cmd + ' -coreFilter=%s -minScore=%s' % (coreFilter, minScore)
-    # add other options
-    (cpu, debug, silent) = otherArgs
-    cmd = cmd + ' -cpu=%s' % cpu
-    if debug == True:
-        cmd = cmd + ' -debug'
-    if silent == True:
-        cmd = cmd + ' -silent'
-    # print(cmd)
-    if mute == True:
-        cmd = cmd + ' > /dev/null 2>&1'
-    try:
-        subprocess.call([cmd], shell = True)
-    except:
-        sys.exit('Problem running\n%s' % (cmd))
+import multiprocessing as mp
+import re
+from tqdm import tqdm
+import h1s.h1s as h1sFn
 
 def main():
     version = '2.2.0'
     parser = argparse.ArgumentParser(description='You are running h1s version ' + str(version) + '.')
     parser.add_argument('--version', action='version', version=str(version))
     required = parser.add_argument_group('Required arguments')
-    required.add_argument('--seqFile', help='Input file containing the seed sequence (protein only) in fasta format',
+    required.add_argument('--input', help='Input folder containing the seed sequences (protein only) in fasta format',
                             action='store', default='', required=True)
-    required.add_argument('--seqName', help='Job name. This will also be file name for the output',
-                            action='store', default='', required=True)
+    # required.add_argument('--seqName', help='Job name. This will also be file name for the output',
+    #                         action='store', default='', required=True)
     required.add_argument('--refspec', help='Reference taxon. It should be the species the seed sequence was derived from',
                             action='store', default='', required=True)
 
@@ -260,8 +134,8 @@ def main():
     args = parser.parse_args()
 
     # required arguments
-    seqFile = args.seqFile
-    seqName = args.seqName
+    inFol = os.path.abspath(args.input)
+    # seqName = args.seqName
     refspec = args.refspec
 
     minDist = args.minDist
@@ -326,7 +200,7 @@ def main():
     oneseqVersion = args.oneseqVersion
 
     ### get oneSeq and data path
-    oneseqPath = os.path.realpath(__file__).replace('/h1s.py','')
+    oneseqPath = os.path.realpath(__file__).replace('/hms.py','')
     pathconfigFile = oneseqPath + '/bin/pathconfig.txt'
     if not os.path.exists(pathconfigFile):
         sys.exit('No pathconfig.txt found. Please run setup1s (https://github.com/BIONF/HaMStR/wiki/Installation#setup-hamstr-oneseq).')
@@ -341,29 +215,82 @@ def main():
     if weightpath == '':
         weightpath = dataPath + '/weight_dir'
 
-    ### check input arguments
-    seqFile, hmmpath, blastpath, searchpath, weightpath = checkInput([oneseqPath, seqFile, refspec, outpath, hmmpath, blastpath, searchpath, weightpath])
-
-    # group arguments
-    basicArgs = [oneseqPath, seqFile, seqName, refspec, minDist, maxDist, coreOrth]
-    ioArgs = [append, force, cleanup, group, blast, db]
-    pathArgs = [outpath, hmmpath, blastpath, searchpath, weightpath]
-    coreArgs = [coreOnly, reuseCore, coreTaxa, coreStrict, CorecheckCoorthologsRef, coreRep, coreHitLimit, distDeviation]
-    fasArgs = [fasoff, countercheck, coreFilter, minScore]
-    hamstrArgs = [strict, checkCoorthologsRef, rbh, rep, ignoreDistance, lowComplexityFilterOff, evalBlast, evalHmmer, evalRelaxfac, hitLimit, autoLimit, scoreThreshold, scoreCutoff, aligner, local, glocal]
-    otherArgs = [cpu, debug, silent]
-
     ### print oneSeq help
     if oneseqHelp:
-        getOneseqInfo(oneseqPath, '-h')
+        h1sFn.getOneseqInfo(oneseqPath, '-h')
     ### print oneSeq version
     if oneseqVersion:
-        getOneseqInfo(oneseqPath, '-version')
+        h1sFn.getOneseqInfo(oneseqPath, '-version')
     ### print available taxa
     if showTaxa:
-        getOneseqInfo(oneseqPath, '-showTaxa')
-    ### run oneSeq
-    h1s([basicArgs, ioArgs, pathArgs, coreArgs, hamstrArgs, fasArgs, otherArgs, False])
+        h1sFn.getOneseqInfo(oneseqPath, '-showTaxa')
+
+    h1sStart = time.time()
+    seeds = [f for f in listdir(inFol) if isfile(join(inFol, f))]
+    print('PID ' + str(os.getpid()))
+    ### run core compilation
+    if reuseCore == False:
+        print('Starting compiling core orthologs...')
+        start = time.time()
+        coreCompilationJobs = []
+        for seed in seeds:
+            seqFile = inFol + '/' + seed
+            seqName = seed.split('.')[0]
+            seqName = re.sub('[\|\.]', '_', seqName)
+            ### check input arguments
+            seqFile, hmmpath, blastpath, searchpath, weightpath = h1sFn.checkInput([oneseqPath, seqFile, refspec, outpath, hmmpath, blastpath, searchpath, weightpath])
+            # group arguments
+            basicArgs = [oneseqPath, seqFile, seqName, refspec, minDist, maxDist, coreOrth]
+            ioArgs = [append, force, cleanup, group, blast, db]
+            pathArgs = [outpath, hmmpath, blastpath, searchpath, weightpath]
+            coreArgs = [True, reuseCore, coreTaxa, coreStrict, CorecheckCoorthologsRef, coreRep, coreHitLimit, distDeviation]
+            fasArgs = [fasoff, countercheck, coreFilter, minScore]
+            hamstrArgs = [strict, checkCoorthologsRef, rbh, rep, ignoreDistance, lowComplexityFilterOff, evalBlast, evalHmmer, evalRelaxfac, hitLimit, autoLimit, scoreThreshold, scoreCutoff, aligner, local, glocal]
+            otherArgs = [cpu, debug, True]
+            coreCompilationJobs.append([basicArgs, ioArgs, pathArgs, coreArgs, hamstrArgs, fasArgs, otherArgs, True])
+        pool = mp.Pool(cpu)
+        annoOut = []
+        for _ in tqdm(pool.imap_unordered(h1sFn.h1s, coreCompilationJobs), total=len(coreCompilationJobs)):
+            annoOut.append(_)
+        end = time.time()
+        print('==> Core compiling finished in ' + '{:5.3f}s'.format(end-start))
+
+    ### run ortholog search
+    mute = False
+    if silent == True:
+        mute = True
+    if coreOnly == False:
+        print('Searching orthologs for...')
+        start = time.time()
+        for seed in seeds:
+            if mute == true:
+                print(seed)
+            else:
+                print('\n##### ' + seed)
+            seqFile = inFol + '/' + seed
+            seqName = seed.split('.')[0]
+            seqName = re.sub('[\|\.]', '_', seqName)
+            ### check input arguments
+            seqFile, hmmpath, blastpath, searchpath, weightpath = h1sFn.checkInput([oneseqPath, seqFile, refspec, outpath, hmmpath, blastpath, searchpath, weightpath])
+            # group arguments
+            basicArgs = [oneseqPath, seqFile, seqName, refspec, minDist, maxDist, coreOrth]
+            ioArgs = [append, force, cleanup, group, blast, db]
+            pathArgs = [outpath, hmmpath, blastpath, searchpath, weightpath]
+            coreArgs = [False, True, coreTaxa, coreStrict, CorecheckCoorthologsRef, coreRep, coreHitLimit, distDeviation]
+            fasArgs = [fasoff, countercheck, coreFilter, minScore]
+            hamstrArgs = [strict, checkCoorthologsRef, rbh, rep, ignoreDistance, lowComplexityFilterOff, evalBlast, evalHmmer, evalRelaxfac, hitLimit, autoLimit, scoreThreshold, scoreCutoff, aligner, local, glocal]
+            otherArgs = [cpu, debug, silent]
+            h1sFn.h1s([basicArgs, ioArgs, pathArgs, coreArgs, hamstrArgs, fasArgs, otherArgs, mute])
+        end = time.time()
+        print('==> Ortholog search finished in ' + '{:5.3f}s'.format(end-start))
+
+    ### join outputs and calculate FAS scores
+    if fasoff == False:
+        print('Starting calculating FAS scores...')
+
+    h1sEnd = time.time()
+    print('==> h1s finished in ' + '{:5.3f}s'.format(h1sEnd-h1sStart))
+
 
 if __name__ == '__main__':
     main()

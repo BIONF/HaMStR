@@ -460,7 +460,7 @@ if ($fas_support){
 my $coreStTime = time;
 #core-ortholog search
 if (!$coreex) {
-	print "Core compilating...\n";
+	print "Core compiling...\n";
 	$coremode = 1;
 	$taxaPath = $blastPath;
 	#### moved from above
@@ -589,8 +589,8 @@ push @logOUT, "Core set compilation finished in $coreCalcTime sec!";
 my $hamstrStTime = time;
 if (!$coreOnly) {
 	$coremode = 0;
-	push @logOUT, "Performing the final ortholog search on all taxa";
-	print "Performing the final ortholog search on all taxa\n";
+	push @logOUT, "Performing the final ortholog search on all taxa...";
+	print "Performing the final ortholog search on all taxa...\n";
 	%taxa = getTaxa();
 	my $tree = getTree();
 	#using $eval_relaxfac to relax the evalues for final hamstr
@@ -604,7 +604,7 @@ if (!$coreOnly) {
 		}
 		$tree->set_root_node($groupNode);
 	}
-	my $pm = new Parallel::ForkManager($cpu);
+	my $pm = new Parallel::ForkManager($cpu*2);
 
 	foreach (get_leaves($tree)) {
 		my $pid = $pm->start and next;
@@ -621,7 +621,7 @@ print "==> Ortholog search completed in $hamstrCalcTime sec!\n";
 ## Evaluation of all orthologs that are predicted by the final hamstr run
 if(!$coreOnly){
 	my $fasStTime = time;
-	print "Starting the feature architecture similarity score computation.\n";
+	print "Starting the feature architecture similarity score computation...\n";
 	my $processID = $$;
 
 	unless (-e $finalOutput) {
@@ -1922,6 +1922,7 @@ sub runHamstr {
 				if ($outputFa !~ /extended/){
 					$outputFa .= '.extended';
 				}
+				unless (-e $outputFa) { system("touch $outputFa"); }
 				## Baustelle: check that this also works with the original hamstrcore module as here a tail command was used.
 				printDebug("Post-processing of HaMStR\n");
 				my $tailCommand = "";
