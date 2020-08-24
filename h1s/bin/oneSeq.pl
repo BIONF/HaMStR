@@ -975,13 +975,17 @@ sub runAutoCleanUp {
 	system ($delCommandTmp) == 0 or die "Error deleting result files\n";
 	my $seedName = $seqName . '_seed';
 	my $annopath = $coreOrthologsPath.$seqName."/fas_dir/annotation_dir";
+	my $delLnSeedFile = "rm $currDir/$seqFile";
+	system ($delLnSeedFile);
 	unless ($silent) {
 		print "Deleting $annopath\n";
 	}
 	if (!$fasoff) {
 		opendir(ANNODIR, $annopath) or warn "Could not open $annopath in sub runAutoCleanup\n";
 		my @annodirs = grep (!/$seedName/, readdir(ANNODIR));
-		print scalar(@annodirs) . " content of $annopath\n";
+		unless ($silent) {
+			print scalar(@annodirs) . " content of $annopath\n";
+		}
 		for (my $anno = 0; $anno < @annodirs; $anno++){
 			if ($annodirs[$anno] ne '..' and $annodirs[$anno] ne '.' and $annodirs[$anno] ne $seqName.".json") {
 				unless ($silent) {
