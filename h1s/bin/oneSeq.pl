@@ -259,6 +259,7 @@ my $eval_relaxfac = 10; #checked in checkInput
 my $coreOnly;
 my $cpu = 1;    #sets number of forks for final ortholog search (can be set via option -cpu=<>)
 my $corecpu = 1;    #sets number of forks for core-ortholog assembly (MUST BE 1, due to directed search process through the tree)
+my $hyperthread;
 my $silent;
 my $checkcoorthologsref;
 my $cccr;
@@ -351,7 +352,8 @@ GetOptions (
 	"reuseCore"        => \$coreex,
 	"ignoreDistance"	=> \$ignoreDistance,
 	"distDeviation=s"	=> \$distDeviation,
-	"aligner=s"	=> \$aln
+	"aligner=s"	=> \$aln,
+	"hyperthread" => \$hyperthread
 );
 
 $outputPath = abs_path($outputPath);
@@ -604,7 +606,10 @@ if (!$coreOnly) {
 		}
 		$tree->set_root_node($groupNode);
 	}
-	my $pm = new Parallel::ForkManager($cpu*2);
+	my $pm = new Parallel::ForkManager($cpu);
+	if ($hyperthread) {
+		$pm = new Parallel::ForkManager($cpu*2);
+	}
 
 	foreach (get_leaves($tree)) {
 		my $pid = $pm->start and next;
@@ -2660,6 +2665,8 @@ ${bold}ADDITIONAL OPTIONS$norm
 	Set this flag to invoke the '-rep' behaviour for the core ortholog compilation.
 -cpu
 	Determine the number of threads to be run in parallel
+-hyperthread
+	Set this flag to use hyper threading
 -batch=<>
 	Currently has NO functionality.
 -group=<>

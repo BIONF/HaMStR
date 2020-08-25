@@ -140,8 +140,10 @@ def h1s(args):
             if minScore > 0:
                 cmd = cmd + ' -coreFilter=%s -minScore=%s' % (coreFilter, minScore)
     # add other options
-    (cpu, debug, silent) = otherArgs
+    (cpu, hyperthread, debug, silent) = otherArgs
     cmd = cmd + ' -cpu=%s' % cpu
+    if hyperthread == True:
+        cmd = cmd + ' -hyperthread'
     if debug == True:
         cmd = cmd + ' -debug'
     if silent == True:
@@ -155,7 +157,7 @@ def h1s(args):
         sys.exit('Problem running\n%s' % (cmd))
 
 def main():
-    version = '2.2.0'
+    version = '2.2.1'
     parser = argparse.ArgumentParser(description='You are running h1s version ' + str(version) + '.')
     parser.add_argument('--version', action='version', version=str(version))
     required = parser.add_argument_group('Required arguments')
@@ -250,9 +252,10 @@ def main():
 
     optional = parser.add_argument_group('Other options')
     optional.add_argument('--cpu', help='Determine the number of threads to be run in parallel. Default: 4', action='store', default=4, type=int)
+    optional.add_argument('--hyperthread', help='Set this flag to use hyper threading. Default: False', action='store_true', default=False)
     optional.add_argument('--showTaxa', help='Print availible taxa', action='store_true', default=False)
     optional.add_argument('--debug', help='Set this flag to obtain more detailed information about the programs actions', action='store_true', default=False)
-    optional.add_argument('--silent', help='Surpress output to screen as much as possbile', action='store_true', default=False)
+    optional.add_argument('--silentOff', help='Show more output to terminal', action='store_true', default=False)
     optional.add_argument('--oneseqHelp', help='Print help of HaMStR-oneSeq', action='store_true', default=False)
     optional.add_argument('--oneseqVersion', help='Print version of HaMStR-oneSeq', action='store_true', default=False)
 
@@ -319,8 +322,13 @@ def main():
 
     # others
     cpu = args.cpu
+    hyperthread = args.hyperthread
     debug = args.debug
-    silent = args.silent
+    silentOff = args.silentOff
+    if silentOff == True:
+        silent = False
+    else:
+        silent = True
     showTaxa = args.showTaxa
     oneseqHelp = args.oneseqHelp
     oneseqVersion = args.oneseqVersion
@@ -351,7 +359,7 @@ def main():
     coreArgs = [coreOnly, reuseCore, coreTaxa, coreStrict, CorecheckCoorthologsRef, coreRep, coreHitLimit, distDeviation]
     fasArgs = [fasoff, countercheck, coreFilter, minScore]
     hamstrArgs = [strict, checkCoorthologsRef, rbh, rep, ignoreDistance, lowComplexityFilterOff, evalBlast, evalHmmer, evalRelaxfac, hitLimit, autoLimit, scoreThreshold, scoreCutoff, aligner, local, glocal]
-    otherArgs = [cpu, debug, silent]
+    otherArgs = [cpu, hyperthread, debug, silent]
 
     ### print oneSeq help
     if oneseqHelp:

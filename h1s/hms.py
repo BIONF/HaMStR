@@ -27,16 +27,17 @@ import multiprocessing as mp
 import re
 from tqdm import tqdm
 import h1s.h1s as h1sFn
+import shutil
 
 def main():
-    version = '2.2.0'
+    version = '2.2.1'
     parser = argparse.ArgumentParser(description='You are running h1s version ' + str(version) + '.')
     parser.add_argument('--version', action='version', version=str(version))
     required = parser.add_argument_group('Required arguments')
     required.add_argument('--input', help='Input folder containing the seed sequences (protein only) in fasta format',
                             action='store', default='', required=True)
-    # required.add_argument('--seqName', help='Job name. This will also be file name for the output',
-    #                         action='store', default='', required=True)
+    required.add_argument('--jobName', help='Job name. This will also be file name for the output',
+                            action='store', default='', required=True)
     required.add_argument('--refspec', help='Reference taxon. It should be the species the seed sequence was derived from',
                             action='store', default='', required=True)
 
@@ -124,9 +125,10 @@ def main():
 
     optional = parser.add_argument_group('Other options')
     optional.add_argument('--cpu', help='Determine the number of threads to be run in parallel. Default: 4', action='store', default=4, type=int)
+    optional.add_argument('--hyperthread', help='Set this flag to use hyper threading. Default: False', action='store_true', default=False)
     optional.add_argument('--showTaxa', help='Print availible taxa', action='store_true', default=False)
     optional.add_argument('--debug', help='Set this flag to obtain more detailed information about the programs actions', action='store_true', default=False)
-    optional.add_argument('--silent', help='Surpress output to screen as much as possbile', action='store_true', default=False)
+    optional.add_argument('--silentOff', help='Show more output to terminal', action='store_true', default=False)
     optional.add_argument('--oneseqHelp', help='Print help of HaMStR-oneSeq', action='store_true', default=False)
     optional.add_argument('--oneseqVersion', help='Print version of HaMStR-oneSeq', action='store_true', default=False)
 
@@ -135,7 +137,7 @@ def main():
 
     # required arguments
     inFol = os.path.abspath(args.input)
-    # seqName = args.seqName
+    jobName = args.jobName
     refspec = args.refspec
 
     minDist = args.minDist
@@ -193,8 +195,13 @@ def main():
 
     # others
     cpu = args.cpu
+    hyperthread = args.hyperthread
     debug = args.debug
-    silent = args.silent
+    silentOff = args.silentOff
+    if silentOff == True:
+        silent = False
+    else:
+        silent = True
     showTaxa = args.showTaxa
     oneseqHelp = args.oneseqHelp
     oneseqVersion = args.oneseqVersion
@@ -246,7 +253,7 @@ def main():
             coreArgs = [True, reuseCore, coreTaxa, coreStrict, CorecheckCoorthologsRef, coreRep, coreHitLimit, distDeviation]
             fasArgs = [fasoff, countercheck, coreFilter, minScore]
             hamstrArgs = [strict, checkCoorthologsRef, rbh, rep, ignoreDistance, lowComplexityFilterOff, evalBlast, evalHmmer, evalRelaxfac, hitLimit, autoLimit, scoreThreshold, scoreCutoff, aligner, local, glocal]
-            otherArgs = [cpu, debug, True]
+            otherArgs = [cpu, hyperthread, debug, True]
             coreCompilationJobs.append([basicArgs, ioArgs, pathArgs, coreArgs, hamstrArgs, fasArgs, otherArgs, True])
         pool = mp.Pool(cpu)
         annoOut = []
@@ -263,7 +270,7 @@ def main():
         print('Searching orthologs for...')
         start = time.time()
         for seed in seeds:
-            if mute == true:
+            if mute == True:
                 print(seed)
             else:
                 print('\n##### ' + seed)
@@ -279,12 +286,20 @@ def main():
             coreArgs = [False, True, coreTaxa, coreStrict, CorecheckCoorthologsRef, coreRep, coreHitLimit, distDeviation]
             fasArgs = [fasoff, countercheck, coreFilter, minScore]
             hamstrArgs = [strict, checkCoorthologsRef, rbh, rep, ignoreDistance, lowComplexityFilterOff, evalBlast, evalHmmer, evalRelaxfac, hitLimit, autoLimit, scoreThreshold, scoreCutoff, aligner, local, glocal]
-            otherArgs = [cpu, debug, silent]
+            otherArgs = [cpu, hyperthread, debug, silent]
             h1sFn.h1s([basicArgs, ioArgs, pathArgs, coreArgs, hamstrArgs, fasArgs, otherArgs, mute])
         end = time.time()
         print('==> Ortholog search finished in ' + '{:5.3f}s'.format(end-start))
 
-    ### join outputs and calculate FAS scores
+    ### join all extended.fa
+    with open(outpath + '/' + jobName + '.extended.fa','wb') as wfd:
+        for seed in seeds:
+            seqName = seed.split('.')[0]
+            seqName = re.sub('[\|\.]', '_', seqName)
+            with open(outpath + '/' + seqName + '/' + seqName + '.extended.fa','rb') as fd:
+                shutil.copyfileobj(fd, wfd)
+
+    ### calculate FAS scores
     if fasoff == False:
         print('Starting calculating FAS scores...')
 
