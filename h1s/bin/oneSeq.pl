@@ -30,7 +30,7 @@ use Cwd 'abs_path';
 use Array::Utils qw(:all);
 use Try::Tiny;
 
-my $startTime = time;
+my $startTime = gettime();
 
 # Copyright (C) 2009 INGO EBERSBERGER, ebersberger@bio.uni-frankfurt.de
 # This program is free software; you can redistribute it and/or modify it
@@ -369,8 +369,9 @@ $taxaPath = $genome_dir;
 ############# do initial check
 if (!defined $help && !defined $getversion && !defined $showTaxa) {
 	print "Validity checking....\n";
+	my $checkStTime = gettime();
 	initialCheck($seqFile, $seqName, $blastPath, $taxaPath, $weightPath, $fasoff);
-	print "done!\n";
+	print "Check finished in " . roundtime(gettime() - $checkStTime). " sec!\n";
 
 	if (!defined $coreex) {
 		if (!grep(/$minDist/, @defaultRanks)) {
@@ -417,12 +418,14 @@ if ($showTaxa) {
 
 #switched from online version to flatfile because it is much faster
 #taxon files can be downloaded from: ftp://ftp.ncbi.nih.gov/pub/taxonomy/
+my $indexStart = gettime();
 print "Please wait while the taxonomy database is indexing...\n";
 my $db = Bio::DB::Taxonomy->new(-source    => 'flatfile',
 	-nodesfile => $idx_dir . 'nodes.dmp',
 	-namesfile => $idx_dir . 'names.dmp',
 	-directory => $idx_dir);
-print "indexing done!\n";
+my $indexTime = gettime() - $indexStart;
+print "Indexing done in ",roundtime($indexTime)," sec!\n";
 
 %taxa = getTaxa();
 %refTaxa = getRefTaxa();
@@ -459,18 +462,18 @@ if ($fas_support){
 	getAnnotation($outputFa);
 }
 
-my $coreStTime = time;
+my $coreStTime = gettime(); #time;
 #core-ortholog search
 if (!$coreex) {
 	print "Core compiling...\n";
 	$coremode = 1;
 	$taxaPath = $blastPath;
 	#### moved from above
-	my $starttime = time;
+	my $taxBuildSt = gettime();
 	unless ($silent) {
-		print "Building up the taxonomy tree. Start $starttime\n";
+		print "Building up the taxonomy tree...\n";
 	}
-	push @logOUT, "Building up the taxonomy tree. Start $starttime\n";
+	push @logOUT, "Building up the taxonomy tree...\n";
 	$tree = getRefTree();
 	$treeDelFlag = 0;
 	if($group) {
@@ -481,11 +484,10 @@ if (!$coreex) {
 		}
 		$tree->set_root_node($groupNode);
 	}
-	my $endtime = time;
 	unless ($silent) {
-		print "Finished building the taxonomy tree: $endtime\n";
+		print "Finished building the taxonomy tree in ". roundtime(gettime() - $taxBuildSt) ." sec\n";
 	}
-	push @logOUT, "Finished building the taxonomy tree: $endtime\n";
+	push @logOUT, "Finished building the taxonomy tree in ". roundtime(gettime() - $taxBuildSt) ." sec\n";
 	## Tree without deletions
 	$wholeTree = getRefTree();
 	if($group) {
@@ -580,21 +582,22 @@ if (!$coreex) {
 	createAlnMsf();
 	hmmbuild($coreOrthologsPath.$seqName."/hmm_dir/".$seqName.".hmm", $outputAln);
 }
-my $coreEndTime = time;
-my $coreCalcTime = $coreEndTime - $coreStTime;
-print "==> Core set compilation finished in $coreCalcTime sec!\n";
-push @logOUT, "Core set compilation finished in $coreCalcTime sec!";
+print "==> Core set compilation finished in " . roundtime(gettime() - $coreStTime). " sec!\n";
+push @logOUT, "Core set compilation finished in " . roundtime(gettime() - $coreStTime). " sec!";
 
 #after having calculated the core orthologous set,
 #start hamstr to find all orthologs
 # my $finalOutput = $outputPath . '/' . $seqName . '.extended.fa';
-my $hamstrStTime = time;
+my $hamstrStTime = gettime();
 if (!$coreOnly) {
 	$coremode = 0;
 	push @logOUT, "Performing the final ortholog search on all taxa...";
 	print "Performing the final ortholog search on all taxa...\n";
+	my $startTmp = gettime();
 	%taxa = getTaxa();
+	# print "GET TAXA TIME: ", roundtime(gettime() - $startTmp),"\n";
 	my $tree = getTree();
+	# print "GET TREE TIME: ", roundtime(gettime() - $startTmp),"\n";
 	#using $eval_relaxfac to relax the evalues for final hamstr
 	my $final_eval_blast = $eval_blast*$eval_relaxfac;
 	my $final_eval_hmmer = $eval_hmmer*$eval_relaxfac;
@@ -610,6 +613,7 @@ if (!$coreOnly) {
 	if ($hyperthread) {
 		$pm = new Parallel::ForkManager($cpu*2);
 	}
+	# print "PREPARE TIME: ", roundtime(gettime() - $startTmp),"\n";
 
 	foreach (get_leaves($tree)) {
 		my $pid = $pm->start and next;
@@ -618,14 +622,12 @@ if (!$coreOnly) {
 	}
 	$pm->wait_all_children;
 }
-my $hamstrEndTime = time;
-my $hamstrCalcTime = $hamstrEndTime - $hamstrStTime;
-push @logOUT, "Ortholog search completed in $hamstrCalcTime sec!";
-print "==> Ortholog search completed in $hamstrCalcTime sec!\n";
+push @logOUT, "Ortholog search completed in ". roundtime(gettime() - $hamstrStTime) ." sec!";
+print "==> Ortholog search completed in ". roundtime(gettime() - $hamstrStTime) ." sec!\n";
 
 ## Evaluation of all orthologs that are predicted by the final hamstr run
 if(!$coreOnly){
-	my $fasStTime = time;
+	my $fasStTime = gettime();
 	print "Starting the feature architecture similarity score computation...\n";
 	my $processID = $$;
 
@@ -643,10 +645,8 @@ if(!$coreOnly){
 	} else {
 		fasta2profile($finalOutput, $seqName)
 	}
-	my $fasEndTime = time;
-	my $fasCalcTime = $fasEndTime - $fasStTime;
-	push @logOUT, "FAS calculation completed in $fasCalcTime sec!\nCleaning up...";
-	print "==> FAS calculation completed in $fasCalcTime sec!\nCleaning up...\n";
+	push @logOUT, "FAS calculation completed in " . roundtime(gettime() - $fasStTime). " sec!\nCleaning up...";
+	print "==> FAS calculation completed in " . roundtime(gettime() - $fasStTime). " sec!\nCleaning up...\n";
 	if($autoclean){
 		runAutoCleanUp($processID);
 	}
@@ -659,10 +659,8 @@ unless ($debug) {
 	my $delcommandTmp = "rm -rf $outputPath/tmp";
 	system ($delcommandTmp) == 0 or die "Error deleting tmp files in $outputPath/tmp\n";
 }
-
-my $endTime = time - $startTime;
-print "==> h1s finished after $endTime sec!\n";
-push @logOUT, "h1s finished after $endTime sec!\n";
+print "==> h1s finished after " . roundtime(gettime() - $startTime) . " sec!\n";
+push @logOUT, "h1s finished after " . roundtime(gettime() - $startTime) . " sec!\n";
 
 #### writing the log
 open (LOGOUT, ">$outputPath/oneSeq.log") or warn "Failed to open oneSeq.log for writing";
@@ -1019,7 +1017,9 @@ sub getAnnotation {
 sub determineRef {
 	my ($infile, @refspec) = @_;
 	#run blast for all available proteomes if the given sequence is not in the database
-	print "One moment please!\nLooking for the most similar sequence to your input sequence.\n";
+	unless ($silent) {
+		print "One moment please!\nLooking for the most similar sequence to your input sequence.\n";
+	}
 	my $bestHit->{score} = 1;
 	$bestHit->{evalue} = 10;
 	my $outname = $$;
@@ -1114,7 +1114,9 @@ sub checkOptions {
 	if ($coreex) {
 		my @refseq=`$grepprog -A 1 ">$seqName|$refSpec" $coreOrthologsPath/$seqName/$seqName.fa`;
 		chomp @refseq;
-		print "$refseq[0]\n";
+		unless ($silent) {
+			print "$refseq[0]\n";
+		}
 		(my $tmp1, my $tmp2, $seqId) = split '\|', $refseq[0];
 		if (length($seqId) == 0){
 			die "error in retrieving sequence while using -reuseCore\n";
@@ -1470,7 +1472,9 @@ sub fetchSequence {
 	}
 	close INPUT;
 	$seq =~ s/\s*//g;
-	printOut($seq, 2);
+	unless ($silent) {
+		printOut($seq, 2);
+	}
 	return $seq;
 }
 #################################
@@ -2539,6 +2543,9 @@ sub checkValidFolderName {
 	my @notFd = (".", "..");
 	return(array_minus(@folders, @notFd));
 }
+
+sub gettime { sprintf"%d.%03d",Time::HiRes::gettimeofday }
+sub roundtime { sprintf("%.2f", $_[0]); }
 
 ###########################
 sub helpMessage {
