@@ -603,26 +603,30 @@ if (!$coreOnly) {
 	my $final_eval_hmmer = $eval_hmmer*$eval_relaxfac;
 
 	my @searchTaxa;
-	unless ($searchTaxa) {
-		# %taxa = getTaxa();
-		# print "GET TAXA TIME: ", roundtime(gettime() - $startTmp),"\n";
-		my $tree = getTree();
-		# print "GET TREE TIME: ", roundtime(gettime() - $startTmp),"\n";
-		if($groupNode) {
-			foreach($tree->get_nodes()) {
-				if($_->id == $groupNode->id) {
-					$groupNode = $_;
-				}
-			}
-			$tree->set_root_node($groupNode);
-		}
-		foreach (get_leaves($tree)) {
-			push(@searchTaxa, @{$_->name('supplied')}[0]);
-		}
+	unless($groupNode) {
+		@searchTaxa = keys %taxa;
 	} else {
-		open(SEARCH, $searchTaxa) || die "Cannot open $searchTaxa file!\n";
-		@searchTaxa = <SEARCH>;
-		close (SEARCH);
+		unless ($searchTaxa) {
+			# %taxa = getTaxa();
+			# print "GET TAXA TIME: ", roundtime(gettime() - $startTmp),"\n";
+			my $tree = getTree();
+			# print "GET TREE TIME: ", roundtime(gettime() - $startTmp),"\n";
+			if($groupNode) {
+				foreach($tree->get_nodes()) {
+					if($_->id == $groupNode->id) {
+						$groupNode = $_;
+					}
+				}
+				$tree->set_root_node($groupNode);
+			}
+			foreach (get_leaves($tree)) {
+				push(@searchTaxa, @{$_->name('supplied')}[0]);
+			}
+		} else {
+			open(SEARCH, $searchTaxa) || die "Cannot open $searchTaxa file!\n";
+			@searchTaxa = <SEARCH>;
+			close (SEARCH);
+		}
 	}
 	# print "PREPARE TIME: ", roundtime(gettime() - $startTmp),"\n";
 

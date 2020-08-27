@@ -161,7 +161,7 @@ def h1s(args):
         sys.exit('Problem running\n%s' % (cmd))
 
 def main():
-    version = '2.2.1'
+    version = '2.2.2'
     parser = argparse.ArgumentParser(description='You are running h1s version ' + str(version) + '.')
     parser.add_argument('--version', action='version', version=str(version))
     required = parser.add_argument_group('Required arguments')
@@ -245,8 +245,7 @@ def main():
                                 action='store_true', default=True)
     hamstr_options.add_argument('--glocal', help='Specify the alignment strategy during core ortholog compilation. Default: False',
                                 action='store_true', default=False)
-    hamstr_options.add_argument('--searchTaxa', help='Specify list of search taxa',
-                                action='store', default='')
+    hamstr_options.add_argument('--searchTaxa', help='Specify list of search taxa', action='store', default='')
 
     fas_options = parser.add_argument_group('FAS options')
     fas_options.add_argument('--fasoff', help='Turn OFF FAS support', action='store_true', default=False)

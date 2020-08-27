@@ -30,7 +30,7 @@ import h1s.h1s as h1sFn
 import shutil
 
 def main():
-    version = '2.2.1'
+    version = '2.2.2'
     parser = argparse.ArgumentParser(description='You are running h1s version ' + str(version) + '.')
     parser.add_argument('--version', action='version', version=str(version))
     required = parser.add_argument_group('Required arguments')
@@ -114,6 +114,7 @@ def main():
                                 action='store_true', default=True)
     hamstr_options.add_argument('--glocal', help='Specify the alignment strategy during core ortholog compilation. Default: False',
                                 action='store_true', default=False)
+    hamstr_options.add_argument('--searchTaxa', help='Specify list of search taxa', action='store', default='')
 
     fas_options = parser.add_argument_group('FAS options')
     fas_options.add_argument('--fasoff', help='Turn OFF FAS support', action='store_true', default=False)
@@ -186,6 +187,7 @@ def main():
     aligner = args.aligner
     local = args.local
     glocal = args.glocal
+    searchTaxa = args.searchTaxa
 
     # fas arguments
     fasoff = args.fasoff
@@ -252,7 +254,7 @@ def main():
             pathArgs = [outpath, hmmpath, blastpath, searchpath, weightpath]
             coreArgs = [True, reuseCore, coreTaxa, coreStrict, CorecheckCoorthologsRef, coreRep, coreHitLimit, distDeviation]
             fasArgs = [fasoff, countercheck, coreFilter, minScore]
-            hamstrArgs = [strict, checkCoorthologsRef, rbh, rep, ignoreDistance, lowComplexityFilterOff, evalBlast, evalHmmer, evalRelaxfac, hitLimit, autoLimit, scoreThreshold, scoreCutoff, aligner, local, glocal]
+            hamstrArgs = [strict, checkCoorthologsRef, rbh, rep, ignoreDistance, lowComplexityFilterOff, evalBlast, evalHmmer, evalRelaxfac, hitLimit, autoLimit, scoreThreshold, scoreCutoff, aligner, local, glocal, searchTaxa]
             otherArgs = [cpu, hyperthread, debug, True]
             coreCompilationJobs.append([basicArgs, ioArgs, pathArgs, coreArgs, hamstrArgs, fasArgs, otherArgs, True])
         pool = mp.Pool(cpu)
@@ -263,6 +265,20 @@ def main():
         print('==> Core compiling finished in ' + '{:5.3f}s'.format(end-start))
 
     ### run ortholog search
+    # create list of search taxa
+    print('Creating list for search taxa...')
+    searchTaxa = ''
+    searchGroup = 'all'
+    if not group == '':
+        searchTaxa = '%s/searchTaxa.txt' % (outpath)
+        searchGroup = group
+        cmd = 'perl %s/bin/getSearchTaxa.pl -i %s -b %s -h %s -r %s -n %s -t %s/taxonomy -o %s' % (oneseqPath, searchpath, evalBlast, evalHmmer, evalRelaxfac, searchGroup, oneseqPath, searchTaxa)
+        try:
+            subprocess.call([cmd], shell = True)
+        except:
+            sys.exit('Problem running\n%s' % (cmd))
+
+    # do ortholog search
     mute = False
     if silent == True:
         mute = True
@@ -285,20 +301,28 @@ def main():
             pathArgs = [outpath, hmmpath, blastpath, searchpath, weightpath]
             coreArgs = [False, True, coreTaxa, coreStrict, CorecheckCoorthologsRef, coreRep, coreHitLimit, distDeviation]
             fasArgs = [False, countercheck, coreFilter, minScore]
-            hamstrArgs = [strict, checkCoorthologsRef, rbh, rep, ignoreDistance, lowComplexityFilterOff, evalBlast, evalHmmer, evalRelaxfac, hitLimit, autoLimit, scoreThreshold, scoreCutoff, aligner, local, glocal]
+            hamstrArgs = [strict, checkCoorthologsRef, rbh, rep, ignoreDistance, lowComplexityFilterOff, evalBlast, evalHmmer, evalRelaxfac, hitLimit, autoLimit, scoreThreshold, scoreCutoff, aligner, local, glocal, searchTaxa]
             otherArgs = [cpu, hyperthread, debug, silent]
             h1sFn.h1s([basicArgs, ioArgs, pathArgs, coreArgs, hamstrArgs, fasArgs, otherArgs, mute])
         end = time.time()
         print('==> Ortholog search finished in ' + '{:5.3f}s'.format(end-start))
 
-    ### join all extended.fa
+    ### join output
+    Path(outpath+'/tmp').mkdir(parents=True, exist_ok=True)
     finalFa = '%s/%s.extended.fa' % (outpath, jobName)
     with open(finalFa,'wb') as wfd:
         for seed in seeds:
             seqName = seed.split('.')[0]
             seqName = re.sub('[\|\.]', '_', seqName)
-            with open(outpath + '/' + seqName + '/' + seqName + '.extended.fa','rb') as fd:
-                shutil.copyfileobj(fd, wfd)
+            # with open(outpath + '/' + seqName + '/' + seqName + '.extended.fa','rb') as fd:
+            #     shutil.copyfileobj(fd, wfd)
+            cpCmd = 'cp %s/%s/%s.extended.fa %s/%s/' % (outpath, seqName, seqName, outpath, jobName)
+            subprocess.call([cpCmd], shell = True)
+    mergeCmd = 'mergeOutput1s -i %s/%s -o %s' (outpath, jobName, jobName)
+    print(mergeCmd)
+    subprocess.call([mergeCmd], shell = True)
+    # Path(outpath+'/tmp').mkdir(parents=True, exist_ok=True)
+
 
     ### calculate FAS scores
     # if fasoff == False:
