@@ -284,7 +284,7 @@ def main():
             ioArgs = [append, force, cleanup, group, blast, db]
             pathArgs = [outpath, hmmpath, blastpath, searchpath, weightpath]
             coreArgs = [False, True, coreTaxa, coreStrict, CorecheckCoorthologsRef, coreRep, coreHitLimit, distDeviation]
-            fasArgs = [fasoff, countercheck, coreFilter, minScore]
+            fasArgs = [False, countercheck, coreFilter, minScore]
             hamstrArgs = [strict, checkCoorthologsRef, rbh, rep, ignoreDistance, lowComplexityFilterOff, evalBlast, evalHmmer, evalRelaxfac, hitLimit, autoLimit, scoreThreshold, scoreCutoff, aligner, local, glocal]
             otherArgs = [cpu, hyperthread, debug, silent]
             h1sFn.h1s([basicArgs, ioArgs, pathArgs, coreArgs, hamstrArgs, fasArgs, otherArgs, mute])
@@ -292,7 +292,8 @@ def main():
         print('==> Ortholog search finished in ' + '{:5.3f}s'.format(end-start))
 
     ### join all extended.fa
-    with open(outpath + '/' + jobName + '.extended.fa','wb') as wfd:
+    finalFa = '%s/%s.extended.fa' % (outpath, jobName)
+    with open(finalFa,'wb') as wfd:
         for seed in seeds:
             seqName = seed.split('.')[0]
             seqName = re.sub('[\|\.]', '_', seqName)
@@ -300,8 +301,17 @@ def main():
                 shutil.copyfileobj(fd, wfd)
 
     ### calculate FAS scores
-    if fasoff == False:
-        print('Starting calculating FAS scores...')
+    # if fasoff == False:
+    #     print('Starting calculating FAS scores...')
+    #     start = time.time()
+    #     fasCmd = 'hamstrFAS -i %s -w %s --cores %s' % (finalFa, weightpath, cpu)
+    #     try:
+    #         subprocess.call([fasCmd], shell = True)
+    #         end = time.time()
+    #         print('==> FAS calculation finished in ' + '{:5.3f}s'.format(end-start))
+    #     except:
+    #         sys.exit('Problem running\n%s' % (fasCmd))
+
 
     h1sEnd = time.time()
     print('==> h1s finished in ' + '{:5.3f}s'.format(h1sEnd-h1sStart))

@@ -14,6 +14,7 @@ use IO::Handle;
 use Getopt::Long;
 use Bio::DB::Taxonomy;
 use Bio::Tree::Tree;
+use Bio::TreeIO;
 use Bio::Tools::Run::StandAloneBlast;
 use Bio::Seq;
 use Bio::SeqIO;
@@ -115,9 +116,10 @@ my $startTime = gettime();
 ## Modified 10. July 2020 v1.7.3 (Vinh)	- solved problem when gene ID contains PIPE
 ## Modified 13. July 2020 v1.8.0 (Vinh)	- added initial check, no longer use .mod files
 ## Modified 22. July 2020 v1.9.0 (Vinh)	- moved tmp blast files to output folder and delete them when finished
+## Modified 27. Aug 2020 v2.1.0 (Vinh)	- option to input newick tree for search taxa
 
 ############ General settings
-my $version = 'oneSeq v.2.0.0';
+my $version = 'oneSeq v.2.1.0';
 ##### configure for checking if the setup.sh script already run
 my $configure = 0;
 if ($configure == 0){
@@ -293,6 +295,7 @@ my $distDeviation = 0.05; 	## Span in which a score is consideren similar
 my $breakAfter = 5; 		## Number of Significantly bad candidates after which the current run cancels
 my %hashTree;
 my $aln = 'muscle';
+my $searchTaxa;
 ################# Command line options
 GetOptions (
 	"h"                 => \$help,
@@ -353,7 +356,8 @@ GetOptions (
 	"ignoreDistance"	=> \$ignoreDistance,
 	"distDeviation=s"	=> \$distDeviation,
 	"aligner=s"	=> \$aln,
-	"hyperthread" => \$hyperthread
+	"hyperthread" => \$hyperthread,
+	"searchTaxa=s" => \$searchTaxa
 );
 
 $outputPath = abs_path($outputPath);
@@ -594,30 +598,43 @@ if (!$coreOnly) {
 	push @logOUT, "Performing the final ortholog search on all taxa...";
 	print "Performing the final ortholog search on all taxa...\n";
 	my $startTmp = gettime();
-	%taxa = getTaxa();
-	# print "GET TAXA TIME: ", roundtime(gettime() - $startTmp),"\n";
-	my $tree = getTree();
-	# print "GET TREE TIME: ", roundtime(gettime() - $startTmp),"\n";
 	#using $eval_relaxfac to relax the evalues for final hamstr
 	my $final_eval_blast = $eval_blast*$eval_relaxfac;
 	my $final_eval_hmmer = $eval_hmmer*$eval_relaxfac;
-	if($groupNode) {
-		foreach($tree->get_nodes()) {
-			if($_->id == $groupNode->id) {
-				$groupNode = $_;
+
+	my @searchTaxa;
+	unless ($searchTaxa) {
+		# %taxa = getTaxa();
+		# print "GET TAXA TIME: ", roundtime(gettime() - $startTmp),"\n";
+		my $tree = getTree();
+		# print "GET TREE TIME: ", roundtime(gettime() - $startTmp),"\n";
+		if($groupNode) {
+			foreach($tree->get_nodes()) {
+				if($_->id == $groupNode->id) {
+					$groupNode = $_;
+				}
 			}
+			$tree->set_root_node($groupNode);
 		}
-		$tree->set_root_node($groupNode);
+		foreach (get_leaves($tree)) {
+			push(@searchTaxa, @{$_->name('supplied')}[0]);
+		}
+	} else {
+		open(SEARCH, $searchTaxa) || die "Cannot open $searchTaxa file!\n";
+		@searchTaxa = <SEARCH>;
+		close (SEARCH);
 	}
+	# print "PREPARE TIME: ", roundtime(gettime() - $startTmp),"\n";
+
 	my $pm = new Parallel::ForkManager($cpu);
 	if ($hyperthread) {
 		$pm = new Parallel::ForkManager($cpu*2);
 	}
-	# print "PREPARE TIME: ", roundtime(gettime() - $startTmp),"\n";
 
-	foreach (get_leaves($tree)) {
+	foreach (@searchTaxa) {
+		chomp(my $searchTaxon = $_);
 		my $pid = $pm->start and next;
-		runHamstr(@{$_->name('supplied')}[0], $seqName, $finalOutput, $refSpec, $hitlimit, $representative, $strict, $coremode, $final_eval_blast, $final_eval_hmmer, $aln);
+		runHamstr($searchTaxon, $seqName, $finalOutput, $refSpec, $hitlimit, $representative, $strict, $coremode, $final_eval_blast, $final_eval_hmmer, $aln);
 		$pm->finish;
 	}
 	$pm->wait_all_children;
@@ -636,8 +653,8 @@ if(!$coreOnly){
 	}
 
 	if ($fas_support) {
-		my $hamstrFAScmd = "$hamstrFAS_prog -i $finalOutput -n $seqName -w $weightPath -t $tmpdir -o $outputPath -s $seqId -a $refSpec --cores $cpu";
-		if ($countercheck) {
+		my $hamstrFAScmd = "$hamstrFAS_prog -i $finalOutput -w $weightPath -t $tmpdir -o $outputPath --cores $cpu";
+		unless ($countercheck) {
 			$hamstrFAScmd .= " --bidirectional"
 		}
 		system($hamstrFAScmd)
@@ -2686,7 +2703,8 @@ ${bold}ADDITIONAL OPTIONS$norm
 	Specify the alignment strategy during core ortholog compilation. Default is local.
 -glocal
 	Set the alignment strategy during core ortholog compilation to glocal.
-
+-searchTaxa
+	Input file containing list of search taxa.
 ${bold}SPECIFYING FAS SUPPORT OPTIONS$norm
 
 -fasoff

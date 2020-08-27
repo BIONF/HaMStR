@@ -41,7 +41,7 @@ setup(
         'tqdm',
         'ete3',
         'six',
-        'greedyFAS'
+        'greedyFAS>=1.3.1'
     ],
     entry_points={
         'console_scripts': ["h1s = h1s.h1s:main",

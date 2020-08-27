@@ -98,7 +98,7 @@ def h1s(args):
     if not distDeviation == 0.05:
         cmd = cmd + ' -distDeviation=%s' % distDeviation
     # add hamstr options
-    (strict, checkCoorthologsRef, rbh, rep, ignoreDistance, lowComplexityFilterOff, evalBlast, evalHmmer, evalRelaxfac, hitLimit, autoLimit, scoreThreshold, scoreCutoff, aligner, local, glocal) = hamstrArgs
+    (strict, checkCoorthologsRef, rbh, rep, ignoreDistance, lowComplexityFilterOff, evalBlast, evalHmmer, evalRelaxfac, hitLimit, autoLimit, scoreThreshold, scoreCutoff, aligner, local, glocal, searchTaxa) = hamstrArgs
     if strict == True:
         cmd = cmd + ' -strict'
     if checkCoorthologsRef == True:
@@ -129,6 +129,10 @@ def h1s(args):
         cmd = cmd + ' -aligner=%s' % aligner
     if glocal == True:
         cmd = cmd + ' -glocal'
+    if not searchTaxa == '':
+        checkFileExist(searchTaxa)
+        searchTaxa = os.path.abspath(searchTaxa)
+        cmd = cmd + ' -searchTaxa=%s' % searchTaxa
     # add fas options
     (fasoff, countercheck, coreFilter, minScore) = fasArgs
     if fasoff == True:
@@ -241,6 +245,8 @@ def main():
                                 action='store_true', default=True)
     hamstr_options.add_argument('--glocal', help='Specify the alignment strategy during core ortholog compilation. Default: False',
                                 action='store_true', default=False)
+    hamstr_options.add_argument('--searchTaxa', help='Specify list of search taxa',
+                                action='store', default='')
 
     fas_options = parser.add_argument_group('FAS options')
     fas_options.add_argument('--fasoff', help='Turn OFF FAS support', action='store_true', default=False)
@@ -313,6 +319,7 @@ def main():
     aligner = args.aligner
     local = args.local
     glocal = args.glocal
+    searchTaxa = args.searchTaxa
 
     # fas arguments
     fasoff = args.fasoff
@@ -358,7 +365,7 @@ def main():
     pathArgs = [outpath, hmmpath, blastpath, searchpath, weightpath]
     coreArgs = [coreOnly, reuseCore, coreTaxa, coreStrict, CorecheckCoorthologsRef, coreRep, coreHitLimit, distDeviation]
     fasArgs = [fasoff, countercheck, coreFilter, minScore]
-    hamstrArgs = [strict, checkCoorthologsRef, rbh, rep, ignoreDistance, lowComplexityFilterOff, evalBlast, evalHmmer, evalRelaxfac, hitLimit, autoLimit, scoreThreshold, scoreCutoff, aligner, local, glocal]
+    hamstrArgs = [strict, checkCoorthologsRef, rbh, rep, ignoreDistance, lowComplexityFilterOff, evalBlast, evalHmmer, evalRelaxfac, hitLimit, autoLimit, scoreThreshold, scoreCutoff, aligner, local, glocal, searchTaxa]
     otherArgs = [cpu, hyperthread, debug, silent]
 
     ### print oneSeq help
