@@ -308,7 +308,7 @@ def main():
         print('==> Ortholog search finished in ' + '{:5.3f}s'.format(end-start))
 
     ### join output
-    Path(outpath+'/tmp').mkdir(parents=True, exist_ok=True)
+    Path(outpath+'/'+jobName).mkdir(parents=True, exist_ok=True)
     finalFa = '%s/%s.extended.fa' % (outpath, jobName)
     with open(finalFa,'wb') as wfd:
         for seed in seeds:
@@ -316,13 +316,15 @@ def main():
             seqName = re.sub('[\|\.]', '_', seqName)
             # with open(outpath + '/' + seqName + '/' + seqName + '.extended.fa','rb') as fd:
             #     shutil.copyfileobj(fd, wfd)
-            cpCmd = 'cp %s/%s/%s.extended.fa %s/%s/' % (outpath, seqName, seqName, outpath, jobName)
-            subprocess.call([cpCmd], shell = True)
-    mergeCmd = 'mergeOutput1s -i %s/%s -o %s' (outpath, jobName, jobName)
-    print(mergeCmd)
+            cpCmd = 'cp %s/%s/%s* %s/%s/' % (outpath, seqName, seqName, outpath, jobName)
+            try:
+                subprocess.call([cpCmd], shell = True)
+            except:
+                sys.exit('Problem running\n%s' % cpCmd)
+    mergeCmd = "mergeOutput1s -i %s/%s/ -o %s" % (outpath, jobName, jobName)
     subprocess.call([mergeCmd], shell = True)
-    # Path(outpath+'/tmp').mkdir(parents=True, exist_ok=True)
-
+    rmCmd = 'rm -rf %s/%s' % (outpath, jobName)
+    subprocess.call([rmCmd], shell = True)
 
     ### calculate FAS scores
     # if fasoff == False:

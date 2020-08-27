@@ -1,4 +1,4 @@
-from sys import exit
+import sys
 import os
 from os import listdir as ldir
 import argparse
@@ -70,4 +70,4 @@ def main():
 
 
 if __name__ == "__main__":
-    exit(main())
+    sys.exit(main())
