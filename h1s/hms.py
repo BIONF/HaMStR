@@ -71,9 +71,9 @@ def compileCore(options, seeds, inFol, cpu):
         (basicArgs, ioArgs, pathArgs, coreArgs, hamstrArgs, fasArgs, otherArgs, mute) = prepare(seqFile + seqName + options, 'core')
         coreCompilationJobs.append([basicArgs, ioArgs, pathArgs, coreArgs, hamstrArgs, fasArgs, otherArgs, mute])
     pool = mp.Pool(cpu)
-    annoOut = []
+    coreOut = []
     for _ in tqdm(pool.imap_unordered(h1sFn.h1s, coreCompilationJobs), total=len(coreCompilationJobs)):
-        annoOut.append(_)
+        coreOut.append(_)
     end = time.time()
     print('==> Core compiling finished in ' + '{:5.3f}s'.format(end-start))
 
@@ -96,19 +96,19 @@ def searchOrtho(options, seeds, inFol, cpu):
 
 def joinOutputs(outpath, jobName, seeds, keep):
     finalFa = '%s/%s.extended.fa' % (outpath, jobName)
+    Path(outpath+'/singleOutput').mkdir(parents=True, exist_ok=True)
     with open(finalFa,'wb') as wfd:
         for seed in seeds:
             seqName = seed.split('.')[0]
             seqName = re.sub('[\|\.]', '_', seqName)
             with open(outpath + '/' + seqName + '/' + seqName + '.extended.fa','rb') as fd:
                 shutil.copyfileobj(fd, wfd)
-            if keep == False:
-                Path(outpath+'/singleOutput').mkdir(parents=True, exist_ok=True)
-                shutil.move(outpath + '/' + seqName, outpath + '/singleOutput')
-                try:
-                    shutil.make_archive(outpath + '/' + jobName + '_singleOutput', 'gztar', outpath+'/singleOutput')
-                except:
-                    shutil.make_archive(outpath + '/' + jobName + '_singleOutput', 'tar', outpath+'/singleOutput')
+            shutil.move(outpath + '/' + seqName, outpath + '/singleOutput')
+    if keep == True:
+        try:
+            shutil.make_archive(outpath + '/' + jobName + '_singleOutput', 'gztar', outpath+'/singleOutput')
+        except:
+            shutil.make_archive(outpath + '/' + jobName + '_singleOutput', 'tar', outpath+'/singleOutput')
     shutil.rmtree(outpath + '/singleOutput')
     return(finalFa)
 
@@ -125,7 +125,7 @@ def calcFAS (outpath, extendedFa, weightpath, cpu):
         sys.exit('Problem running\n%s' % (fasCmd))
 
 def main():
-    version = '2.2.3'
+    version = '2.2.4'
     parser = argparse.ArgumentParser(description='You are running h1s version ' + str(version) + '.')
     parser.add_argument('--version', action='version', version=str(version))
     required = parser.add_argument_group('Required arguments')
@@ -351,10 +351,10 @@ def main():
 
     ### do ortholog search
     ### create list of search taxa
-    print('Creating list for search taxa...')
     searchTaxa = ''
     searchGroup = 'all'
     if not group == '':
+        print('Creating list for search taxa...')
         searchTaxa = '%s/searchTaxa.txt' % (outpath)
         searchGroup = group
         cmd = 'perl %s/bin/getSearchTaxa.pl -i %s -b %s -h %s -r %s -n %s -t %s/taxonomy -o %s' % (oneseqPath, searchpath, evalBlast, evalHmmer, evalRelaxfac, searchGroup, oneseqPath, searchTaxa)
