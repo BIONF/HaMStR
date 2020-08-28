@@ -29,8 +29,103 @@ from tqdm import tqdm
 import h1s.h1s as h1sFn
 import shutil
 
+def prepare(args, step):
+    (seqFile, seqName, oneseqPath, refspec, minDist, maxDist, coreOrth,
+    append, force, cleanup, group, blast, db,
+    outpath, hmmpath, blastpath, searchpath, weightpath,
+    coreOnly, reuseCore, coreTaxa, coreStrict, CorecheckCoorthologsRef, coreRep, coreHitLimit, distDeviation,
+    fasoff, countercheck, coreFilter, minScore,
+    strict, checkCoorthologsRef, rbh, rep, ignoreDistance, lowComplexityFilterOff, evalBlast, evalHmmer, evalRelaxfac, hitLimit, autoLimit, scoreThreshold, scoreCutoff, aligner, local, glocal, searchTaxa,
+    cpu, hyperthread, debug, silent) = args
+
+    mute = False
+    if step == 'core':
+        coreOnly = True
+        silent = True
+        mute = True
+    else:
+        reuseCore = True
+        fasoff = True
+        if silent == True:
+            mute = True
+    ### check input arguments
+    seqFile, hmmpath, blastpath, searchpath, weightpath = h1sFn.checkInput([oneseqPath, seqFile, refspec, outpath, hmmpath, blastpath, searchpath, weightpath])
+    # group arguments
+    basicArgs = [oneseqPath, seqFile, seqName, refspec, minDist, maxDist, coreOrth]
+    ioArgs = [append, force, cleanup, group, blast, db]
+    pathArgs = [outpath, hmmpath, blastpath, searchpath, weightpath]
+    coreArgs = [coreOnly, reuseCore, coreTaxa, coreStrict, CorecheckCoorthologsRef, coreRep, coreHitLimit, distDeviation]
+    fasArgs = [fasoff, countercheck, coreFilter, minScore]
+    hamstrArgs = [strict, checkCoorthologsRef, rbh, rep, ignoreDistance, lowComplexityFilterOff, evalBlast, evalHmmer, evalRelaxfac, hitLimit, autoLimit, scoreThreshold, scoreCutoff, aligner, local, glocal, searchTaxa]
+    otherArgs = [cpu, hyperthread, debug, True]
+    return(basicArgs, ioArgs, pathArgs, coreArgs, hamstrArgs, fasArgs, otherArgs, mute)
+
+def compileCore(options, seeds, inFol, cpu):
+    print('Starting compiling core orthologs...')
+    start = time.time()
+    coreCompilationJobs = []
+    for seed in seeds:
+        seqFile = [inFol + '/' + seed]
+        seqName = seed.split('.')[0]
+        seqName = [re.sub('[\|\.]', '_', seqName)]
+        (basicArgs, ioArgs, pathArgs, coreArgs, hamstrArgs, fasArgs, otherArgs, mute) = prepare(seqFile + seqName + options, 'core')
+        coreCompilationJobs.append([basicArgs, ioArgs, pathArgs, coreArgs, hamstrArgs, fasArgs, otherArgs, mute])
+    pool = mp.Pool(cpu)
+    annoOut = []
+    for _ in tqdm(pool.imap_unordered(h1sFn.h1s, coreCompilationJobs), total=len(coreCompilationJobs)):
+        annoOut.append(_)
+    end = time.time()
+    print('==> Core compiling finished in ' + '{:5.3f}s'.format(end-start))
+
+def searchOrtho(options, seeds, inFol, cpu):
+    print('Searching orthologs for...')
+    start = time.time()
+    coreCompilationJobs = []
+    for seed in seeds:
+        seqFile = [inFol + '/' + seed]
+        seqName = seed.split('.')[0]
+        seqName = [re.sub('[\|\.]', '_', seqName)]
+        (basicArgs, ioArgs, pathArgs, coreArgs, hamstrArgs, fasArgs, otherArgs, mute) = prepare(seqFile + seqName + options, 'ortholog')
+        if mute == True:
+            print(seed)
+        else:
+            print('\n##### ' + seed)
+        h1sFn.h1s([basicArgs, ioArgs, pathArgs, coreArgs, hamstrArgs, fasArgs, otherArgs, mute])
+    end = time.time()
+    print('==> Ortholog search finished in ' + '{:5.3f}s'.format(end-start))
+
+def joinOutputs(outpath, jobName, seeds, keep):
+    finalFa = '%s/%s.extended.fa' % (outpath, jobName)
+    with open(finalFa,'wb') as wfd:
+        for seed in seeds:
+            seqName = seed.split('.')[0]
+            seqName = re.sub('[\|\.]', '_', seqName)
+            with open(outpath + '/' + seqName + '/' + seqName + '.extended.fa','rb') as fd:
+                shutil.copyfileobj(fd, wfd)
+            if keep == False:
+                Path(outpath+'/singleOutput').mkdir(parents=True, exist_ok=True)
+                shutil.move(outpath + '/' + seqName, outpath + '/singleOutput')
+                try:
+                    shutil.make_archive(outpath + '/' + jobName + '_singleOutput', 'gztar', outpath+'/singleOutput')
+                except:
+                    shutil.make_archive(outpath + '/' + jobName + '_singleOutput', 'tar', outpath+'/singleOutput')
+    shutil.rmtree(outpath + '/singleOutput')
+    return(finalFa)
+
+def calcFAS (outpath, extendedFa, weightpath, cpu):
+    print('Starting calculating FAS scores...')
+    start = time.time()
+    fasCmd = 'hamstrFAS -i %s -w %s --cores %s' % (extendedFa, weightpath, cpu)
+    try:
+        subprocess.call([fasCmd], shell = True)
+        end = time.time()
+        shutil.rmtree(outpath + '/tmp')
+        print('==> FAS calculation finished in ' + '{:5.3f}s'.format(end-start))
+    except:
+        sys.exit('Problem running\n%s' % (fasCmd))
+
 def main():
-    version = '2.2.2'
+    version = '2.2.3'
     parser = argparse.ArgumentParser(description='You are running h1s version ' + str(version) + '.')
     parser.add_argument('--version', action='version', version=str(version))
     required = parser.add_argument_group('Required arguments')
@@ -61,6 +156,7 @@ def main():
     addtionalIO.add_argument('--append', help='Append the output to existing output files', action='store_true', default=False)
     addtionalIO.add_argument('--force', help='Overwrite existing output files', action='store_true', default=False)
     addtionalIO.add_argument('--cleanup', help='Temporary output will be deleted. Default: True', action='store_true', default=True)
+    addtionalIO.add_argument('--keep', help='Keep output of individual seed sequence. Default: False', action='store_true', default=False)
     addtionalIO.add_argument('--group', help='Allows to limit the search to a certain systematic group', action='store', default='')
     addtionalIO.add_argument('--blast', help='Determine sequence id and refspec automatically. Note, the chosen sequence id and reference species does not necessarily reflect the species the sequence was derived from.',
                                 action='store_true', default=False)
@@ -156,6 +252,7 @@ def main():
     append = args.append
     force = args.force
     cleanup = args.cleanup
+    keep = args.keep
     group = args.group
     blast = args.blast
     db = args.db
@@ -234,38 +331,26 @@ def main():
     if showTaxa:
         h1sFn.getOneseqInfo(oneseqPath, '-showTaxa')
 
+    ### join options
+    options = [oneseqPath, refspec, minDist, maxDist, coreOrth,
+                append, force, cleanup, group, blast, db,
+                outpath, hmmpath, blastpath, searchpath, weightpath,
+                coreOnly, reuseCore, coreTaxa, coreStrict, CorecheckCoorthologsRef, coreRep, coreHitLimit, distDeviation,
+                fasoff, countercheck, coreFilter, minScore,
+                strict, checkCoorthologsRef, rbh, rep, ignoreDistance, lowComplexityFilterOff, evalBlast, evalHmmer, evalRelaxfac, hitLimit, autoLimit, scoreThreshold, scoreCutoff, aligner, local, glocal, searchTaxa,
+                cpu, hyperthread, debug, silent]
+
+    ### START
     h1sStart = time.time()
     seeds = [f for f in listdir(inFol) if isfile(join(inFol, f))]
     print('PID ' + str(os.getpid()))
+
     ### run core compilation
     if reuseCore == False:
-        print('Starting compiling core orthologs...')
-        start = time.time()
-        coreCompilationJobs = []
-        for seed in seeds:
-            seqFile = inFol + '/' + seed
-            seqName = seed.split('.')[0]
-            seqName = re.sub('[\|\.]', '_', seqName)
-            ### check input arguments
-            seqFile, hmmpath, blastpath, searchpath, weightpath = h1sFn.checkInput([oneseqPath, seqFile, refspec, outpath, hmmpath, blastpath, searchpath, weightpath])
-            # group arguments
-            basicArgs = [oneseqPath, seqFile, seqName, refspec, minDist, maxDist, coreOrth]
-            ioArgs = [append, force, cleanup, group, blast, db]
-            pathArgs = [outpath, hmmpath, blastpath, searchpath, weightpath]
-            coreArgs = [True, reuseCore, coreTaxa, coreStrict, CorecheckCoorthologsRef, coreRep, coreHitLimit, distDeviation]
-            fasArgs = [fasoff, countercheck, coreFilter, minScore]
-            hamstrArgs = [strict, checkCoorthologsRef, rbh, rep, ignoreDistance, lowComplexityFilterOff, evalBlast, evalHmmer, evalRelaxfac, hitLimit, autoLimit, scoreThreshold, scoreCutoff, aligner, local, glocal, searchTaxa]
-            otherArgs = [cpu, hyperthread, debug, True]
-            coreCompilationJobs.append([basicArgs, ioArgs, pathArgs, coreArgs, hamstrArgs, fasArgs, otherArgs, True])
-        pool = mp.Pool(cpu)
-        annoOut = []
-        for _ in tqdm(pool.imap_unordered(h1sFn.h1s, coreCompilationJobs), total=len(coreCompilationJobs)):
-            annoOut.append(_)
-        end = time.time()
-        print('==> Core compiling finished in ' + '{:5.3f}s'.format(end-start))
+        compileCore(options, seeds, inFol, cpu)
 
-    ### run ortholog search
-    # create list of search taxa
+    ### do ortholog search
+    ### create list of search taxa
     print('Creating list for search taxa...')
     searchTaxa = ''
     searchGroup = 'all'
@@ -277,71 +362,17 @@ def main():
             subprocess.call([cmd], shell = True)
         except:
             sys.exit('Problem running\n%s' % (cmd))
-
-    # do ortholog search
-    mute = False
-    if silent == True:
-        mute = True
+    ### run ortholog search
     if coreOnly == False:
-        print('Searching orthologs for...')
-        start = time.time()
-        for seed in seeds:
-            if mute == True:
-                print(seed)
-            else:
-                print('\n##### ' + seed)
-            seqFile = inFol + '/' + seed
-            seqName = seed.split('.')[0]
-            seqName = re.sub('[\|\.]', '_', seqName)
-            ### check input arguments
-            seqFile, hmmpath, blastpath, searchpath, weightpath = h1sFn.checkInput([oneseqPath, seqFile, refspec, outpath, hmmpath, blastpath, searchpath, weightpath])
-            # group arguments
-            basicArgs = [oneseqPath, seqFile, seqName, refspec, minDist, maxDist, coreOrth]
-            ioArgs = [append, force, cleanup, group, blast, db]
-            pathArgs = [outpath, hmmpath, blastpath, searchpath, weightpath]
-            coreArgs = [False, True, coreTaxa, coreStrict, CorecheckCoorthologsRef, coreRep, coreHitLimit, distDeviation]
-            fasArgs = [False, countercheck, coreFilter, minScore]
-            hamstrArgs = [strict, checkCoorthologsRef, rbh, rep, ignoreDistance, lowComplexityFilterOff, evalBlast, evalHmmer, evalRelaxfac, hitLimit, autoLimit, scoreThreshold, scoreCutoff, aligner, local, glocal, searchTaxa]
-            otherArgs = [cpu, hyperthread, debug, silent]
-            h1sFn.h1s([basicArgs, ioArgs, pathArgs, coreArgs, hamstrArgs, fasArgs, otherArgs, mute])
-        end = time.time()
-        print('==> Ortholog search finished in ' + '{:5.3f}s'.format(end-start))
-
-    ### join output
-    Path(outpath+'/'+jobName).mkdir(parents=True, exist_ok=True)
-    finalFa = '%s/%s.extended.fa' % (outpath, jobName)
-    with open(finalFa,'wb') as wfd:
-        for seed in seeds:
-            seqName = seed.split('.')[0]
-            seqName = re.sub('[\|\.]', '_', seqName)
-            # with open(outpath + '/' + seqName + '/' + seqName + '.extended.fa','rb') as fd:
-            #     shutil.copyfileobj(fd, wfd)
-            cpCmd = 'cp %s/%s/%s* %s/%s/' % (outpath, seqName, seqName, outpath, jobName)
-            try:
-                subprocess.call([cpCmd], shell = True)
-            except:
-                sys.exit('Problem running\n%s' % cpCmd)
-    mergeCmd = "mergeOutput1s -i %s/%s/ -o %s" % (outpath, jobName, jobName)
-    subprocess.call([mergeCmd], shell = True)
-    rmCmd = 'rm -rf %s/%s' % (outpath, jobName)
-    subprocess.call([rmCmd], shell = True)
-
-    ### calculate FAS scores
-    # if fasoff == False:
-    #     print('Starting calculating FAS scores...')
-    #     start = time.time()
-    #     fasCmd = 'hamstrFAS -i %s -w %s --cores %s' % (finalFa, weightpath, cpu)
-    #     try:
-    #         subprocess.call([fasCmd], shell = True)
-    #         end = time.time()
-    #         print('==> FAS calculation finished in ' + '{:5.3f}s'.format(end-start))
-    #     except:
-    #         sys.exit('Problem running\n%s' % (fasCmd))
-
+        searchOrtho(options, seeds, inFol, cpu)
+        ### join output
+        finalFa = joinOutputs(outpath, jobName, seeds, keep)
+        ### calculate FAS scores
+        if fasoff == False:
+            calcFAS(outpath, finalFa, weightpath, cpu)
 
     h1sEnd = time.time()
     print('==> h1s finished in ' + '{:5.3f}s'.format(h1sEnd-h1sStart))
-
 
 if __name__ == '__main__':
     main()

@@ -35,6 +35,7 @@ from ete3 import NCBITaxa
 import csv
 from io import StringIO
 import re
+import shutil
 from tqdm import tqdm
 
 def checkFileExist(file):
@@ -156,11 +157,9 @@ def main():
             flag = 1
             if taxName in genomeFiles:
                 if force:
-                    rmCmd = 'rm -rf %s/%s' % (outPath + "/genome_dir", taxName)
-                    subprocess.call([rmCmd], shell = True)
+                    shutil.rmtree(outPath + "/genome_dir/" + taxName)
                     if not noAnno:
-                        rmAnnoCmd = 'rm -rf %s/%s' % (outPath + "/weight_dir", taxName)
-                        subprocess.call([rmAnnoCmd], shell = True)
+                        shutil.rmtree(outPath + "/weight_dir/" + taxName)
                 else:
                     flag = 0
                 dupList[f] = taxName
