@@ -125,7 +125,7 @@ def calcFAS (outpath, extendedFa, weightpath, cpu):
         sys.exit('Problem running\n%s' % (fasCmd))
 
 def main():
-    version = '2.2.4'
+    version = '2.2.5'
     parser = argparse.ArgumentParser(description='You are running h1s version ' + str(version) + '.')
     parser.add_argument('--version', action='version', version=str(version))
     required = parser.add_argument_group('Required arguments')

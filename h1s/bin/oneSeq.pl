@@ -874,7 +874,7 @@ sub getFasScore{
 		} else {
 			my $lnCmd = "ln -fs $weightPath/$gene_set.json \"$coreOrthologsPath$seqName/fas_dir/annotation_dir/\"";
 			system($lnCmd);
-			my $fasOutTmp = `$fas_prog -s \"$coreOrthologsPath$seqName/$seqName.fa\" -q $blastPath/$gene_set/$gene_set.fa --query_id \"$gene_id\" -a \"$coreOrthologsPath$seqName/fas_dir/annotation_dir/\" -o \"$coreOrthologsPath$seqName/fas_dir/annotation_dir/\" --raw --tsv --domain | grep "#" | cut -f 3,4`;
+			my $fasOutTmp = `$fas_prog -s \"$coreOrthologsPath$seqName/$seqName.fa\" -q $blastPath/$gene_set/$gene_set.fa --query_id \"$gene_id\" -a \"$coreOrthologsPath$seqName/fas_dir/annotation_dir/\" -o \"$coreOrthologsPath$seqName/fas_dir/annotation_dir/\" --raw --tsv --domain --cpus 1 | grep "#" | cut -f 3,4`;
 			my @fasOutTmp = split(/\t/,$fasOutTmp);
 			$fas_box{$candidateIds[0]} = $fasOutTmp[1];
 		}
