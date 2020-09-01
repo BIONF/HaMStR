@@ -29,6 +29,17 @@ from tqdm import tqdm
 import h1s.h1s as h1sFn
 import shutil
 
+def getSortedFiles(directory):
+    list = os.listdir(directory)
+    pairs = []
+    for file in list:
+        location = os.path.join(directory, file)
+        if isfile(location):
+            size = os.path.getsize(location)
+            pairs.append((size, file))
+    pairs.sort(key=lambda s: s[0], reverse=True)
+    return([x[1] for x in pairs])
+
 def prepare(args, step):
     (seqFile, seqName, oneseqPath, refspec, minDist, maxDist, coreOrth,
     append, force, cleanup, group, blast, db,
@@ -125,7 +136,7 @@ def calcFAS (outpath, extendedFa, weightpath, cpu):
         sys.exit('Problem running\n%s' % (fasCmd))
 
 def main():
-    version = '2.2.5'
+    version = '2.2.6'
     parser = argparse.ArgumentParser(description='You are running h1s version ' + str(version) + '.')
     parser.add_argument('--version', action='version', version=str(version))
     required = parser.add_argument_group('Required arguments')
@@ -342,7 +353,7 @@ def main():
 
     ### START
     h1sStart = time.time()
-    seeds = [f for f in listdir(inFol) if isfile(join(inFol, f))]
+    seeds = getSortedFiles(inFol)
     print('PID ' + str(os.getpid()))
 
     ### run core compilation
