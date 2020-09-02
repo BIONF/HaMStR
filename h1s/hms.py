@@ -71,47 +71,82 @@ def prepare(args, step):
     otherArgs = [cpu, hyperthread, debug, True]
     return(basicArgs, ioArgs, pathArgs, coreArgs, hamstrArgs, fasArgs, otherArgs, mute)
 
-def compileCore(options, seeds, inFol, cpu):
+def getSeedName(seedFile):
+    seqName = seedFile.split('.')[0]
+    seqName = re.sub('[\|\.]', '_', seqName)
+    return(seqName)
+
+def getIndividualRuntim(step, outpath, seeds):
+    logFile = outpath + '/runtime_core.txt'
+    searchTerm = 'Core set compilation finished in'
+    if step == 'ortho':
+        logFile = outpath + '/runtime_ortho.txt'
+        searchTerm = 'Ortholog search completed in'
+    log = open(logFile, "w")
+    for seed in seeds:
+        seqName = getSeedName(seed)
+        with open(outpath + '/' + seqName + '/oneSeq.log', 'r') as f:
+            for line in f:
+                if searchTerm in line:
+                    runtime = line.split()[-2]
+                    log.write('%s\t%s\n' % (seqName, runtime))
+    log.close()
+
+def compileCore(options, seeds, inFol, cpu, outpath):
     print('Starting compiling core orthologs...')
     start = time.time()
     coreCompilationJobs = []
     for seed in seeds:
         seqFile = [inFol + '/' + seed]
-        seqName = seed.split('.')[0]
-        seqName = [re.sub('[\|\.]', '_', seqName)]
-        (basicArgs, ioArgs, pathArgs, coreArgs, hamstrArgs, fasArgs, otherArgs, mute) = prepare(seqFile + seqName + options, 'core')
+        seqName = getSeedName(seed)
+        (basicArgs, ioArgs, pathArgs, coreArgs, hamstrArgs, fasArgs, otherArgs, mute) = prepare(seqFile + [seqName] + options, 'core')
         coreCompilationJobs.append([basicArgs, ioArgs, pathArgs, coreArgs, hamstrArgs, fasArgs, otherArgs, mute])
     pool = mp.Pool(cpu)
     coreOut = []
     for _ in tqdm(pool.imap_unordered(h1sFn.h1s, coreCompilationJobs), total=len(coreCompilationJobs)):
         coreOut.append(_)
     end = time.time()
-    print('==> Core compiling finished in ' + '{:5.3f}s'.format(end-start))
+    # read logs file to get runtime for individual seeds
+    getIndividualRuntim('core', outpath, seeds)
+    # coreLog = open(outpath + '/runtime_core.txt', "w")
+    # for seed in seeds:
+    #     seqName = getSeedName(seed)
+    #     with open(outpath + '/' + seqName + '/oneSeq.log', 'r') as log:
+    #         for line in log:
+    #             if "Core set compilation finished in" in line:
+    #                 coreTime = line.split()[-2]
+    #                 coreLog.write('%s\t%s\n' % (seqName, coreTime))
+    # coreLog.close()
+    hmsCoreTime = '{:5.3f}'.format(end-start)
+    print('==> Core compiling finished in %s sec' % hmsCoreTime) #'{:5.3f}s'.format(end-start))
+    return(hmsCoreTime)
 
-def searchOrtho(options, seeds, inFol, cpu):
+def searchOrtho(options, seeds, inFol, cpu, outpath):
     print('Searching orthologs for...')
     start = time.time()
     coreCompilationJobs = []
     for seed in seeds:
         seqFile = [inFol + '/' + seed]
-        seqName = seed.split('.')[0]
-        seqName = [re.sub('[\|\.]', '_', seqName)]
-        (basicArgs, ioArgs, pathArgs, coreArgs, hamstrArgs, fasArgs, otherArgs, mute) = prepare(seqFile + seqName + options, 'ortholog')
+        seqName = getSeedName(seed)
+        (basicArgs, ioArgs, pathArgs, coreArgs, hamstrArgs, fasArgs, otherArgs, mute) = prepare(seqFile + [seqName] + options, 'ortholog')
         if mute == True:
             print(seed)
         else:
             print('\n##### ' + seed)
         h1sFn.h1s([basicArgs, ioArgs, pathArgs, coreArgs, hamstrArgs, fasArgs, otherArgs, mute])
     end = time.time()
-    print('==> Ortholog search finished in ' + '{:5.3f}s'.format(end-start))
+    # read logs file to get runtime for individual seeds
+    getIndividualRuntim('ortho', outpath, seeds)
+    hmsOrthoTime = '{:5.3f}'.format(end-start)
+    print('==> Ortholog search finished in %s sec' % hmsOrthoTime)
+    return(hmsOrthoTime)
 
 def joinOutputs(outpath, jobName, seeds, keep):
     finalFa = '%s/%s.extended.fa' % (outpath, jobName)
     Path(outpath+'/singleOutput').mkdir(parents=True, exist_ok=True)
     with open(finalFa,'wb') as wfd:
         for seed in seeds:
-            seqName = seed.split('.')[0]
-            seqName = re.sub('[\|\.]', '_', seqName)
+            seqName = getSeedName(seed)
             with open(outpath + '/' + seqName + '/' + seqName + '.extended.fa','rb') as fd:
                 shutil.copyfileobj(fd, wfd)
             shutil.move(outpath + '/' + seqName, outpath + '/singleOutput')
@@ -130,13 +165,16 @@ def calcFAS (outpath, extendedFa, weightpath, cpu):
     try:
         subprocess.call([fasCmd], shell = True)
         end = time.time()
-        shutil.rmtree(outpath + '/tmp')
-        print('==> FAS calculation finished in ' + '{:5.3f}s'.format(end-start))
+        if os.path.exists(outpath + '/tmp'):
+            shutil.rmtree(outpath + '/tmp')
+        fasTime = '{:5.3f}s'.format(end-start)
+        print('==> FAS calculation finished in %s sec' % fasTime)
+        return(fasTime)
     except:
         sys.exit('Problem running\n%s' % (fasCmd))
 
 def main():
-    version = '2.2.7'
+    version = '2.2.8'
     parser = argparse.ArgumentParser(description='You are running h1s version ' + str(version) + '.')
     parser.add_argument('--version', action='version', version=str(version))
     required = parser.add_argument_group('Required arguments')
@@ -352,38 +390,45 @@ def main():
                 cpu, hyperthread, debug, silent]
 
     ### START
+    hmsLog = open(outpath + '/' + jobName + '_log.txt', "w")
     h1sStart = time.time()
     seeds = getSortedFiles(inFol)
     print('PID ' + str(os.getpid()))
+    hmsLog.write('PID ' + str(os.getpid()) + '\n')
 
     ### run core compilation
     if reuseCore == False:
-        compileCore(options, seeds, inFol, cpu)
+        hmsCoreTime = compileCore(options, seeds, inFol, cpu, outpath)
+        hmsLog.write('==> Core compilation finished in %s sec\n' % hmsCoreTime)
 
     ### do ortholog search
-    ### create list of search taxa
-    searchTaxa = ''
-    searchGroup = 'all'
-    if not group == '':
-        print('Creating list for search taxa...')
-        searchTaxa = '%s/searchTaxa.txt' % (outpath)
-        searchGroup = group
-        cmd = 'perl %s/bin/getSearchTaxa.pl -i %s -b %s -h %s -r %s -n %s -t %s/taxonomy -o %s' % (oneseqPath, searchpath, evalBlast, evalHmmer, evalRelaxfac, searchGroup, oneseqPath, searchTaxa)
-        try:
-            subprocess.call([cmd], shell = True)
-        except:
-            sys.exit('Problem running\n%s' % (cmd))
-    ### run ortholog search
     if coreOnly == False:
-        searchOrtho(options, seeds, inFol, cpu)
+        ### create list of search taxa
+        searchTaxa = ''
+        searchGroup = 'all'
+        if not group == '':
+            print('Creating list for search taxa...')
+            searchTaxa = '%s/searchTaxa.txt' % (outpath)
+            searchGroup = group
+            cmd = 'perl %s/bin/getSearchTaxa.pl -i %s -b %s -h %s -r %s -n %s -t %s/taxonomy -o %s' % (oneseqPath, searchpath, evalBlast, evalHmmer, evalRelaxfac, searchGroup, oneseqPath, searchTaxa)
+            try:
+                subprocess.call([cmd], shell = True)
+            except:
+                sys.exit('Problem running\n%s' % (cmd))
+        ### run ortholog search
+        hmsOrthoTime = searchOrtho(options, seeds, inFol, cpu, outpath)
+        hmsLog.write('==> Ortholog search finished in %s sec\n' % hmsOrthoTime)
         ### join output
         finalFa = joinOutputs(outpath, jobName, seeds, keep)
         ### calculate FAS scores
         if fasoff == False:
-            calcFAS(outpath, finalFa, weightpath, cpu)
+            fasTime = calcFAS(outpath, finalFa, weightpath, cpu)
+            hmsLog.write('==> FAS calculation finished in %s sec\n' % fasTime)
 
     h1sEnd = time.time()
-    print('==> h1s finished in ' + '{:5.3f}s'.format(h1sEnd-h1sStart))
+    print('==> hms finished in ' + '{:5.3f}s'.format(h1sEnd-h1sStart))
+    hmsLog.write('==> hms finished in ' + '{:5.3f}s'.format(h1sEnd-h1sStart))
+    hmsLog.close()
 
 if __name__ == '__main__':
     main()
