@@ -117,9 +117,10 @@ my $startTime = gettime();
 ## Modified 13. July 2020 v1.8.0 (Vinh)	- added initial check, no longer use .mod files
 ## Modified 22. July 2020 v1.9.0 (Vinh)	- moved tmp blast files to output folder and delete them when finished
 ## Modified 27. Aug 2020 v2.1.0 (Vinh)	- option to input newick tree for search taxa
+## Modified 07. Sep 2020 v2.2.0 (Vinh)	- append seed sequence to output extended.fa if no ortholog was found in refspec
 
 ############ General settings
-my $version = 'oneSeq v.2.1.0';
+my $version = 'oneSeq v.2.2.0';
 ##### configure for checking if the setup.sh script already run
 my $configure = 0;
 if ($configure == 0){
@@ -1970,6 +1971,27 @@ sub runHamstr {
 				}
 			}
 			else {
+				# add seed sequence to output extended.fa if no ortholog was found in refSpec
+				if ($taxon eq $refSpec) {
+					my $seqio = Bio::SeqIO->new(-file => "$coreOrthologsPath/$seqName/$seqName.fa", '-format' => 'Fasta');
+					while(my $seq = $seqio->next_seq) {
+						my $id = $seq->id;
+						if ($seq->id =~ /$refSpec/) {
+							my $seedFa = ">".$id."|1\n".$seq->seq;
+							# append to begining of outputFa:
+							if ($outputFa !~ /extended/){
+								$outputFa .= '.extended';
+							}
+							unless (-e $outputFa) { system("touch $outputFa"); }
+							open OUTPUTFA, "+<".$outputFa;
+							my $str = do{local $/; <OUTPUTFA>};
+							seek OUTPUTFA, 0, 0;
+							print OUTPUTFA "Prepend this text.\n";
+							print OUTPUTFA $seedFa;
+							close (OUTPUTFA);
+						}
+					}
+				}
 				printDebug("$resultFile not found");
 			}
 		}
