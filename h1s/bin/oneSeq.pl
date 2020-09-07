@@ -1969,8 +1969,7 @@ sub runHamstr {
 					printDebug("$tailCommand\n");
 					system($tailCommand);
 				}
-			}
-			else {
+			} else {
 				# add seed sequence to output extended.fa if no ortholog was found in refSpec
 				if ($taxon eq $refSpec) {
 					my $seqio = Bio::SeqIO->new(-file => "$coreOrthologsPath/$seqName/$seqName.fa", '-format' => 'Fasta');
@@ -1983,12 +1982,8 @@ sub runHamstr {
 								$outputFa .= '.extended';
 							}
 							unless (-e $outputFa) { system("touch $outputFa"); }
-							open OUTPUTFA, "+<".$outputFa;
-							my $str = do{local $/; <OUTPUTFA>};
-							seek OUTPUTFA, 0, 0;
-							print OUTPUTFA "Prepend this text.\n";
-							print OUTPUTFA $seedFa;
-							close (OUTPUTFA);
+							my $tailCommand = "echo \"" . $seedFa . "\"" . " | cat - ". $outputFa . " > temp && mv temp " . $outputFa;
+							system($tailCommand);
 						}
 					}
 				}

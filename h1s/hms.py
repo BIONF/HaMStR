@@ -142,6 +142,7 @@ def searchOrtho(options, seeds, inFol, cpu, outpath):
     return(hmsOrthoTime)
 
 def joinOutputs(outpath, jobName, seeds, keep):
+    print('Joining single outputs...')
     finalFa = '%s/%s.extended.fa' % (outpath, jobName)
     Path(outpath+'/singleOutput').mkdir(parents=True, exist_ok=True)
     with open(finalFa,'wb') as wfd:
@@ -152,6 +153,7 @@ def joinOutputs(outpath, jobName, seeds, keep):
             shutil.move(outpath + '/' + seqName, outpath + '/singleOutput')
     if keep == True:
         try:
+            print('Compressing single outputs...')
             shutil.make_archive(outpath + '/' + jobName + '_singleOutput', 'gztar', outpath+'/singleOutput')
         except:
             shutil.make_archive(outpath + '/' + jobName + '_singleOutput', 'tar', outpath+'/singleOutput')
@@ -174,7 +176,7 @@ def calcFAS (outpath, extendedFa, weightpath, cpu):
         sys.exit('Problem running\n%s' % (fasCmd))
 
 def main():
-    version = '2.2.9'
+    version = '2.2.10'
     parser = argparse.ArgumentParser(description='You are running h1s version ' + str(version) + '.')
     parser.add_argument('--version', action='version', version=str(version))
     required = parser.add_argument_group('Required arguments')
