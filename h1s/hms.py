@@ -76,7 +76,7 @@ def getSeedName(seedFile):
     seqName = re.sub('[\|\.]', '_', seqName)
     return(seqName)
 
-def getIndividualRuntim(step, outpath, seeds):
+def getIndividualRuntime(step, outpath, seeds):
     logFile = outpath + '/runtime_core.txt'
     searchTerm = 'Core set compilation finished in'
     if step == 'ortho':
@@ -85,11 +85,16 @@ def getIndividualRuntim(step, outpath, seeds):
     log = open(logFile, "w")
     for seed in seeds:
         seqName = getSeedName(seed)
-        with open(outpath + '/' + seqName + '/oneSeq.log', 'r') as f:
-            for line in f:
-                if searchTerm in line:
-                    runtime = line.split()[-2]
-                    log.write('%s\t%s\n' % (seqName, runtime))
+        logFile = outpath + '/' + seqName + '/oneSeq.log'
+        if os.path.exists(logFile):
+            with open(logFile, 'r') as f:
+                for line in f:
+                    if searchTerm in line:
+                        runtime = line.split()[-2]
+                        log.write('%s\t%s\n' % (seqName, runtime))
+        else:
+            missing = open(outpath + '/missing.txt', 'a+')
+            missing.write(step + '\t' + seqName + '\n')
     log.close()
 
 def compileCore(options, seeds, inFol, cpu, outpath):
@@ -107,16 +112,7 @@ def compileCore(options, seeds, inFol, cpu, outpath):
         coreOut.append(_)
     end = time.time()
     # read logs file to get runtime for individual seeds
-    getIndividualRuntim('core', outpath, seeds)
-    # coreLog = open(outpath + '/runtime_core.txt', "w")
-    # for seed in seeds:
-    #     seqName = getSeedName(seed)
-    #     with open(outpath + '/' + seqName + '/oneSeq.log', 'r') as log:
-    #         for line in log:
-    #             if "Core set compilation finished in" in line:
-    #                 coreTime = line.split()[-2]
-    #                 coreLog.write('%s\t%s\n' % (seqName, coreTime))
-    # coreLog.close()
+    getIndividualRuntime('core', outpath, seeds)
     hmsCoreTime = '{:5.3f}'.format(end-start)
     print('==> Core compiling finished in %s sec' % hmsCoreTime) #'{:5.3f}s'.format(end-start))
     return(hmsCoreTime)
@@ -136,7 +132,7 @@ def searchOrtho(options, seeds, inFol, cpu, outpath):
         h1sFn.h1s([basicArgs, ioArgs, pathArgs, coreArgs, hamstrArgs, fasArgs, otherArgs, mute])
     end = time.time()
     # read logs file to get runtime for individual seeds
-    getIndividualRuntim('ortho', outpath, seeds)
+    getIndividualRuntime('ortho', outpath, seeds)
     hmsOrthoTime = '{:5.3f}'.format(end-start)
     print('==> Ortholog search finished in %s sec' % hmsOrthoTime)
     return(hmsOrthoTime)
@@ -148,9 +144,15 @@ def joinOutputs(outpath, jobName, seeds, keep):
     with open(finalFa,'wb') as wfd:
         for seed in seeds:
             seqName = getSeedName(seed)
-            with open(outpath + '/' + seqName + '/' + seqName + '.extended.fa','rb') as fd:
-                shutil.copyfileobj(fd, wfd)
-            shutil.move(outpath + '/' + seqName, outpath + '/singleOutput')
+            resultFile = '%s/%s/%s.extended.fa'  % (outpath, seqName, seqName)
+            if os.path.exists(resultFile):
+                with open(resultFile,'rb') as fd:
+                    shutil.copyfileobj(fd, wfd)
+                shutil.move(outpath + '/' + seqName, outpath + '/singleOutput')
+            else:
+                Path(outpath+'/missingOutput').mkdir(parents=True, exist_ok=True)
+                shutil.move(outpath + '/' + seqName, outpath + '/missingOutput')
+                os.remove(outpath + '/' + seqName + '.fa')
     if keep == True:
         try:
             print('Compressing single outputs...')
@@ -176,7 +178,7 @@ def calcFAS (outpath, extendedFa, weightpath, cpu):
         sys.exit('Problem running\n%s' % (fasCmd))
 
 def main():
-    version = '2.2.10'
+    version = '2.2.11'
     parser = argparse.ArgumentParser(description='You are running h1s version ' + str(version) + '.')
     parser.add_argument('--version', action='version', version=str(version))
     required = parser.add_argument_group('Required arguments')
