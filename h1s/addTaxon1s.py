@@ -82,7 +82,7 @@ def runBlast(args):
 
 
 def main():
-    version = '1.1.0'
+    version = '1.1.1'
     parser = argparse.ArgumentParser(description='You are running addTaxon1s version ' + str(version) + '.')
     required = parser.add_argument_group('required arguments')
     optional = parser.add_argument_group('optional arguments')
@@ -182,7 +182,8 @@ def main():
         cf.write(str(datetime.now()))
         cf.close()
         # warning about long header
-        print('\033[91mWARNING: Headers are longer than 80 characters. It could cause some troubles!\033[0m')
+        if longId == 'yes':
+            print('\033[91mWARNING: Headers are longer than 80 characters. It could cause some troubles!\033[0m')
     else:
         print(genomePath + '/' + specName + '.fa already exists!')
 
