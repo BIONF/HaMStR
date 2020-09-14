@@ -73,16 +73,17 @@ def getTaxName(taxId):
 def runBlast(args):
     (specName, specFile, outPath) = args
     blastCmd = 'makeblastdb -dbtype prot -in %s -out %s/blast_dir/%s/%s' % (specFile, outPath, specName, specName)
-    subprocess.call([blastCmd], shell = True)
+    try:
+        subprocess.call([blastCmd], shell = True)
+    except:
+        sys.exit('Problem with running %s' % blastCmd)
     fileInGenome = "%s/genome_dir/%s/%s.fa" % (outPath, specName, specName)
     fileInBlast = "%s/blast_dir/%s/%s.fa" % (outPath, specName, specName)
     if not Path(fileInBlast).exists():
-        lnCmd = 'ln -fs %s %s' % (fileInGenome, fileInBlast)
-        subprocess.call([lnCmd], shell = True)
-
+        os.symlink(fileInGenome, fileInBlast)
 
 def main():
-    version = '1.1.1'
+    version = '1.1.2'
     parser = argparse.ArgumentParser(description='You are running addTaxon1s version ' + str(version) + '.')
     required = parser.add_argument_group('required arguments')
     optional = parser.add_argument_group('optional arguments')
