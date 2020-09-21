@@ -30,9 +30,12 @@ def checkOptConflict(lib, conda):
 def main():
     version = '1.0.0'
     parser = argparse.ArgumentParser(description='You are running setup1s version ' + str(version) + '.')
-    parser.add_argument('-o', '--outPath', help='Output path for hamstr1s data', action='store', default='', required=True)
-    parser.add_argument('--conda', help='Setup HaMStR-oneSeq within a conda env', action='store_true', default=False)
-    parser.add_argument('--lib', help='Install HaMStR-oneSeq libraries only', action='store_true', default=False)
+    required = parser.add_argument_group('required arguments')
+    optional = parser.add_argument_group('optional arguments')
+    required.add_argument('-o', '--outPath', help='Output path for h1s data', action='store', default='', required=True)
+    optional.add_argument('--conda', help='Setup h1s within a conda env', action='store_true', default=False)
+    optional.add_argument('--lib', help='Install h1s libraries only', action='store_true', default=False)
+    optional.add_argument('--getPath', help='Get path to installed h1s', action='store_true', default=False)
 
     ### get arguments
     args = parser.parse_args()
@@ -42,6 +45,10 @@ def main():
     outPath = args.outPath
     Path(outPath).mkdir(parents = True, exist_ok = True)
     oneseqPath = os.path.realpath(__file__).replace('/setup1s.py','')
+    ### get path
+    if args.getPath:
+        print(oneseqPath)
+        sys.exit()
     ### run setup
     if conda:
         setupFile = '%s/setup/setup_conda.sh -o %s' % (oneseqPath, outPath)

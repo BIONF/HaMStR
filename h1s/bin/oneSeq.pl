@@ -653,10 +653,15 @@ if(!$coreOnly){
 	print "Starting the feature architecture similarity score computation...\n";
 	my $processID = $$;
 
+	# check if final extended.fa exists
 	unless (-e $finalOutput) {
 		die "ERROR: Could not find $finalOutput\n";
 	}
 
+	# check and add seed to final extended.fa if needed
+	addSeedSeq($seqName, $coreOrthologsPath, $refSpec, $finalOutput);
+
+	# calculate FAS scores for final extended.fa
 	if ($fas_support) {
 		my $hamstrFAScmd = "$hamstrFAS_prog -i $finalOutput -w $weightPath -t $tmpdir -o $outputPath --cores $cpu";
 		unless ($countercheck) {
@@ -1000,8 +1005,10 @@ sub runAutoCleanUp {
 	system ($delCommandTmp) == 0 or die "Error deleting result files\n";
 	my $seedName = $seqName . '_seed';
 	my $annopath = $coreOrthologsPath.$seqName."/fas_dir/annotation_dir";
-	my $delLnSeedFile = "rm $currDir/$seqFile";
-	system ($delLnSeedFile);
+	if( -l "$currDir/$seqFile" ) {
+		my $delLnSeedFile = "rm $currDir/$seqFile";
+		system ($delLnSeedFile);
+	}
 	unless ($silent) {
 		print "Deleting $annopath\n";
 	}
@@ -1160,7 +1167,9 @@ sub checkOptions {
 		if (length $seqFile > 0){
 			if (-e $seqFile) {
 				my @seqFileTMP = split(/\//, $seqFile);
-				system("ln -fs \"$seqFile\" \"$currDir/$seqFileTMP[@seqFileTMP-1]\"");
+				unless (-e "$currDir/$seqFileTMP[@seqFileTMP-1]") {
+					system("ln -fs \"$seqFile\" \"$currDir/$seqFileTMP[@seqFileTMP-1]\"");
+				}
 				$seqFile = $seqFileTMP[@seqFileTMP-1];
 			} else {
 				printOut("\nThe specified file $seqFile does not exist!\n",1);
@@ -1949,10 +1958,10 @@ sub runHamstr {
 			printDebug(@hamstr);
 			system(@hamstr) == 0 or die "Error: hamstr failed for " . $taxon . "\n";
 
+			if ($outputFa !~ /extended/){
+				$outputFa .= '.extended';
+			}
 			if(-e $resultFile) {
-				if ($outputFa !~ /extended/){
-					$outputFa .= '.extended';
-				}
 				unless (-e $outputFa) { system("touch $outputFa"); }
 				## Baustelle: check that this also works with the original hamstrcore module as here a tail command was used.
 				printDebug("Post-processing of HaMStR\n");
@@ -1972,20 +1981,7 @@ sub runHamstr {
 			} else {
 				# add seed sequence to output extended.fa if no ortholog was found in refSpec
 				if ($taxon eq $refSpec) {
-					my $seqio = Bio::SeqIO->new(-file => "$coreOrthologsPath/$seqName/$seqName.fa", '-format' => 'Fasta');
-					while(my $seq = $seqio->next_seq) {
-						my $id = $seq->id;
-						if ($seq->id =~ /$refSpec/) {
-							my $seedFa = ">".$id."|1\n".$seq->seq;
-							# append to begining of outputFa:
-							if ($outputFa !~ /extended/){
-								$outputFa .= '.extended';
-							}
-							unless (-e $outputFa) { system("touch $outputFa"); }
-							my $tailCommand = "echo \"" . $seedFa . "\"" . " | cat - ". $outputFa . " > temp && mv temp " . $outputFa;
-							system($tailCommand);
-						}
-					}
+					addSeedSeq($seqName, $coreOrthologsPath, $refSpec, $outputFa);
 				}
 				printDebug("$resultFile not found");
 			}
@@ -2017,6 +2013,38 @@ sub runHamstr {
 	}
 	else {
 		print "No protein set available for $taxon. Failed to fetch it from database and nothing at $taxaDir. Skipping!\n";
+	}
+}
+
+# add seed sequence to output file if not exists
+sub addSeedSeq {
+	my ($seqName, $coreOrthologsPath, $refSpec, $outputFa) = @_;
+	# check if outputFa has seed seq
+	my $flag = 1;
+	unless (-e $outputFa) {
+		system("touch $outputFa");
+	} else {
+		my $seqio2 = Bio::SeqIO->new(-file => $outputFa, '-format' => 'Fasta');
+		while(my $seq2 = $seqio2->next_seq) {
+			if ($seq2->id =~ /$refSpec/) {
+				$flag = 0;
+				last;
+			}
+		}
+	}
+	# get seed seq
+	if ($flag == 1) {
+		my $seqio = Bio::SeqIO->new(-file => "$coreOrthologsPath/$seqName/$seqName.fa", '-format' => 'Fasta');
+		while(my $seq = $seqio->next_seq) {
+			my $id = $seq->id;
+			if ($id =~ /$refSpec/) {
+				my $seedFa = ">".$id."|1\n".$seq->seq;
+
+				# append to begining of outputFa
+				my $tailCommand = "echo \"" . $seedFa . "\"" . " | cat - ". $outputFa . " > temp && mv temp " . $outputFa;
+				system($tailCommand);
+			}
+		}
 	}
 }
 
