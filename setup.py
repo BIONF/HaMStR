@@ -50,6 +50,7 @@ setup(
                             "checkData1s = h1s.checkData1s:main",
                             "addTaxon1s = h1s.addTaxon1s:main",
                             "addTaxa1s = h1s.addTaxa1s:main",
+                            "showTaxa1s = h1s.showTaxa1s:main",
                             "mergeOutput1s = h1s.mergeOutput1s:main",
                             "remove1s = h1s.remove1s:main"],
     },

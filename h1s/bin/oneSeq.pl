@@ -232,7 +232,7 @@ my $inst_eval_filter = 0.01;
 
 my $help;
 my @profile = qw();
-my $showTaxa;
+# my $showTaxa;
 my $refSpec;
 my $seqFile = '';
 my $seqId= '';
@@ -301,7 +301,7 @@ my $searchTaxa;
 GetOptions (
 	"h"                 => \$help,
 	"append"	=> \$append,
-	"showTaxa"          => \$showTaxa,
+	# "showTaxa"          => \$showTaxa,
 	"refSpec=s"         => \$refSpec,
 	"db"                => \$dbmode,
 	"filter=s"          => \$filter,
@@ -372,7 +372,7 @@ $genome_dir = abs_path($genome_dir)."/";
 $taxaPath = $genome_dir;
 
 ############# do initial check
-if (!defined $help && !defined $getversion && !defined $showTaxa) {
+if (!defined $help && !defined $getversion) { #} && !defined $showTaxa) {
 	print "Validity checking....\n";
 	my $checkStTime = gettime();
 	initialCheck($seqFile, $seqName, $blastPath, $taxaPath, $weightPath, $fasoff);
@@ -414,12 +414,12 @@ if ($dbmode) {
 }
 
 ############# show all taxa
-if ($showTaxa) {
-	#get all taxa from database
-	#hash example: sacce_2336 -> NCBI ID for sacce_2336
-	printTaxa();
-	exit;
-}
+# if ($showTaxa) {
+# 	#get all taxa from database
+# 	#hash example: sacce_2336 -> NCBI ID for sacce_2336
+# 	printTaxa();
+# 	exit;
+# }
 
 #switched from online version to flatfile because it is much faster
 #taxon files can be downloaded from: ftp://ftp.ncbi.nih.gov/pub/taxonomy/
@@ -1967,9 +1967,9 @@ sub runHamstr {
 				printDebug("Post-processing of HaMStR\n");
 				my $tailCommand = "";
 				if ($taxon eq $refSpec) {
-					$tailCommand = "$grepprog -A 1 '$taxon.*|1\$' \"" . $resultFile . "\" |sed -e 's/\\([^|]\\{1,\\}\\)|[^|]*|\\([^|]\\{1,\\}\\)|\\([^|]\\{1,\\}\\)|\\([01]\\)\$/\\1|\\2|\\3|\\4/'". " | cat - ". $outputFa . " > temp && mv temp " . $outputFa;
-					printDebug("$tailCommand\n");
-					system($tailCommand);
+					# $tailCommand = "$grepprog -A 1 '$taxon.*|1\$' \"" . $resultFile . "\" |sed -e 's/\\([^|]\\{1,\\}\\)|[^|]*|\\([^|]\\{1,\\}\\)|\\([^|]\\{1,\\}\\)|\\([01]\\)\$/\\1|\\2|\\3|\\4/'". " | cat - ". $outputFa . " > " . "$outputFa.temp && mv $outputFa.temp " . $outputFa;
+					# printDebug("$tailCommand\n");
+					# system($tailCommand);
 					$tailCommand = "$grepprog -A 1 '$taxon.*|0\$' \"" . $resultFile . "\" |sed -e 's/\\([^|]\\{1,\\}\\)|[^|]*|\\([^|]\\{1,\\}\\)|\\([^|]\\{1,\\}\\)|\\([01]\\)\$/\\1|\\2|\\3|\\4/' >> \"" . $outputFa. "\"";
 					printDebug("$tailCommand\n");
 					system($tailCommand);
@@ -2039,10 +2039,9 @@ sub addSeedSeq {
 			my $id = $seq->id;
 			if ($id =~ /$refSpec/) {
 				my $seedFa = ">".$id."|1\n".$seq->seq;
-
 				# append to begining of outputFa
-				my $tailCommand = "echo \"" . $seedFa . "\"" . " | cat - ". $outputFa . " > temp && mv temp " . $outputFa;
-				system($tailCommand);
+				my $headCommand = "sed -i \'1s/^/". ">".$id."|1\\n".$seq->seq . "\\n/\' " . $outputFa;
+				system($headCommand);
 			}
 		}
 	}
@@ -2088,29 +2087,29 @@ sub parseTaxaFile {
 	return @userTaxa;
 }
 ##########################
-sub printTaxa {
-	my @result = qw();
-	if ($dbmode) {
-		print "taxon_schema\tsource_id\ttaxon name\n";
-		print "------------\t---------\t----------\n";
-		my ($sql) = "select t.name, c.taxon_db, c.max_source_id from taxon t, cproteome_list.list c where t.taxon_id=c.taxon_id";
-		my ($query) = $dbHandle->prepare($sql);
-		$query->execute();
-		@result = $query->fetchrow_array;
-		while(my @result = $query->fetchrow_array) {
-			print $result[1] . " \t" . $result[2] . "\t" . $result[0] . "\n";
-		}
-	}
-	else {
-		print "Taxon_Name\tNCBI_ID\n";
-		print "-------------\t------------\n";
-		my $taxacall= "ls $genome_dir |$sedprog -e 's/@/\t/'";
-		@result = `$taxacall`;
-		chomp @result;
-		print join "\n", @result;
-		print "\n";
-	}
-}
+# sub printTaxa {
+# 	my @result = qw();
+# 	if ($dbmode) {
+# 		print "taxon_schema\tsource_id\ttaxon name\n";
+# 		print "------------\t---------\t----------\n";
+# 		my ($sql) = "select t.name, c.taxon_db, c.max_source_id from taxon t, cproteome_list.list c where t.taxon_id=c.taxon_id";
+# 		my ($query) = $dbHandle->prepare($sql);
+# 		$query->execute();
+# 		@result = $query->fetchrow_array;
+# 		while(my @result = $query->fetchrow_array) {
+# 			print $result[1] . " \t" . $result[2] . "\t" . $result[0] . "\n";
+# 		}
+# 	}
+# 	else {
+# 		print "Taxon_Name\tNCBI_ID\n";
+# 		print "-------------\t------------\n";
+# 		my $taxacall= "ls $genome_dir |$sedprog -e 's/@/\t/'";
+# 		@result = `$taxacall`;
+# 		chomp @result;
+# 		print join "\n", @result;
+# 		print "\n";
+# 	}
+# }
 ###########################
 sub printTaxonomy {
 	my $node = $_[0];
@@ -2582,7 +2581,7 @@ sub initialCheck {
 
 sub getGenomeFile {
 	my ($folder, $filename) = @_;
-	chomp(my $faFile = `ls $folder/$filename.fa* | $grepprog -v \"checked\\|mod\\|tmp\"`);
+	chomp(my $faFile = `ls $folder/$filename.fa* | $grepprog -v \"\\.checked\\|\\.mod\\|\\.tmp\"`);
 	my $out = $faFile;
 	chomp(my $link = `$readlinkprog -f $faFile`);
 	if ($link ne "") {
@@ -2631,8 +2630,6 @@ ${bold}GENERAL$norm
 	Invoke this help method
 -version
 	Print the program version
--showTaxa
-	Print availible Taxa (dependent on the on/off status of database mode)
 
 ${bold}REQUIRED$norm
 
