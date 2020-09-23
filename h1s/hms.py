@@ -178,7 +178,7 @@ def calcFAS (outpath, extendedFa, weightpath, cpu):
         sys.exit('Problem running\n%s' % (fasCmd))
 
 def main():
-    version = '2.2.14'
+    version = '2.2.15'
     parser = argparse.ArgumentParser(description='You are running h1s version ' + str(version) + '.')
     parser.add_argument('--version', action='version', version=str(version))
     required = parser.add_argument_group('Required arguments')
@@ -276,11 +276,8 @@ def main():
     optional = parser.add_argument_group('Other options')
     optional.add_argument('--cpu', help='Determine the number of threads to be run in parallel. Default: 4', action='store', default=4, type=int)
     optional.add_argument('--hyperthread', help='Set this flag to use hyper threading. Default: False', action='store_true', default=False)
-    optional.add_argument('--showTaxa', help='Print availible taxa', action='store_true', default=False)
     optional.add_argument('--debug', help='Set this flag to obtain more detailed information about the programs actions', action='store_true', default=False)
     optional.add_argument('--silentOff', help='Show more output to terminal', action='store_true', default=False)
-    optional.add_argument('--oneseqHelp', help='Print help of HaMStR-oneSeq', action='store_true', default=False)
-    optional.add_argument('--oneseqVersion', help='Print version of HaMStR-oneSeq', action='store_true', default=False)
 
     ### get arguments
     args = parser.parse_args()
@@ -354,9 +351,6 @@ def main():
         silent = False
     else:
         silent = True
-    showTaxa = args.showTaxa
-    oneseqHelp = args.oneseqHelp
-    oneseqVersion = args.oneseqVersion
 
     ### get oneSeq and data path
     oneseqPath = os.path.realpath(__file__).replace('/hms.py','')
@@ -373,16 +367,6 @@ def main():
         searchpath = dataPath + '/genome_dir'
     if weightpath == '':
         weightpath = dataPath + '/weight_dir'
-
-    ### print oneSeq help
-    if oneseqHelp:
-        h1sFn.getOneseqInfo(oneseqPath, '-h')
-    ### print oneSeq version
-    if oneseqVersion:
-        h1sFn.getOneseqInfo(oneseqPath, '-version')
-    ### print available taxa
-    if showTaxa:
-        h1sFn.getOneseqInfo(oneseqPath, '-showTaxa')
 
     ### join options
     options = [oneseqPath, refspec, minDist, maxDist, coreOrth,

@@ -118,9 +118,10 @@ my $startTime = gettime();
 ## Modified 22. July 2020 v1.9.0 (Vinh)	- moved tmp blast files to output folder and delete them when finished
 ## Modified 27. Aug 2020 v2.1.0 (Vinh)	- option to input newick tree for search taxa
 ## Modified 07. Sep 2020 v2.2.0 (Vinh)	- append seed sequence to output extended.fa if no ortholog was found in refspec
+## Modified 22. Sep 2020 v2.2.1 (Vinh)	- make sure that seed sequence always at the beginning of extended.fa output
 
 ############ General settings
-my $version = 'oneSeq v.2.2.0';
+my $version = 'oneSeq v.2.2.1';
 ##### configure for checking if the setup.sh script already run
 my $configure = 0;
 if ($configure == 0){
