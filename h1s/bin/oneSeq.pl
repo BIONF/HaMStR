@@ -119,9 +119,10 @@ my $startTime = gettime();
 ## Modified 27. Aug 2020 v2.1.0 (Vinh)	- option to input newick tree for search taxa
 ## Modified 07. Sep 2020 v2.2.0 (Vinh)	- append seed sequence to output extended.fa if no ortholog was found in refspec
 ## Modified 22. Sep 2020 v2.2.1 (Vinh)	- make sure that seed sequence always at the beginning of extended.fa output
+## Modified 23. Sep 2020 v2.2.3 (Vinh)	- use full taxonomy name instead of abbr taxon name for LOG
 
 ############ General settings
-my $version = 'oneSeq v.2.2.1';
+my $version = 'oneSeq v.2.2.2';
 ##### configure for checking if the setup.sh script already run
 my $configure = 0;
 if ($configure == 0){
@@ -431,6 +432,7 @@ my $db = Bio::DB::Taxonomy->new(-source    => 'flatfile',
 	-namesfile => $idx_dir . 'names.dmp',
 	-directory => $idx_dir);
 my $indexTime = gettime() - $indexStart;
+my $db_bkp = $db;
 print "Indexing done in ",roundtime($indexTime)," sec!\n";
 
 %taxa = getTaxa();
@@ -637,10 +639,17 @@ if (!$coreOnly) {
 		$pm = new Parallel::ForkManager($cpu*2);
 	}
 
-	foreach (@searchTaxa) {
+	foreach (sort @searchTaxa) {
 		chomp(my $searchTaxon = $_);
 		my $pid = $pm->start and next;
-		runHamstr($searchTaxon, $seqName, $finalOutput, $refSpec, $hitlimit, $representative, $strict, $coremode, $final_eval_blast, $final_eval_hmmer, $aln);
+		my $doneTaxon = runHamstr($searchTaxon, $seqName, $finalOutput, $refSpec, $hitlimit, $representative, $strict, $coremode, $final_eval_blast, $final_eval_hmmer, $aln);
+		unless ($silent) {
+			print $doneTaxon,"\t";
+		}
+		my $doneTaxonName = getTaxonName($doneTaxon);
+		if (defined($doneTaxonName)) {
+			print $doneTaxonName, " DONE\n";
+		}
 		$pm->finish;
 	}
 	$pm->wait_all_children;
@@ -1267,24 +1276,25 @@ sub checkOptions {
 
 			while (($input !~ /^[aor]/i) and ($breaker < 4)) {
 				$breaker++;
-				$input = getInput("\nAn outputfile $finalOutput already exists. Shall I overwrite it [o], or rename it [r], or [a] append to it?", 1);
-				if (($breaker > 3) and ($input !~ /[aor]/i)){
-					print "Please consider option -force or option -append.\n";
-					die "No proper answer is given: Quitting\n";
-				}
+				die "\nAn outputfile $finalOutput already exists. Please consider option -force for overwriting it or option -append for appending to it.\n"
+				# $input = getInput("\nAn outputfile $finalOutput already exists. Shall I overwrite it [o], or rename it [r], or [a] append to it?", 1);
+				# if (($breaker > 3) and ($input !~ /[aor]/i)){
+				# 	print "Please consider option -force or option -append.\n";
+				# 	die "No proper answer is given: Quitting\n";
+				# }
 			}
-			if ($input =~ /[aA]/) {
-				$append = 1;
-				$force = 0;
-			}
-			elsif ($input =~ /[oO]/){
-				$append = 0;
-				$force = 1;
-			}
-			else {
-				$append = 0;
-				$force = 0;
-			}
+			# if ($input =~ /[aA]/) {
+			# 	$append = 1;
+			# 	$force = 0;
+			# }
+			# elsif ($input =~ /[oO]/){
+			# 	$append = 0;
+			# 	$force = 1;
+			# }
+			# else {
+			# 	$append = 0;
+			# 	$force = 0;
+			# }
 		}
 		if ($force){
 			## the user wants to overwrite
@@ -1557,7 +1567,14 @@ sub getBestOrtholog {
 			unless ($silent) {
 				print "Hamstr species: " . $key->scientific_name . " - " . @{$key->name('supplied')}[0] . "\n";
 			}
-			runHamstr(@{$key->name('supplied')}[0], $seqName, $outputFa, $refSpec, $core_hitlimit, $core_rep, $corestrict, $coremode, $eval_blast, $eval_hmmer, $aln);
+			my $doneTaxon = runHamstr(@{$key->name('supplied')}[0], $seqName, $outputFa, $refSpec, $core_hitlimit, $core_rep, $corestrict, $coremode, $eval_blast, $eval_hmmer, $aln);
+			unless ($silent) {
+				print $doneTaxon,"\t";
+			}
+			my $doneTaxonName = getTaxonName($doneTaxon);
+			if (defined($doneTaxonName)) {
+				print $doneTaxonName, " DONE\n";
+			}
 			## check weather a candidate was found in the searched taxon
 			if(-e $candidatesFile) {
 
@@ -1879,6 +1896,16 @@ sub getRefTree {
 	return $tree;
 }
 
+sub getTaxonName {
+	my $taxAbbr = $_[0];
+	my @tmp = split(/@/,$taxAbbr);
+	my $taxon = $db_bkp->get_taxon($tmp[1]);
+	if (defined($taxon)) {
+		return($taxon->scientific_name);
+	} else {
+		return("Unk NCBI taxon");
+	}
+}
 
 ##################### perform the hamstr search for orthologs
 # using the core-orthologs found in the previous steps
@@ -2015,6 +2042,7 @@ sub runHamstr {
 	else {
 		print "No protein set available for $taxon. Failed to fetch it from database and nothing at $taxaDir. Skipping!\n";
 	}
+	return($taxon);
 }
 
 # add seed sequence to output file if not exists

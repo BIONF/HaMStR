@@ -765,7 +765,7 @@ Number of ortholog_groups extended: $ortholog_groups
 Number of orthologous sequences: $orthologs
 ##############################\n\n";
 } else {
-	print "$taxon_global done\n";
+	# print "$taxon_global done\n";
 }
 exit;
 
