@@ -564,7 +564,8 @@ if (!$coreex) {
 		clearTmpFiles();
 
 		my $addedTaxon = getBestOrtholog();
-		print "Added TAXON: " . $addedTaxon . "\n";
+		my $addedTaxonName = getTaxonName($addedTaxon);
+		print "Added TAXON: $addedTaxon\_$addedTaxonName\n";
 		#if a new core ortholog was found
 		if($addedTaxon ne "") {
 			$hamstrSpecies = $hamstrSpecies . "," . $addedTaxon;

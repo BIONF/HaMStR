@@ -161,7 +161,7 @@ def h1s(args):
         sys.exit('Problem running\n%s' % (cmd))
 
 def main():
-    version = '2.2.16'
+    version = '2.2.17'
     parser = argparse.ArgumentParser(description='You are running h1s version ' + str(version) + '.')
     parser.add_argument('--version', action='version', version=str(version))
     required = parser.add_argument_group('Required arguments')
