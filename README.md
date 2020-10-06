@@ -1,3 +1,5 @@
+### *NOTE: This is the last version of HaMStR-oneSeq (or h1s). If you want to be up-to-date, please use [fDOG](https://github.com/BIONF/fDOG) instead. The functions are renamed (e.g. `fdog.run` for `h1s`, `fdog.setup` for `setup1s`, etc.), but their parameters are mostly unchanged. Please check [fDOG's documentation](https://github.com/BIONF/fDOG/wiki) for more details.*
+
 # HaMStR-OneSeq
 [![PyPI version](https://badge.fury.io/py/h1s.svg)](https://pypi.org/project/h1s/)
 [![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](https://www.gnu.org/licenses/gpl-3.0)
